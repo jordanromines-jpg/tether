@@ -72,7 +72,7 @@ Details, including what to do if a device is lost: [SECURITY.md](SECURITY.md).
 
 ## How it works
 
-Six diagrams map Tether end to end. They're generated with [Archify](https://github.com/tt-a1i/archify) from the source code: every box links to the exact file and lines that implement it, pinned to a commit.
+Three diagrams map Tether end to end. They're generated with [Archify](https://github.com/tt-a1i/archify) from the source code: every box links to the exact file and lines that implement it, pinned to a commit.
 
 Each picture links to an **interactive version** on GitHub Pages ([all diagrams](https://jordanromines-jpg.github.io/tether/)). There you can:
 - click any box to see its source links;
@@ -91,34 +91,19 @@ Everything that runs, where it runs, and how it connects: your device's browser 
 
 ### 2. One session, step by step
 
-A real session, split across four sequence diagrams.
+A whole session in one vertical timeline, read top to bottom. The columns are who acts: your device, Tailscale and the server gate, the Hub, and the Mac side (capture, input, macOS). Each numbered box is one step, labeled with who sent it to whom. The 43 steps are grouped into eight phases:
+1. lock check
+2. passkey unlock
+3. WebSocket hello
+4. first frame
+5. the live loop with Auto quality
+6. input
+7. clipboard and sound
+8. teardown
 
-**① Access:** the lock check on every load, and the optional Face ID / Touch ID passkey unlock.
-
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/sequence-1-access.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-1-access-dark.png">
-  <img alt="Sequence: lock check and passkey unlock" src="docs/diagrams/sequence-1-access-light.png">
-</picture></a>
-
-**② Connect:** the WebSocket handshake, codec negotiation (HEVC or H.264) and the instant first frame.
-
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/sequence-2-connect.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-2-connect-dark.png">
-  <img alt="Sequence: WebSocket hello, codec choice and first keyframe" src="docs/diagrams/sequence-2-connect-light.png">
-</picture></a>
-
-**③ Live:** the video loop with backpressure, the cursor drawn on your device, Auto quality, and how a tap becomes a real macOS event.
-
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/sequence-3-live.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-3-live-dark.png">
-  <img alt="Sequence: live video, Auto quality and input injection" src="docs/diagrams/sequence-3-live-light.png">
-</picture></a>
-
-**④ Extras:** clipboard sync, sound, and what gets cleaned up when you disconnect.
-
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/sequence-4-extras.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-4-extras-dark.png">
-  <img alt="Sequence: clipboard, audio and teardown" src="docs/diagrams/sequence-4-extras-light.png">
+<a href="https://jordanromines-jpg.github.io/tether/diagrams/session.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/session-dark.png">
+  <img alt="Tether session timeline: 43 numbered steps from lock check to teardown across four columns" src="docs/diagrams/session-light.png">
 </picture></a>
 
 ### 3. Setup
