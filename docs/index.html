@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tether — diagrams</title>
+<meta name="description" content="Interactive, source-linked diagrams of Tether: control your Mac from any device over Tailscale.">
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#15171a; --muted:#5d6470; --line:#e3e6ea; --accent:#2563eb; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0d10; --card:#14171c; --text:#eef0f3; --muted:#9aa3ae; --line:#252a31; --accent:#6ea8ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+  main { max-width:1120px; margin:0 auto; padding:40px 16px 64px; }
+  h1 { font-size:32px; margin:0 0 6px; letter-spacing:-.01em; }
+  p.lead { color:var(--muted); margin:0 0 28px; max-width:720px; }
+  a { color:var(--accent); }
+  .grid { display:grid; gap:18px; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); }
+  .card { display:block; background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; text-decoration:none; color:inherit; transition:transform .12s, box-shadow .12s; }
+  .card:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.12); }
+  .card picture, .card img { display:block; width:100%; aspect-ratio:2048/1320; object-fit:cover; object-position:top; border-bottom:1px solid var(--line); }
+  .card div { padding:12px 14px 14px; }
+  .card h2 { font-size:16px; margin:0 0 4px; }
+  .card p { margin:0; color:var(--muted); font-size:14px; }
+  footer { margin-top:32px; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tether, mapped</h1>
+  <p class="lead">Interactive diagrams of <a href="https://github.com/jordanromines-jpg/tether">Tether</a>, a small open-source way to control your Mac from your iPhone, iPad or any computer over Tailscale. Click a box to see the code behind it, trace a path, or switch guided views. Made with <a href="https://github.com/tt-a1i/archify">Archify</a>.</p>
+  <div class="grid">
+    <a class="card" href="diagrams/architecture.html"><picture><source media="(prefers-color-scheme: dark)" srcset="diagrams/architecture-dark.png"><img src="diagrams/architecture-light.png" alt="" loading="lazy"></picture><div><h2>System architecture</h2><p>Every component, from the browser through Tailscale and the identity gate to capture, encoding, input and macOS.</p></div></a>
+    <a class="card" href="diagrams/sequence-1-access.html"><picture><source media="(prefers-color-scheme: dark)" srcset="diagrams/sequence-1-access-dark.png"><img src="diagrams/sequence-1-access-light.png" alt="" loading="lazy"></picture><div><h2>① Access</h2><p>Lock check on every load and the optional Face ID / Touch ID passkey unlock.</p></div></a>
+    <a class="card" href="diagrams/sequence-2-connect.html"><picture><source media="(prefers-color-scheme: dark)" srcset="diagrams/sequence-2-connect-dark.png"><img src="diagrams/sequence-2-connect-light.png" alt="" loading="lazy"></picture><div><h2>② Connect</h2><p>WebSocket hello, HEVC/H.264 negotiation and the instant first frame.</p></div></a>
+    <a class="card" href="diagrams/sequence-3-live.html"><picture><source media="(prefers-color-scheme: dark)" srcset="diagrams/sequence-3-live-dark.png"><img src="diagrams/sequence-3-live-light.png" alt="" loading="lazy"></picture><div><h2>③ Live</h2><p>Video loop, local cursor, Auto quality, and how a tap becomes a macOS event.</p></div></a>
+    <a class="card" href="diagrams/sequence-4-extras.html"><picture><source media="(prefers-color-scheme: dark)" srcset="diagrams/sequence-4-extras-dark.png"><img src="diagrams/sequence-4-extras-light.png" alt="" loading="lazy"></picture><div><h2>④ Extras</h2><p>Clipboard sync, sound, and teardown when you disconnect.</p></div></a>
+    <a class="card" href="diagrams/setup.html"><picture><source media="(prefers-color-scheme: dark)" srcset="diagrams/setup-dark.png"><img src="diagrams/setup-light.png" alt="" loading="lazy"></picture><div><h2>Setup</h2><p>What scripts/setup.sh checks, builds and installs, and where it waits for you.</p></div></a>
+  </div>
+  <footer>Source links point to the exact commit each diagram was generated from.</footer>
+</main>
+</body>
+</html>
