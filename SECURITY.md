@@ -1,0 +1,22 @@
+# Security model
+
+Tether gives full control of a Mac, so it is built to be reachable **only by you, only over your Tailscale network**.
+
+## Who can connect
+
+1. **Network: only devices in your tailnet.** The agent listens on `127.0.0.1` only. `tailscale serve` publishes it at `https://<machine>.<tailnet>.ts.net`, which resolves to a private `100.x` Tailscale address. The public internet can't reach that address, so a leaked link alone gets nobody anything. Tailscale Funnel (public exposure) is never used.
+2. **Identity: only allowlisted Tailscale logins.** For every request, `tailscale serve` adds the caller's verified identity (`Tailscale-User-Login`), derived from the device's WireGuard key. Browsers can't forge it. The agent refuses any request whose login isn't in `TETHER_ALLOWED_LOGINS`, which defaults to the login that installed it, and returns `403`. Tagged devices carry no user login and are refused.
+3. **Optional passkey lock.** When enabled from the menu bar, a browser must also pass a Face ID / Touch ID passkey check. That gives it a signed 12-hour session cookie, required for the screen, input, uploads and file access.
+
+## What that means in practice
+
+- **Any of your signed-in devices counts as you.** If a device is lost, remove it in the Tailscale admin console (Machines → the device → Remove) to cut off access immediately. Turning on the passkey lock adds a second factor.
+- **Sharing the machine in Tailscale doesn't grant control.** Other users would get `403` unless you add their login to the allowlist.
+- **Local software on the host can bypass the identity check.** It can talk to `127.0.0.1` and fake the header. That isn't a new risk: software already running as you on that Mac can control it anyway.
+- **HTTPS certificates publish the machine name.** Tailscale HTTPS certificates are recorded in public Certificate Transparency logs, so `<machine>.<tailnet>.ts.net` becomes publicly visible. It still isn't reachable. Pick a generic machine name if that matters to you.
+- **macOS permissions.** Screen Recording and Accessibility are granted to the `com.tether.agent` app by you, in System Settings. The app is signed with a self-signed identity kept in a dedicated keychain on the build Mac, so the grants survive updates.
+- **Uploads and downloads are sandboxed.** Files go only to `~/Downloads`. Browsing is limited to `~/Downloads` and `~/Desktop`, and paths are checked so they can't escape those folders.
+
+## Reporting a problem
+
+Please open a GitHub issue. Don't include secrets, and for anything sensitive, contact the maintainer privately first.

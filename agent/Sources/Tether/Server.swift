@@ -1,0 +1,291 @@
+import Foundation
+import HTTPTypes
+import Hummingbird
+import HummingbirdWebSocket
+import CryptoKit
+import NIOFoundationCompat
+import TetherCore
+
+let tailscaleLoginHeader = HTTPField.Name("Tailscale-User-Login")!
+
+/// Rejects every request whose verified Tailscale identity isn't allowlisted.
+struct TailscaleAuthMiddleware<Context: RequestContext>: RouterMiddleware {
+    let policy: AuthPolicy
+
+    func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
+        guard policy.isAllowed(login: request.headers[tailscaleLoginHeader]) else {
+            context.logger.warning("Denied \(request.uri.path) for \(request.headers[tailscaleLoginHeader] ?? "<no identity>")")
+            return Response(status: .forbidden, body: .init(byteBuffer: ByteBuffer(string: "Not authorized for Tether\n")))
+        }
+        return try await next(request, context)
+    }
+}
+
+/// When the passkey lock is on, the screen, input and file endpoints also need a valid session cookie.
+struct PasskeyGateMiddleware<Context: RequestContext>: RouterMiddleware {
+    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download"] }
+
+    func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
+        if PasskeyStore.shared.required, Self.protectedPaths.contains(request.uri.path),
+           !PasskeyStore.shared.sessionIsValid(cookieHeader: request.headers[.cookie], login: Server.login(request)) {
+            return Response(status: .unauthorized, body: .init(byteBuffer: ByteBuffer(string: "Passkey required\n")))
+        }
+        return try await next(request, context)
+    }
+}
+
+enum Server {
+    static func login(_ request: Request) -> String { (request.headers[tailscaleLoginHeader] ?? "local").lowercased() }
+
+    /// The page's origin as the browser sees it (https://<machine>.<tailnet>.ts.net).
+    static var publicURL: String?
+
+    static func origin(_ request: Request) -> (origin: String, rpID: String) {
+        // Behind `tailscale serve` the browser's host may arrive as X-Forwarded-Host, or the
+        // proxy may rewrite Host to 127.0.0.1; fall back to the published URL in that case.
+        var authority = request.headers[HTTPField.Name("X-Forwarded-Host")!] ?? request.head.authority ?? "localhost"
+        if authority.hasPrefix("127.0.0.1"), let pub = publicURL.flatMap(URL.init(string:))?.host { authority = pub }
+        let host = authority.split(separator: ":").first.map(String.init) ?? authority
+        let scheme = host == "localhost" ? "http" : "https"
+        return ("\(scheme)://\(authority)", host)
+    }
+
+    static func run(port: Int, webDirectory: String, policy: AuthPolicy, publicURL: String?) async throws {
+        let router = Router(context: BasicWebSocketRequestContext.self)
+        let tailnetSuffix = Peers.tailnetSuffix(publicURL: publicURL)
+        Server.publicURL = publicURL
+        router.middlewares.add(TailscaleAuthMiddleware(policy: policy))
+        router.middlewares.add(PasskeyGateMiddleware())
+        router.middlewares.add(FileMiddleware(
+            webDirectory,
+            cacheControl: .init([(MediaType(type: .any), [.noCache])]),
+            searchForIndexHtml: true))
+
+        router.get("healthz") { request, _ -> Response in
+            var response = json(["ok": true, "name": Host.current().localizedName ?? "Mac", "perms": Permissions.json,
+                                 "clients": Hub.shared.queue.sync { Hub.shared.clients.count }])
+            // Let the Tether page on another of your Macs (same tailnet) see that this one is up.
+            if let origin = request.headers[.origin], let suffix = tailnetSuffix,
+               let host = URL(string: origin)?.host, origin.hasPrefix("https://"), host.hasSuffix("." + suffix) {
+                response.headers[.accessControlAllowOrigin] = origin
+                response.headers[.vary] = "Origin"
+            }
+            return response
+        }
+
+        router.get("peers") { _, _ -> Response in json(["peers": Peers.list()]) }
+
+        // ---- Passkey lock (WebAuthn) ----
+        router.get("auth/status") { request, _ -> Response in
+            let store = PasskeyStore.shared, login = login(request)
+            return json(["required": store.required, "enrolled": !store.credentials(for: login).isEmpty,
+                         "enrolling": store.enrolling,
+                         "ok": !store.required || store.sessionIsValid(cookieHeader: request.headers[.cookie], login: login)])
+        }
+
+        router.post("auth/register/options") { request, _ -> Response in
+            let store = PasskeyStore.shared, login = login(request)
+            guard store.enrolling else {
+                return json(["error": "To add a passkey, choose “Add a passkey…” in the Tether menu on the Mac first."], status: .forbidden)
+            }
+            let challenge = store.newChallenge(for: "reg:" + login)
+            let userID = Data(SHA256Digest.of(login).prefix(16))
+            return json(["challenge": Passkey.base64urlEncode(challenge), "rpId": origin(request).rpID,
+                         "userId": Passkey.base64urlEncode(userID), "name": login,
+                         "exclude": store.credentials(for: login).map(\.id)])
+        }
+
+        router.post("auth/register") { request, _ -> Response in
+            let store = PasskeyStore.shared, login = login(request)
+            guard store.enrolling else { return Response(status: .forbidden) }
+            let body = try await jsonBody(request)
+            guard let id = body["id"] as? String, let pk = (body["publicKey"] as? String).flatMap(Passkey.base64urlDecode),
+                  let cd = (body["clientDataJSON"] as? String).flatMap(Passkey.base64urlDecode),
+                  let challenge = store.takeChallenge(for: "reg:" + login) else { return Response(status: .badRequest) }
+            do {
+                try Passkey.verifyRegistration(clientDataJSON: cd, publicKeySPKI: pk, challenge: challenge, origin: origin(request).origin)
+            } catch {
+                return json(["error": "Passkey registration failed (\(error))."], status: .badRequest)
+            }
+            store.add(.init(id: id, publicKey: pk.base64EncodedString(), login: login,
+                            device: body["device"] as? String ?? "device", created: Date()))
+            var response = json(["ok": true])
+            response.headers[.setCookie] = store.sessionCookie(login: login)
+            return response
+        }
+
+        router.post("auth/options") { request, _ -> Response in
+            let store = PasskeyStore.shared, login = login(request)
+            let challenge = store.newChallenge(for: "auth:" + login)
+            return json(["challenge": Passkey.base64urlEncode(challenge), "rpId": origin(request).rpID,
+                         "allow": store.credentials(for: login).map(\.id)])
+        }
+
+        router.post("auth/verify") { request, _ -> Response in
+            let store = PasskeyStore.shared, login = login(request)
+            let body = try await jsonBody(request)
+            guard let id = body["id"] as? String,
+                  let cred = store.credentials(for: login).first(where: { $0.id == id }),
+                  let pk = Data(base64Encoded: cred.publicKey),
+                  let cd = (body["clientDataJSON"] as? String).flatMap(Passkey.base64urlDecode),
+                  let ad = (body["authenticatorData"] as? String).flatMap(Passkey.base64urlDecode),
+                  let sig = (body["signature"] as? String).flatMap(Passkey.base64urlDecode),
+                  let challenge = store.takeChallenge(for: "auth:" + login) else { return Response(status: .badRequest) }
+            let o = origin(request)
+            do {
+                try Passkey.verifyAssertion(clientDataJSON: cd, authenticatorData: ad, signature: sig, publicKeySPKI: pk,
+                                            challenge: challenge, origin: o.origin, rpID: o.rpID)
+            } catch {
+                return json(["error": "Passkey check failed."], status: .unauthorized)
+            }
+            var response = json(["ok": true])
+            response.headers[.setCookie] = store.sessionCookie(login: login)
+            return response
+        }
+
+        let sandbox = FileSandbox(roots: ["downloads": Permissions.downloadsURL, "desktop": Permissions.desktopURL])
+        let fileIO = FileIO()
+
+        router.get("files") { request, _ -> Response in
+            let q = request.uri.queryParameters
+            let root = q.get("root") ?? "downloads"
+            if Permissions.folderAllowed(root) != true {
+                Permissions.refreshFolderAccess()
+                return json(["error": "Tether doesn't have access to this folder yet. On the Mac, click Allow when macOS asks, or turn Tether on in System Settings → Privacy & Security → Files & Folders."], status: .forbidden)
+            }
+            guard let dir = sandbox.resolve(root: root, relativePath: q.get("path") ?? "") else {
+                return Response(status: .badRequest)
+            }
+            let keys: [URLResourceKey] = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey, .isHiddenKey]
+            guard let urls = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys,
+                                                                          options: [.skipsHiddenFiles]) else {
+                return json(["error": "Can't open this folder. On the Mac, allow Tether access to it in System Settings → Privacy & Security → Files & Folders."], status: .forbidden)
+            }
+            let items: [[String: Any]] = urls.compactMap { url in
+                guard let v = try? url.resourceValues(forKeys: Set(keys)) else { return nil }
+                return ["name": url.lastPathComponent, "dir": v.isDirectory ?? false, "size": v.fileSize ?? 0,
+                        "mtime": (v.contentModificationDate ?? .distantPast).timeIntervalSince1970]
+            }.sorted {
+                let ad = $0["dir"] as! Bool, bd = $1["dir"] as! Bool
+                if ad != bd { return ad }
+                return ($0["mtime"] as! Double) > ($1["mtime"] as! Double)
+            }
+            return json(["items": items])
+        }
+
+        router.get("download") { request, context -> Response in
+            let q = request.uri.queryParameters
+            guard let url = sandbox.resolve(root: q.get("root") ?? "downloads", relativePath: q.get("path") ?? ""),
+                  var isDir = Optional(ObjCBool(false)),
+                  FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else {
+                return Response(status: .notFound)
+            }
+            let body = try await fileIO.loadFile(path: url.path, context: context)
+            let name = url.lastPathComponent.replacingOccurrences(of: "\"", with: "")
+            let encoded = url.lastPathComponent.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "file"
+            return Response(status: .ok, headers: [
+                .contentType: "application/octet-stream",
+                .contentDisposition: "attachment; filename=\"\(name)\"; filename*=UTF-8''\(encoded)",
+            ], body: body)
+        }
+
+        router.post("upload") { request, _ -> Response in
+            let name = request.uri.queryParameters.get("name") ?? "upload"
+            let url = Uploads.destination(for: name)
+            guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
+                return Response(status: .internalServerError)
+            }
+            let handle = try FileHandle(forWritingTo: url)
+            do {
+                for try await chunk in request.body {
+                    chunk.withUnsafeReadableBytes { handle.write(Data($0)) }
+                }
+                try handle.close()
+            } catch {
+                try? handle.close()
+                try? FileManager.default.removeItem(at: url)
+                throw error
+            }
+            NSLog("Tether: saved upload \(url.path)")
+            return json(["saved": url.lastPathComponent])
+        }
+
+        router.ws("ws") { request, _ in
+            policy.isAllowed(login: request.headers[tailscaleLoginHeader]) ? .upgrade([:]) : .dontUpgrade
+        } onUpgrade: { inbound, outbound, context in
+            let login = context.request.headers[tailscaleLoginHeader] ?? "local"
+            let device = String((context.request.uri.queryParameters.get("device") ?? "A device").prefix(40))
+            let (stream, continuation) = AsyncStream<Outgoing>.makeStream()
+            let client = Hub.shared.add(login: login, device: device, continuation: continuation)
+            defer { Hub.shared.remove(client) }
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for await item in stream {
+                        switch item {
+                        case .text(let s):
+                            try await outbound.write(.text(s))
+                        case .video(let buffer):
+                            defer { client.videoWritten() }
+                            try await outbound.write(.binary(buffer))
+                        case .audio(let buffer):
+                            try await outbound.write(.binary(buffer))
+                        }
+                    }
+                }
+                group.addTask {
+                    for try await message in inbound.messages(maxSize: 4 << 20) {
+                        if case .text(let text) = message, let parsed = ClientMessage.parse(text) {
+                            Hub.shared.handle(parsed, from: client)
+                        }
+                    }
+                }
+                _ = try await group.next()
+                group.cancelAll()
+            }
+        }
+
+        let app = Application(
+            router: router,
+            server: .http1WebSocketUpgrade(webSocketRouter: router, configuration: .init(ws: .init(maxFrameSize: 1 << 20))),
+            configuration: .init(address: .hostname("127.0.0.1", port: port), serverName: "Tether"))
+        try await app.runService()
+    }
+
+    private static func jsonBody(_ request: Request) async throws -> [String: Any] {
+        var req = request
+        let buffer = try await req.collectBody(upTo: 64 * 1024)
+        return (try? JSONSerialization.jsonObject(with: Data(buffer: buffer)) as? [String: Any]) ?? [:]
+    }
+
+    private static func json(_ obj: [String: Any], status: HTTPResponse.Status = .ok) -> Response {
+        let data = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data("{}".utf8)
+        return Response(status: status, headers: [.contentType: "application/json"],
+                        body: .init(byteBuffer: ByteBuffer(bytes: data)))
+    }
+}
+
+enum Uploads {
+    static var directory: URL { Permissions.downloadsURL }
+
+    /// A safe, non-clobbering path in ~/Downloads for an uploaded file name.
+    static func destination(for rawName: String) -> URL {
+        var name = (rawName as NSString).lastPathComponent
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        while name.hasPrefix(".") { name.removeFirst() }
+        if name.isEmpty { name = "upload" }
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        var url = directory.appendingPathComponent(name)
+        var n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = directory.appendingPathComponent(ext.isEmpty ? "\(base) \(n)" : "\(base) \(n).\(ext)")
+            n += 1
+        }
+        return url
+    }
+}
+
+private enum SHA256Digest {
+    static func of(_ s: String) -> Data { Data(SHA256.hash(data: Data(s.utf8))) }
+}

@@ -1,0 +1,52 @@
+import Foundation
+
+/// Streaming quality presets the client can pick.
+public enum QualityPreset: String, Sendable, CaseIterable {
+    case fast, balanced, sharp
+
+    public var maxWidth: Int {
+        switch self {
+        case .fast: 1280
+        case .balanced: 1920
+        case .sharp: 6144
+        }
+    }
+
+    public var fps: Int {
+        switch self {
+        case .fast: 30
+        case .balanced, .sharp: 60
+        }
+    }
+
+    /// Average bitrate in bits per second.
+    public var bitrate: Int {
+        switch self {
+        case .fast: 2_500_000
+        case .balanced: 8_000_000
+        case .sharp: 20_000_000
+        }
+    }
+}
+
+public enum Sizing {
+    /// Largest frame browsers' H.264 decoders reliably accept (level 5.1/5.2).
+    public static let maxPixels = 3840 * 2160
+    /// HEVC (level 6.x) comfortably covers 5K/6K Apple displays.
+    public static let maxPixelsHEVC = 6016 * 3384
+
+    public static func maxPixels(for codec: VideoCodec) -> Int { codec == .hevc ? maxPixelsHEVC : maxPixels }
+
+    /// Scales a display's native pixel size down to fit `maxWidth` and the H.264
+    /// frame limit, keeping aspect ratio and even dimensions.
+    public static func encodeSize(nativeWidth: Int, nativeHeight: Int, maxWidth: Int, maxPixels: Int = Sizing.maxPixels) -> (width: Int, height: Int) {
+        guard nativeWidth > 0, nativeHeight > 0 else { return (2, 2) }
+        var scale = min(1.0, Double(maxWidth) / Double(nativeWidth))
+        let pixels = Double(nativeWidth) * Double(nativeHeight) * scale * scale
+        if pixels > Double(maxPixels) {
+            scale *= (Double(maxPixels) / pixels).squareRoot()
+        }
+        func even(_ v: Double) -> Int { max(2, Int(v) & ~1) }
+        return (even(Double(nativeWidth) * scale), even(Double(nativeHeight) * scale))
+    }
+}
