@@ -1,0 +1,544 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Tether setup — what scripts/setup.sh does (and when it stops for you)",
+    "output": ".archify/workflow-tether-setup-20261003-154000/tether-setup.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/jordanromines-jpg/tether.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9554d913c0f732a4e6834d5da55b201b5adc217b"
+    }
+  },
+  "lanes": [
+    {
+      "id": "you",
+      "label": "ACTION NEEDED — only you can do these (exit 3, then run again)",
+      "variant": "exception"
+    },
+    {
+      "id": "checks",
+      "label": "Checks (this Mac runs setup.sh)"
+    },
+    {
+      "id": "install",
+      "label": "Build here → install on the Mac you'll control"
+    },
+    {
+      "id": "you2",
+      "label": "ACTION NEEDED on the controlled Mac",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p1",
+      "label": "Prerequisites",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "p2",
+      "label": "Access + HTTPS",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "security"
+    },
+    {
+      "id": "p3",
+      "label": "Identity → build",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "macos",
+    "clt",
+    "tailscale",
+    "ssh",
+    "https",
+    "signing"
+  ],
+  "nodes": [
+    {
+      "id": "macos",
+      "lane": "checks",
+      "col": 0,
+      "type": "external",
+      "label": "macOS 14+",
+      "sublabel": "else ✗ stop",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 33,
+          "end_line": 37,
+          "label": "version check"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "clt",
+      "lane": "checks",
+      "col": 1,
+      "type": "backend",
+      "label": "Command Line Tools",
+      "sublabel": "Swift toolchain",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 39,
+          "end_line": 57,
+          "label": "install / license"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "tailscale",
+      "lane": "checks",
+      "col": 2,
+      "type": "cloud",
+      "label": "Tailscale",
+      "sublabel": "installed · signed in",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 59,
+          "end_line": 76,
+          "label": "login lookup"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "ssh",
+      "lane": "checks",
+      "col": 3,
+      "type": "security",
+      "label": "SSH to other Mac",
+      "sublabel": "--remote only",
+      "tag": "same chip · macOS 14+",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 85,
+          "end_line": 117,
+          "label": "key + arch + Tailscale"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "https",
+      "lane": "checks",
+      "col": 4,
+      "type": "security",
+      "label": "HTTPS certificates",
+      "sublabel": "tailnet CertDomains",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 119,
+          "end_line": 131,
+          "label": "cert check"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "signing",
+      "lane": "checks",
+      "col": 5,
+      "type": "security",
+      "label": "Signing identity",
+      "sublabel": "dedicated keychain",
+      "tag": "permissions survive updates",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 139,
+          "end_line": 141,
+          "label": "setup-signing.sh"
+        },
+        {
+          "path": "scripts/setup-signing.sh",
+          "line": 42,
+          "end_line": 58,
+          "label": "self-signed identity"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "a_clt",
+      "lane": "you",
+      "col": 1,
+      "type": "external",
+      "label": "Click Install",
+      "sublabel": "or accept license",
+      "icon": "person",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 46,
+          "end_line": 56,
+          "label": "instructions"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "a_ts",
+      "lane": "you",
+      "col": 2,
+      "type": "external",
+      "label": "Install + sign in",
+      "sublabel": "same account",
+      "icon": "person",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 64,
+          "end_line": 69,
+          "label": "instructions"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "a_ssh",
+      "lane": "you",
+      "col": 3,
+      "type": "external",
+      "label": "Remote Login on",
+      "sublabel": "+ ssh-copy-id once",
+      "icon": "person",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 94,
+          "end_line": 101,
+          "label": "instructions"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "a_https",
+      "lane": "you",
+      "col": 4,
+      "type": "external",
+      "label": "Enable HTTPS",
+      "sublabel": "Tailscale admin → DNS",
+      "icon": "person",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 124,
+          "end_line": 130,
+          "label": "CT-log note"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "a_perms",
+      "lane": "you2",
+      "col": 4,
+      "type": "external",
+      "label": "Allow Tether",
+      "sublabel": "2 privacy switches",
+      "icon": "person",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 205,
+          "end_line": 222,
+          "label": "Settings + Finder"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "build",
+      "lane": "install",
+      "col": 0,
+      "type": "backend",
+      "label": "Build Tether.app",
+      "sublabel": "skipped if unchanged",
+      "tag": "first build 10–20 min",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 143,
+          "end_line": 173,
+          "label": "build + progress"
+        },
+        {
+          "path": "scripts/build-app.sh",
+          "line": 11,
+          "end_line": 61,
+          "label": "swift build + sign"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "copy",
+      "lane": "install",
+      "col": 1,
+      "type": "backend",
+      "label": "Copy app",
+      "sublabel": "~/Applications",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 175,
+          "end_line": 193,
+          "label": "rsync local / SSH"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "agent",
+      "lane": "install",
+      "col": 2,
+      "type": "backend",
+      "label": "LaunchAgent",
+      "sublabel": "runs at login",
+      "sources": [
+        {
+          "path": "scripts/lib/install-agent.sh",
+          "line": 24,
+          "end_line": 58,
+          "label": "plist + bootstrap"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "serve",
+      "lane": "install",
+      "col": 3,
+      "type": "cloud",
+      "label": "tailscale serve",
+      "sublabel": "https://<mac>.ts.net",
+      "sources": [
+        {
+          "path": "scripts/lib/install-agent.sh",
+          "line": 62,
+          "end_line": 66,
+          "label": "serve --https=443"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "perms",
+      "lane": "install",
+      "col": 4,
+      "type": "security",
+      "label": "Permission check",
+      "sublabel": "asks Tether's /healthz",
+      "sources": [
+        {
+          "path": "scripts/lib/install-agent.sh",
+          "line": 68,
+          "end_line": 79,
+          "label": "TETHER_RESULT"
+        },
+        {
+          "path": "scripts/setup.sh",
+          "line": 199,
+          "end_line": 223,
+          "label": "decide"
+        }
+      ],
+      "width": 126
+    },
+    {
+      "id": "ready",
+      "lane": "install",
+      "col": 5,
+      "type": "frontend",
+      "label": "✓ Tether is ready",
+      "sublabel": "link + QR code",
+      "sources": [
+        {
+          "path": "scripts/setup.sh",
+          "line": 225,
+          "end_line": 241,
+          "label": "sleep tip + link"
+        }
+      ],
+      "width": 126
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "macos",
+      "to": "clt",
+      "role": "main"
+    },
+    {
+      "id": "e2",
+      "from": "clt",
+      "to": "tailscale",
+      "role": "main"
+    },
+    {
+      "id": "e3",
+      "from": "tailscale",
+      "to": "ssh",
+      "role": "main"
+    },
+    {
+      "id": "e4",
+      "from": "ssh",
+      "to": "https",
+      "role": "main"
+    },
+    {
+      "id": "e5",
+      "from": "https",
+      "to": "signing",
+      "role": "main"
+    },
+    {
+      "id": "e6",
+      "from": "signing",
+      "to": "build",
+      "role": "return",
+      "variant": "emphasis",
+      "label": "build + install",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "e7",
+      "from": "build",
+      "to": "copy"
+    },
+    {
+      "id": "e8",
+      "from": "copy",
+      "to": "agent"
+    },
+    {
+      "id": "e9",
+      "from": "agent",
+      "to": "serve"
+    },
+    {
+      "id": "e10",
+      "from": "serve",
+      "to": "perms"
+    },
+    {
+      "id": "e11",
+      "from": "perms",
+      "to": "ready",
+      "variant": "emphasis"
+    },
+    {
+      "id": "x1",
+      "from": "clt",
+      "to": "a_clt",
+      "role": "error",
+      "variant": "security",
+      "label": "missing",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "x2",
+      "from": "tailscale",
+      "to": "a_ts",
+      "role": "error",
+      "variant": "security",
+      "label": "missing",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "x3",
+      "from": "ssh",
+      "to": "a_ssh",
+      "role": "error",
+      "variant": "security",
+      "label": "no access",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "x4",
+      "from": "https",
+      "to": "a_https",
+      "role": "error",
+      "variant": "security",
+      "label": "off",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "x5",
+      "from": "perms",
+      "to": "a_perms",
+      "role": "error",
+      "variant": "security",
+      "label": "not yet",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "How it talks to you",
+      "items": [
+        "✓ done · → working · ✗ real error (exit 1, with the reason and the log path)",
+        "ACTION NEEDED (exit 3): one plain-language step for the person at the Mac",
+        "Run the same command again — finished steps are skipped, the build too if nothing changed"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Two modes",
+      "items": [
+        "scripts/setup.sh — make this Mac controllable",
+        "scripts/setup.sh --remote user@mac [--key …] [--name …] — install on another Mac over SSH (build here, same chip type)",
+        "scripts/setup.sh --check — read-only report of what's done and what's left"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Things it never does for you",
+      "items": [
+        "Type passwords (ssh-copy-id and the Xcode license prompt are yours)",
+        "Flip Screen Recording / Accessibility (macOS requires a person)",
+        "Enable HTTPS without explaining the public certificate log first"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "After setup",
+      "items": [
+        "Updates: scripts/setup.sh again, or scripts/deploy.sh <name> for another Mac",
+        "LaunchAgent com.tether.agent restarts Tether if it exits",
+        "Phone: install Tailscale, same account, scan the QR code, Add to Home Screen"
+      ]
+    }
+  ]
+}

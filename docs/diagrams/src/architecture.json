@@ -1,0 +1,1565 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Tether — system architecture (browser → tailnet → Mac agent → macOS)",
+    "output": ".archify/architecture-tether-20261003-143311/tether-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/jordanromines-jpg/tether.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9554d913c0f732a4e6834d5da55b201b5adc217b"
+    },
+    "views": [
+      {
+        "id": "video-path",
+        "label": "Video path",
+        "focus": [
+          "stream",
+          "serve",
+          "gate",
+          "ws",
+          "hub",
+          "streamer",
+          "encoder",
+          "displays"
+        ],
+        "note": "Screen → ScreenCaptureKit → VideoToolbox → Hub fan-out → WSS → WebCodecs canvas."
+      },
+      {
+        "id": "input-path",
+        "label": "Input path",
+        "focus": [
+          "you",
+          "input",
+          "stream",
+          "ws",
+          "hub",
+          "inputinj",
+          "hid"
+        ],
+        "note": "Touch/mouse/keys become JSON messages, then CGEvents posted to the HID event tap."
+      },
+      {
+        "id": "trust",
+        "label": "Who can connect",
+        "focus": [
+          "serve",
+          "gate",
+          "ws",
+          "files",
+          "auth",
+          "pstore"
+        ],
+        "note": "Tailnet-only reachability, verified Tailscale login allowlist, optional passkey session cookie."
+      },
+      {
+        "id": "files-clip",
+        "label": "Files & clipboard",
+        "focus": [
+          "filesui",
+          "files",
+          "sandbox",
+          "folders",
+          "clip",
+          "pasteboard"
+        ],
+        "note": "Sandboxed browse/download, uploads to ~/Downloads, pasteboard sync both ways."
+      },
+      {
+        "id": "adaptive",
+        "label": "Adaptive quality",
+        "focus": [
+          "stream",
+          "hub",
+          "adaptive",
+          "encoder",
+          "streamer"
+        ],
+        "note": "Client ping/stats + dropped frames → AdaptiveController → live bitrate or resolution step."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "you",
+      "type": "external",
+      "label": "You",
+      "sublabel": "touch · mouse · keys",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        120,
+        60
+      ],
+      "icon": "person"
+    },
+    {
+      "id": "input",
+      "type": "frontend",
+      "label": "input + keys",
+      "sublabel": "swipes · ⌘ keys",
+      "pos": [
+        40,
+        280
+      ],
+      "size": [
+        120,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/input.js",
+          "line": 24,
+          "end_line": 67,
+          "label": "pointer + wheel"
+        },
+        {
+          "path": "web/js/input.js",
+          "line": 76,
+          "end_line": 210,
+          "label": "touch + 3-finger swipes"
+        },
+        {
+          "path": "web/js/keys.js",
+          "line": 18,
+          "end_line": 90,
+          "label": "keyboard + sticky mods"
+        }
+      ]
+    },
+    {
+      "id": "audioc",
+      "type": "frontend",
+      "label": "audio.js",
+      "sublabel": "AAC / PCM decode",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        120,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/audio.js",
+          "line": 2,
+          "end_line": 40,
+          "label": "AAC decoder or PCM"
+        }
+      ]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "App shell (app.js)",
+      "sublabel": "toolbar · sheets · banner",
+      "pos": [
+        234,
+        60
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/app.js",
+          "line": 154,
+          "end_line": 165,
+          "label": "asleep/locked banner"
+        },
+        {
+          "path": "web/js/app.js",
+          "line": 253,
+          "end_line": 262,
+          "label": "toolbar actions"
+        },
+        {
+          "path": "web/manifest.webmanifest",
+          "line": 6,
+          "label": "installable PWA"
+        }
+      ]
+    },
+    {
+      "id": "passkeyc",
+      "type": "frontend",
+      "label": "passkey.js",
+      "sublabel": "WebAuthn Face/Touch ID",
+      "pos": [
+        234,
+        170
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/passkey.js",
+          "line": 20,
+          "end_line": 40,
+          "label": "create passkey"
+        },
+        {
+          "path": "web/js/passkey.js",
+          "line": 43,
+          "end_line": 58,
+          "label": "unlock assertion"
+        },
+        {
+          "path": "web/js/app.js",
+          "line": 63,
+          "end_line": 103,
+          "label": "lock screen gate"
+        }
+      ]
+    },
+    {
+      "id": "stream",
+      "type": "frontend",
+      "label": "stream.js",
+      "sublabel": "WSS + WebCodecs decode",
+      "pos": [
+        234,
+        280
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/stream.js",
+          "line": 34,
+          "end_line": 57,
+          "label": "codec probe + WSS"
+        },
+        {
+          "path": "web/js/stream.js",
+          "line": 117,
+          "end_line": 172,
+          "label": "VideoDecoder → canvas"
+        },
+        {
+          "path": "web/js/stream.js",
+          "line": 18,
+          "end_line": 30,
+          "label": "1 s ping + stats"
+        }
+      ]
+    },
+    {
+      "id": "cursorc",
+      "type": "frontend",
+      "label": "cursor.js",
+      "sublabel": "local cursor, predicted",
+      "pos": [
+        234,
+        400
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/cursor.js",
+          "line": 4,
+          "end_line": 60,
+          "label": "CSS cursor / overlay"
+        }
+      ]
+    },
+    {
+      "id": "filesui",
+      "type": "frontend",
+      "label": "Files sheet",
+      "sublabel": "XHR upload · download",
+      "pos": [
+        234,
+        510
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/app.js",
+          "line": 478,
+          "end_line": 513,
+          "label": "browse + download"
+        }
+      ]
+    },
+    {
+      "id": "macs",
+      "type": "frontend",
+      "label": "Macs switcher",
+      "sublabel": "probe peers' /healthz",
+      "pos": [
+        234,
+        730
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "sources": [
+        {
+          "path": "web/js/app.js",
+          "line": 426,
+          "label": "load other Macs",
+          "end_line": 452
+        }
+      ]
+    },
+    {
+      "id": "serve",
+      "type": "security",
+      "label": "tailscale serve",
+      "sublabel": "HTTPS :443",
+      "tag": "adds login · tailnet only",
+      "pos": [
+        454,
+        60
+      ],
+      "size": [
+        100,
+        730
+      ],
+      "sources": [
+        {
+          "path": "scripts/lib/install-agent.sh",
+          "line": 64,
+          "label": "serve --https=443"
+        },
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 9,
+          "label": "login header name"
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "type": "security",
+      "label": "Identity gate",
+      "sublabel": "login allowlist",
+      "tag": "+ passkey · 403 / 401",
+      "pos": [
+        624,
+        60
+      ],
+      "size": [
+        100,
+        730
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 12,
+          "end_line": 23,
+          "label": "Tailscale login allowlist"
+        },
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 25,
+          "end_line": 36,
+          "label": "passkey cookie gate"
+        },
+        {
+          "path": "agent/Sources/TetherCore/Auth.swift",
+          "line": 9,
+          "end_line": 30,
+          "label": "AuthPolicy"
+        }
+      ]
+    },
+    {
+      "id": "static",
+      "type": "backend",
+      "label": "Static web client",
+      "sublabel": "FileMiddleware · web/",
+      "pos": [
+        769,
+        60
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 59,
+          "end_line": 62,
+          "label": "serve bundled web/"
+        },
+        {
+          "path": "scripts/build-app.sh",
+          "line": 18,
+          "label": "web/ copied into app"
+        }
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "backend",
+      "label": "/auth/* routes",
+      "sublabel": "register · options · verify",
+      "pos": [
+        769,
+        170
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 79,
+          "end_line": 97,
+          "label": "status + enroll options"
+        },
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 98,
+          "end_line": 146,
+          "label": "register / verify"
+        }
+      ]
+    },
+    {
+      "id": "ws",
+      "type": "backend",
+      "label": "/ws WebSocket",
+      "sublabel": "JSON control + binary A/V",
+      "pos": [
+        769,
+        280
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 213,
+          "end_line": 245,
+          "label": "upgrade + reader/writer"
+        },
+        {
+          "path": "agent/Sources/TetherCore/Protocol.swift",
+          "line": 106,
+          "label": "ClientMessage.parse"
+        },
+        {
+          "path": "agent/Sources/TetherCore/Protocol.swift",
+          "line": 8,
+          "end_line": 55,
+          "label": "video/audio frame header"
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "type": "backend",
+      "label": "File routes",
+      "sublabel": "/files /download /upload",
+      "pos": [
+        769,
+        510
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 149,
+          "end_line": 175,
+          "label": "list folder"
+        },
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 176,
+          "end_line": 191,
+          "label": "download"
+        },
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 192,
+          "end_line": 211,
+          "label": "upload to Downloads"
+        }
+      ]
+    },
+    {
+      "id": "peers",
+      "type": "backend",
+      "label": "/peers · /healthz",
+      "sublabel": "CORS: same tailnet",
+      "pos": [
+        769,
+        730
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 64,
+          "end_line": 76,
+          "label": "healthz CORS + peers"
+        }
+      ]
+    },
+    {
+      "id": "appsupport",
+      "type": "database",
+      "label": "App Support/Tether",
+      "sublabel": "passkeys · HMAC secret",
+      "pos": [
+        999,
+        60
+      ],
+      "size": [
+        145,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/PasskeyStore.swift",
+          "line": 31,
+          "end_line": 45,
+          "label": "secret + credentials"
+        }
+      ]
+    },
+    {
+      "id": "pstore",
+      "type": "security",
+      "label": "PasskeyStore",
+      "sublabel": "P-256 · 12 h cookie",
+      "pos": [
+        999,
+        170
+      ],
+      "size": [
+        145,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/PasskeyStore.swift",
+          "line": 58,
+          "end_line": 97,
+          "label": "enroll window + cookie"
+        },
+        {
+          "path": "agent/Sources/TetherCore/Passkey.swift",
+          "line": 39,
+          "end_line": 54,
+          "label": "assertion checks"
+        },
+        {
+          "path": "agent/Sources/TetherCore/Passkey.swift",
+          "line": 56,
+          "label": "SessionToken HMAC"
+        }
+      ]
+    },
+    {
+      "id": "sandbox",
+      "type": "security",
+      "label": "FileSandbox",
+      "sublabel": "blocks .. and symlinks",
+      "pos": [
+        999,
+        510
+      ],
+      "size": [
+        145,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/TetherCore/FileSandbox.swift",
+          "line": 5,
+          "end_line": 22,
+          "label": "resolve inside root"
+        }
+      ]
+    },
+    {
+      "id": "folders",
+      "type": "database",
+      "label": "Downloads · Desktop",
+      "sublabel": "Files & Folders consent",
+      "pos": [
+        999,
+        620
+      ],
+      "size": [
+        145,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Permissions.swift",
+          "line": 19,
+          "end_line": 30,
+          "label": "background access check"
+        },
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 267,
+          "end_line": 285,
+          "label": "upload destination"
+        }
+      ]
+    },
+    {
+      "id": "peersnode",
+      "type": "backend",
+      "label": "Peers",
+      "sublabel": "tailscale status --json",
+      "pos": [
+        999,
+        730
+      ],
+      "size": [
+        145,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Peers.swift",
+          "line": 20,
+          "end_line": 40,
+          "label": "online macOS peers"
+        }
+      ]
+    },
+    {
+      "id": "hub",
+      "type": "backend",
+      "label": "Hub",
+      "sublabel": "sessions",
+      "tag": "1 capture → N viewers",
+      "pos": [
+        1194,
+        60
+      ],
+      "size": [
+        100,
+        840
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 15,
+          "end_line": 70,
+          "label": "per-client backpressure"
+        },
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 261,
+          "end_line": 305,
+          "label": "codec choice + fan-out"
+        },
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 354,
+          "end_line": 410,
+          "label": "message dispatch"
+        }
+      ]
+    },
+    {
+      "id": "fit",
+      "type": "backend",
+      "label": "FitDisplay (opt-in)",
+      "sublabel": "CGVirtualDisplay mirror",
+      "pos": [
+        1364,
+        60
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/FitDisplay.swift",
+          "line": 31,
+          "end_line": 70,
+          "label": "mirror / extend"
+        },
+        {
+          "path": "agent/Sources/VirtualDisplayShim/VirtualDisplayShim.m",
+          "line": 9,
+          "end_line": 55,
+          "label": "runtime-looked-up API"
+        }
+      ]
+    },
+    {
+      "id": "audioenc",
+      "type": "backend",
+      "label": "AudioEncoder",
+      "sublabel": "AAC-LC 48k / PCM 24k",
+      "pos": [
+        1364,
+        170
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Audio.swift",
+          "line": 7,
+          "end_line": 75,
+          "label": "AAC + PCM fallback"
+        }
+      ]
+    },
+    {
+      "id": "streamer",
+      "type": "backend",
+      "label": "ScreenStreamer",
+      "sublabel": "ScreenCaptureKit, no cursor",
+      "pos": [
+        1364,
+        280
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Capture.swift",
+          "line": 71,
+          "end_line": 110,
+          "label": "SCStream config"
+        },
+        {
+          "path": "agent/Sources/Tether/Capture.swift",
+          "line": 148,
+          "end_line": 170,
+          "label": "keyframe + samples"
+        }
+      ]
+    },
+    {
+      "id": "encoder",
+      "type": "backend",
+      "label": "VideoEncoder",
+      "sublabel": "VideoToolbox HEVC / H.264",
+      "pos": [
+        1364,
+        400
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Encoder.swift",
+          "line": 20,
+          "end_line": 60,
+          "label": "low-latency session"
+        },
+        {
+          "path": "agent/Sources/Tether/Encoder.swift",
+          "line": 71,
+          "end_line": 100,
+          "label": "keyframes + hvcC/avcC"
+        }
+      ]
+    },
+    {
+      "id": "adaptive",
+      "type": "backend",
+      "label": "AdaptiveController",
+      "sublabel": "RTT · queue · drops",
+      "pos": [
+        1364,
+        510
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/TetherCore/Adaptive.swift",
+          "line": 16,
+          "end_line": 97,
+          "label": "congestion rules"
+        },
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 326,
+          "end_line": 352,
+          "label": "1 s adapt tick"
+        }
+      ]
+    },
+    {
+      "id": "inputinj",
+      "type": "backend",
+      "label": "InputInjector",
+      "sublabel": "CGEvent mouse · keys · text",
+      "pos": [
+        1364,
+        620
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Input.swift",
+          "line": 7,
+          "end_line": 140,
+          "label": "post to HID tap"
+        }
+      ]
+    },
+    {
+      "id": "clip",
+      "type": "backend",
+      "label": "ClipboardSync",
+      "sublabel": "poll changeCount 0.5 s",
+      "pos": [
+        1364,
+        730
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Clipboard.swift",
+          "line": 4,
+          "end_line": 41,
+          "label": "both directions"
+        }
+      ]
+    },
+    {
+      "id": "cursorw",
+      "type": "backend",
+      "label": "CursorWatcher",
+      "sublabel": "shape 8 Hz · pos 60 Hz",
+      "pos": [
+        1364,
+        840
+      ],
+      "size": [
+        155,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Cursor.swift",
+          "line": 4,
+          "end_line": 59,
+          "label": "NSCursor shape"
+        },
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 306,
+          "end_line": 316,
+          "label": "60 Hz position"
+        }
+      ]
+    },
+    {
+      "id": "displays",
+      "type": "external",
+      "label": "Displays",
+      "sublabel": "physical + virtual",
+      "pos": [
+        1589,
+        280
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Capture.swift",
+          "line": 16,
+          "end_line": 38,
+          "label": "SCShareableContent"
+        }
+      ]
+    },
+    {
+      "id": "hid",
+      "type": "external",
+      "label": "macOS input",
+      "sublabel": "HID event tap",
+      "pos": [
+        1589,
+        620
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Input.swift",
+          "line": 63,
+          "label": ".cghidEventTap"
+        }
+      ]
+    },
+    {
+      "id": "pasteboard",
+      "type": "database",
+      "label": "NSPasteboard",
+      "sublabel": "general pasteboard",
+      "pos": [
+        1589,
+        730
+      ],
+      "size": [
+        130,
+        60
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Clipboard.swift",
+          "line": 24,
+          "end_line": 40,
+          "label": "read / write"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Your iPhone / iPad / Mac browser (PWA)",
+      "wraps": [
+        "you",
+        "input",
+        "audioc",
+        "ui",
+        "passkeyc",
+        "stream",
+        "cursorc",
+        "filesui",
+        "macs"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "The Mac you control",
+      "wraps": [
+        "serve",
+        "gate",
+        "static",
+        "auth",
+        "ws",
+        "files",
+        "peers",
+        "appsupport",
+        "pstore",
+        "sandbox",
+        "folders",
+        "peersnode",
+        "hub",
+        "fit",
+        "audioenc",
+        "streamer",
+        "encoder",
+        "adaptive",
+        "inputinj",
+        "clip",
+        "cursorw",
+        "displays",
+        "hid",
+        "pasteboard"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Tether.app · 127.0.0.1:7400 only",
+      "wraps": [
+        "gate",
+        "static",
+        "auth",
+        "ws",
+        "files",
+        "peers",
+        "pstore",
+        "sandbox",
+        "peersnode",
+        "hub",
+        "fit",
+        "audioenc",
+        "streamer",
+        "encoder",
+        "adaptive",
+        "inputinj",
+        "clip",
+        "cursorw"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "you-ui",
+      "from": "you",
+      "to": "ui",
+      "label": "taps"
+    },
+    {
+      "id": "you-input",
+      "from": "you",
+      "to": "input",
+      "label": "gestures"
+    },
+    {
+      "id": "input-stream",
+      "from": "input",
+      "to": "stream",
+      "label": "JSON input"
+    },
+    {
+      "id": "stream-cursor",
+      "from": "stream",
+      "to": "cursorc",
+      "label": "cursor pos",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "stream-audio",
+      "from": "stream",
+      "to": "audioc",
+      "label": "audio frames",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "ui-serve",
+      "from": "ui",
+      "to": "serve",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          444,
+          90.0
+        ],
+        [
+          444,
+          425.0
+        ]
+      ]
+    },
+    {
+      "id": "passkey-serve",
+      "from": "passkeyc",
+      "to": "serve",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          444,
+          200.0
+        ],
+        [
+          444,
+          425.0
+        ]
+      ]
+    },
+    {
+      "id": "stream-serve",
+      "from": "stream",
+      "to": "serve",
+      "label": "WSS /ws",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          444,
+          310.0
+        ],
+        [
+          444,
+          425.0
+        ]
+      ],
+      "labelSegment": 0
+    },
+    {
+      "id": "files-serve",
+      "from": "filesui",
+      "to": "serve",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          444,
+          540.0
+        ],
+        [
+          444,
+          425.0
+        ]
+      ]
+    },
+    {
+      "id": "macs-serve",
+      "from": "macs",
+      "to": "serve",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          444,
+          760.0
+        ],
+        [
+          444,
+          425.0
+        ]
+      ]
+    },
+    {
+      "id": "serve-gate",
+      "from": "serve",
+      "to": "gate",
+      "label": "→ :7400",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gate-static",
+      "from": "gate",
+      "to": "static",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          746.5,
+          425.0
+        ],
+        [
+          746.5,
+          90.0
+        ]
+      ]
+    },
+    {
+      "id": "gate-auth",
+      "from": "gate",
+      "to": "auth",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          746.5,
+          425.0
+        ],
+        [
+          746.5,
+          200.0
+        ]
+      ]
+    },
+    {
+      "id": "gate-ws",
+      "from": "gate",
+      "to": "ws",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          746.5,
+          425.0
+        ],
+        [
+          746.5,
+          310.0
+        ]
+      ]
+    },
+    {
+      "id": "gate-files",
+      "from": "gate",
+      "to": "files",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          746.5,
+          425.0
+        ],
+        [
+          746.5,
+          540.0
+        ]
+      ]
+    },
+    {
+      "id": "gate-peers",
+      "from": "gate",
+      "to": "peers",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          746.5,
+          425.0
+        ],
+        [
+          746.5,
+          760.0
+        ]
+      ]
+    },
+    {
+      "id": "auth-pstore",
+      "from": "auth",
+      "to": "pstore",
+      "label": "verify",
+      "variant": "security"
+    },
+    {
+      "id": "pstore-disk",
+      "from": "pstore",
+      "to": "appsupport",
+      "label": "persist",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "ws-hub",
+      "from": "ws",
+      "to": "hub",
+      "label": "messages",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1174,
+          310.0
+        ],
+        [
+          1174,
+          480.0
+        ]
+      ],
+      "labelSegment": 0
+    },
+    {
+      "id": "files-sandbox",
+      "from": "files",
+      "to": "sandbox",
+      "label": "resolve"
+    },
+    {
+      "id": "sandbox-folders",
+      "from": "sandbox",
+      "to": "folders",
+      "label": "read",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "peers-peersnode",
+      "from": "peers",
+      "to": "peersnode",
+      "label": "list"
+    },
+    {
+      "id": "hub-fit",
+      "from": "hub",
+      "to": "fit",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1334,
+          480.0
+        ],
+        [
+          1334,
+          90.0
+        ]
+      ]
+    },
+    {
+      "id": "streamer-audioenc",
+      "from": "streamer",
+      "to": "audioenc",
+      "label": "samples",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "audioenc-hub",
+      "from": "audioenc",
+      "to": "hub",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          1308,
+          200.0
+        ],
+        [
+          1308,
+          480.0
+        ]
+      ]
+    },
+    {
+      "id": "hub-streamer",
+      "from": "hub",
+      "to": "streamer",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1334,
+          480.0
+        ],
+        [
+          1334,
+          310.0
+        ]
+      ]
+    },
+    {
+      "id": "streamer-encoder",
+      "from": "streamer",
+      "to": "encoder",
+      "label": "frames",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "emphasis"
+    },
+    {
+      "id": "encoder-hub",
+      "from": "encoder",
+      "to": "hub",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          1308,
+          430.0
+        ],
+        [
+          1308,
+          480.0
+        ]
+      ]
+    },
+    {
+      "id": "hub-adaptive",
+      "from": "hub",
+      "to": "adaptive",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1334,
+          480.0
+        ],
+        [
+          1334,
+          540.0
+        ]
+      ]
+    },
+    {
+      "id": "hub-inputinj",
+      "from": "hub",
+      "to": "inputinj",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1334,
+          480.0
+        ],
+        [
+          1334,
+          650.0
+        ]
+      ]
+    },
+    {
+      "id": "hub-clip",
+      "from": "hub",
+      "to": "clip",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1334,
+          480.0
+        ],
+        [
+          1334,
+          760.0
+        ]
+      ]
+    },
+    {
+      "id": "hub-cursorw",
+      "from": "hub",
+      "to": "cursorw",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          1334,
+          480.0
+        ],
+        [
+          1334,
+          870.0
+        ]
+      ]
+    },
+    {
+      "id": "fit-displays",
+      "from": "fit",
+      "to": "displays",
+      "label": "virtual",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "displays-streamer",
+      "from": "displays",
+      "to": "streamer",
+      "label": "pixels"
+    },
+    {
+      "id": "inputinj-hid",
+      "from": "inputinj",
+      "to": "hid",
+      "label": "CGEvent"
+    },
+    {
+      "id": "clip-pasteboard",
+      "from": "clip",
+      "to": "pasteboard",
+      "label": "sync"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Wire protocol (one WebSocket)",
+      "items": [
+        "Text frames: JSON control — hello, config, cursor, cursorShape, clip, state, quality, fit, pong",
+        "Client → Mac: move / mrel / btn / scroll / key / text / setclip / audio / fit / ping / stats",
+        "Binary type 1: video [1][key flag][µs ts][AVCC access unit]",
+        "Binary type 2: audio [2][AAC=1 | PCM=2][µs ts][payload]",
+        "Device name rides on /ws?device= for connect notices"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Video pipeline",
+      "items": [
+        "ScreenCaptureKit at the display's pixel size, scaled to the quality ladder, cursor excluded",
+        "VideoToolbox real-time encode, low-latency rate control, no B-frames, keyframe every 10 s or on demand",
+        "HEVC only when every viewer can decode it (lifts the 4K cap); otherwise H.264",
+        "Max 3 frames in flight per viewer: a slow viewer skips to the next keyframe instead of lagging",
+        "Idle screen: last frame is re-encoded as a keyframe so new viewers see it instantly"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Auto quality",
+      "items": [
+        "Every second: worst viewer's RTT, decoder queue and dropped frames",
+        "Congested → bitrate × 0.7; stuck at the floor 2 s → step resolution down",
+        "Clear 5 s → bitrate × 1.15; at max for 10 s → step resolution up",
+        "Ladder: 1280 · 1600 · 1920 · 2560 · 3840 wide; Fast / Balanced / Sharp override it"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Who can connect",
+      "items": [
+        "Reachable only inside your tailnet — the agent binds 127.0.0.1 and is published by tailscale serve",
+        "tailscale serve stamps the verified Tailscale-User-Login; anything not allowlisted gets 403",
+        "Optional passkey lock: Face ID / Touch ID → HMAC-signed 12 h cookie required for /ws, files and uploads",
+        "New passkeys only during a 10-minute window opened from the Mac's menu bar"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Files & clipboard",
+      "items": [
+        "Browse and download only inside ~/Downloads and ~/Desktop (.. and symlink escapes rejected)",
+        "Uploads stream to ~/Downloads with non-clobbering names",
+        "Folder-access prompts are checked on a background thread so nothing blocks waiting for consent",
+        "Pasteboard polled every 0.5 s; text from a viewer is written without echoing back"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Around the core",
+      "items": [
+        "PowerManager wakes the display on connect and holds it awake while anyone is viewing",
+        "Lock / display-sleep state shown as a banner with a Wake button",
+        "Menu bar: QR code, active sessions, Disconnect all, passkey controls, permission status",
+        "Connect notices via UserNotifications: “iPhone connected — you@example.com”"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Install & run",
+      "items": [
+        "scripts/setup.sh (this Mac or --remote over SSH) → build → sign → install-agent.sh",
+        "Signed with a stable self-made identity so Screen Recording / Accessibility survive updates",
+        "LaunchAgent com.tether.agent: starts at login, restarts if it exits",
+        "Logs: ~/Library/Logs/Tether.log"
+      ]
+    }
+  ]
+}

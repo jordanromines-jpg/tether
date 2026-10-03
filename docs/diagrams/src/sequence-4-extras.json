@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Tether ④ — clipboard, sound and teardown",
+    "output": ".archify/sequence-tether-4-extras-20261003-153000/tether-4-extras.html",
+    "column_fit": "spread",
+    "viewBox": [
+      1080,
+      581
+    ],
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/jordanromines-jpg/tether.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9554d913c0f732a4e6834d5da55b201b5adc217b"
+    }
+  },
+  "participants": [
+    {
+      "id": "pwa",
+      "type": "frontend",
+      "label": "Tether PWA",
+      "sublabel": "stream.js · app.js",
+      "sources": [
+        {
+          "path": "web/js/stream.js",
+          "line": 52,
+          "end_line": 75,
+          "label": "connect + hello"
+        },
+        {
+          "path": "web/js/app.js",
+          "line": 63,
+          "end_line": 103,
+          "label": "passkey gate"
+        }
+      ]
+    },
+    {
+      "id": "hub",
+      "type": "backend",
+      "label": "Hub",
+      "sublabel": "sessions · fan-out",
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 128,
+          "end_line": 175,
+          "label": "add client + hello"
+        },
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 354,
+          "end_line": 410,
+          "label": "message dispatch"
+        },
+        {
+          "path": "agent/Sources/Tether/Hub.swift",
+          "line": 326,
+          "end_line": 352,
+          "label": "1 s adapt tick"
+        }
+      ]
+    },
+    {
+      "id": "inj",
+      "type": "backend",
+      "label": "InputInjector",
+      "sublabel": "CGEvent",
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Input.swift",
+          "line": 7,
+          "end_line": 140,
+          "label": "mouse · keys · text"
+        }
+      ]
+    },
+    {
+      "id": "capture",
+      "type": "backend",
+      "label": "Capture",
+      "sublabel": "SCK + VideoToolbox",
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Capture.swift",
+          "line": 71,
+          "end_line": 110,
+          "label": "start stream"
+        },
+        {
+          "path": "agent/Sources/Tether/Encoder.swift",
+          "line": 71,
+          "end_line": 100,
+          "label": "encode + keyframe"
+        }
+      ]
+    },
+    {
+      "id": "mac",
+      "type": "external",
+      "label": "macOS",
+      "sublabel": "display · HID",
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Power.swift",
+          "line": 9,
+          "end_line": 25,
+          "label": "wake + keep awake"
+        },
+        {
+          "path": "agent/Sources/Tether/Clipboard.swift",
+          "line": 4,
+          "end_line": 41,
+          "label": "pasteboard poll"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 161,
+      "to": 329,
+      "label": "Clipboard + sound"
+    },
+    {
+      "from": 347,
+      "to": 459,
+      "label": "Teardown"
+    }
+  ],
+  "messages": [
+    {
+      "id": "m01",
+      "from": "mac",
+      "to": "hub",
+      "y": 175,
+      "label": "pasteboard changed",
+      "variant": "dashed"
+    },
+    {
+      "id": "m02",
+      "from": "hub",
+      "to": "pwa",
+      "y": 203,
+      "label": "clip → Copy toast",
+      "variant": "return"
+    },
+    {
+      "id": "m03",
+      "from": "pwa",
+      "to": "hub",
+      "y": 231,
+      "label": "sound on (AAC)",
+      "variant": "default"
+    },
+    {
+      "id": "m04",
+      "from": "hub",
+      "to": "capture",
+      "y": 259,
+      "label": "restart with audio",
+      "variant": "default"
+    },
+    {
+      "id": "m05",
+      "from": "capture",
+      "to": "hub",
+      "y": 287,
+      "label": "AAC frames",
+      "variant": "dashed"
+    },
+    {
+      "id": "m06",
+      "from": "hub",
+      "to": "pwa",
+      "y": 315,
+      "label": "binary audio",
+      "variant": "return"
+    },
+    {
+      "id": "m07",
+      "from": "pwa",
+      "to": "hub",
+      "y": 361,
+      "label": "socket closes",
+      "variant": "dashed"
+    },
+    {
+      "id": "m08",
+      "from": "hub",
+      "to": "inj",
+      "y": 389,
+      "label": "release all keys",
+      "variant": "default"
+    },
+    {
+      "id": "m09",
+      "from": "hub",
+      "to": "capture",
+      "y": 417,
+      "label": "stop (last viewer)",
+      "variant": "default"
+    },
+    {
+      "id": "m10",
+      "from": "hub",
+      "to": "mac",
+      "y": 445,
+      "label": "release keep-awake",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "pwa",
+      "from": 199,
+      "to": 367,
+      "type": "frontend"
+    },
+    {
+      "participant": "hub",
+      "from": 171,
+      "to": 451,
+      "type": "backend"
+    },
+    {
+      "participant": "capture",
+      "from": 255,
+      "to": 423,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "orange",
+      "title": "Clipboard",
+      "items": [
+        "Mac pasteboard polled every 0.5 s; new text shows a Copy toast",
+        "Text from your device is written without echoing back",
+        "Send & paste: writes the pasteboard, then ⌘V"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Sound",
+      "items": [
+        "Starts on a tap (browsers require a gesture)",
+        "AAC-LC 48 kHz via WebCodecs AudioDecoder, or 24 kHz PCM where it's missing",
+        "~80 ms jitter buffer that resyncs if it drifts"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Teardown",
+      "items": [
+        "Every key and button released when a viewer leaves",
+        "Capture, cursor and clipboard polling stop with the last viewer",
+        "Fit-to-device virtual display removed; awake hold released"
+      ]
+    }
+  ]
+}

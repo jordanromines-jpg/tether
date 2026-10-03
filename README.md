@@ -72,15 +72,71 @@ Details, including what to do if a device is lost: [SECURITY.md](SECURITY.md).
 
 ## How it works
 
-```
-iPhone / iPad / Mac browser  ──HTTPS + WebSocket──▶  tailscale serve  ──▶  Tether.app on your Mac (127.0.0.1:7400)
-  WebCodecs video decoding                          TLS + identity        ScreenCaptureKit → HEVC/H.264 (VideoToolbox)
-  touch / keyboard / clipboard                                            CGEvent input · audio · files
-```
+Six diagrams map Tether end to end. They're generated with [Archify](https://github.com/tt-a1i/archify) from the source code: every box links to the exact file and lines that implement it, pinned to a commit.
+
+Each picture links to an **interactive version** (download the `.html` and open it in a browser). There you can:
+- click any box to see its source links;
+- trace a path through the system;
+- switch between guided views such as *Video path*, *Input path* and *Who can connect*;
+- toggle light and dark mode, or export.
+
+### 1. System architecture
+
+Everything that runs, where it runs, and how it connects: your device's browser app, Tailscale, the identity gate, the agent's routes, the Hub that feeds every viewer from one capture, the capture and input engines, and the macOS pieces they touch.
+
+<a href="docs/diagrams/architecture.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
+  <img alt="Tether system architecture: browser modules, tailscale serve, identity gate, agent routes, Hub, capture/encode/input engines and macOS" src="docs/diagrams/architecture-light.png">
+</picture></a>
+
+### 2. One session, step by step
+
+A real session, split across four sequence diagrams.
+
+**① Access:** the lock check on every load, and the optional Face ID / Touch ID passkey unlock.
+
+<a href="docs/diagrams/sequence-1-access.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-1-access-dark.png">
+  <img alt="Sequence: lock check and passkey unlock" src="docs/diagrams/sequence-1-access-light.png">
+</picture></a>
+
+**② Connect:** the WebSocket handshake, codec negotiation (HEVC or H.264) and the instant first frame.
+
+<a href="docs/diagrams/sequence-2-connect.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-2-connect-dark.png">
+  <img alt="Sequence: WebSocket hello, codec choice and first keyframe" src="docs/diagrams/sequence-2-connect-light.png">
+</picture></a>
+
+**③ Live:** the video loop with backpressure, the cursor drawn on your device, Auto quality, and how a tap becomes a real macOS event.
+
+<a href="docs/diagrams/sequence-3-live.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-3-live-dark.png">
+  <img alt="Sequence: live video, Auto quality and input injection" src="docs/diagrams/sequence-3-live-light.png">
+</picture></a>
+
+**④ Extras:** clipboard sync, sound, and what gets cleaned up when you disconnect.
+
+<a href="docs/diagrams/sequence-4-extras.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sequence-4-extras-dark.png">
+  <img alt="Sequence: clipboard, audio and teardown" src="docs/diagrams/sequence-4-extras-light.png">
+</picture></a>
+
+### 3. Setup
+
+What `scripts/setup.sh` checks, builds and installs, and exactly where it stops and waits for you.
+
+<a href="docs/diagrams/setup.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/setup-dark.png">
+  <img alt="Setup workflow: checks, build, install, and the ACTION NEEDED steps" src="docs/diagrams/setup-light.png">
+</picture></a>
+
+### Code layout
 
 - `agent/`: the Swift menu-bar app. It captures the screen, encodes it with the hardware encoder in low-latency mode, injects input, and adapts quality to your connection.
 - `web/`: the client. Plain JavaScript modules with no build step, installable to the Home Screen.
-- `scripts/`: setup, build, signing and update scripts. `CLAUDE.md` is the runbook Claude follows.
+- `scripts/`: the setup, build, signing and update scripts.
+- `CLAUDE.md`: the runbook Claude follows.
+- `docs/diagrams/`: the diagrams above, plus their Archify sources in `src/`. To regenerate one, run `archify finalize <type> docs/diagrams/src/<name>.json <out>.html --repo-root .`
 
 ## Development
 
