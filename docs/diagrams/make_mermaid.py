@@ -7,6 +7,7 @@ role-tinted rounded nodes with a sublabel, emphasis / security / dashed edge sty
 orthogonal routing and dashed region boundaries — all laid out top to bottom.
 
     python3 docs/diagrams/make_mermaid.py      # rewrites docs/diagrams/mermaid/*.mmd and the README blocks
+    docs/diagrams/render_svg.sh                # renders the ELK architecture to light/dark SVG
 """
 import json
 import re
@@ -54,67 +55,44 @@ def class_defs():
 
 
 def architecture():
-    """Layered, top-to-bottom view of the same components as the Archify map.
+    """The full architecture map — every node-to-node link — laid out by Mermaid's ELK engine.
 
-    Mermaid's flowchart layout tangles a 33-node graph with dozens of cross links, so the README
-    version stacks horizontal layers: links inside a layer are drawn node to node, links between
-    layers once, labeled with the protocol. The interactive Archify map keeps every node-to-node link.
+    GitHub's built-in Mermaid only ships the dagre layout (which tangles a graph this dense) and
+    rejects ELK, so this one isn't embedded as a Mermaid block: render_svg.sh renders it to
+    light/dark SVG files that the README shows as a crisp vector image.
     """
     a = json.loads((SRC / "architecture.json").read_text())
     comps = {c["id"]: c for c in a["components"]}
-    layers = [
-        ("L1", "Your device · screen and input", ["you", "input", "stream", "cursorc", "audioc"]),
-        ("L2", "Your device · lock, files and other Macs", ["passkeyc", "ui", "filesui", "macs"]),
-        ("L3", "Your tailnet → the Mac", ["serve", "gate"]),
-        ("L4", "Tether.app routes · 127.0.0.1:7400 only", ["static", "auth", "ws", "files", "peers"]),
-        ("L5", "Services and storage", ["pstore", "appsupport", "sandbox", "folders", "peersnode"]),
-        ("L6", "Hub · one capture feeds every viewer", ["hub", "adaptive"]),
-        ("L7", "Capture and encode", ["fit", "streamer", "encoder", "audioenc"]),
-        ("L8", "Input and sync", ["inputinj", "clip", "cursorw"]),
-        ("L9", "macOS", ["displays", "hid", "pasteboard"]),
-    ]
-    layer_of = {nid: lid for lid, _, ids in layers for nid in ids}
-    out = [INIT, "flowchart TB"]
-    for lid, title, ids in layers:
-        out.append(f'  subgraph {lid}["{title}"]')
-        out.append("    direction LR")
+    regions = {b["label"]: b["wraps"] for b in a["boundaries"]}
+    device = next(w for l, w in regions.items() if "browser" in l.lower())
+    mac = next(w for l, w in regions.items() if "control" in l.lower())
+    app = next(w for l, w in regions.items() if "127.0.0.1" in l)
+    out = ['%%{init: {"layout": "elk", "elk": {"nodePlacementStrategy": "BRANDES_KOEPF", "mergeEdges": false},'
+           ' "flowchart": {"curve": "stepBefore", "htmlLabels": false}, "themeVariables": {"fontSize": "14px"}}}%%',
+           "flowchart TB"]
+
+    def emit(ids, indent):
         for i in ids:
             c = comps[i]
-            out.append("    " + node(i, c["label"], c.get("sublabel", "")) + f":::{c['type']}")
-        out.append("  end")
-    styles, k = [], 0
+            out.append(" " * indent + node(i, c["label"], c.get("sublabel", "")) + f":::{c['type']}")
 
-    def link(a_, b_, label, variant):
-        nonlocal k
-        arrow = "-.->" if variant in ("dashed", "security") else ("==>" if variant == "emphasis" else "-->")
-        out.append(f"  {a_} {arrow}" + (f'|"{esc(label)}"|' if label else "") + f" {b_}")
-        styles.append(f"  linkStyle {k} {EDGE[variant]}")
-        k += 1
-
-    # Node-to-node links that stay inside one layer, straight from the Archify source.
-    for e in a["connections"]:
-        if layer_of[e["from"]] == layer_of[e["to"]]:
-            link(e["from"], e["to"], e.get("label"), e.get("variant", "default"))
-    # One labeled link per pair of adjacent layers (the protocol between them).
-    for a_, b_, label, variant in [
-        ("L1", "L2", None, "dashed"),
-        ("L2", "L3", "HTTPS + WSS (tailnet only)", "emphasis"),
-        ("L3", "L4", "verified login → :7400", "emphasis"),
-        ("L4", "L5", "verify · resolve · list", "security"),
-        ("L4", "L6", "/ws messages", "emphasis"),
-        ("L6", "L7", "start · keyframe · bitrate", "emphasis"),
-        ("L7", "L8", None, "dashed"),
-        ("L8", "L9", "CGEvent · pasteboard · pixels", "default"),
-    ]:
-        link(a_, b_, label, variant)
-    # Keep every layer on its own row, in order (layers that branch from the same parent would sit side by side).
-    out.append("  " + " ~~~ ".join(l for l, _, _ in layers))
-    # Invisible links put each layer's boxes side by side, in the listed order.
-    for _, _, ids in layers:
-        if len(ids) > 1:
-            out.append("  " + " ~~~ ".join(ids))
+    out.append('  subgraph DEVICE["Your iPhone / iPad / Mac browser (PWA)"]')
+    emit(device, 4)
+    out.append("  end")
+    out.append('  subgraph MAC["The Mac you control"]')
+    emit([i for i in mac if i not in app], 4)
+    out.append('    subgraph APP["Tether.app · listens on 127.0.0.1:7400 only"]')
+    emit(app, 6)
+    out.append("    end")
+    out.append("  end")
+    styles = []
+    for k, e in enumerate(a["connections"]):
+        v = e.get("variant", "default")
+        arrow = "-.->" if v in ("dashed", "security") else ("==>" if v == "emphasis" else "-->")
+        out.append(f"  {e['from']} {arrow}" + (f'|"{esc(e["label"])}"|' if e.get("label") else "") + f" {e['to']}")
+        styles.append(f"  linkStyle {k} {EDGE[v]}")
     out += styles + ["  " + l for l in class_defs()]
-    out.append("  class " + ",".join(l for l, _, _ in layers) + " region")
+    out += ["  class DEVICE,MAC region", "  class APP guard"]
     return "\n".join(out)
 
 
@@ -188,7 +166,9 @@ def setup():
 
 def main():
     OUT.mkdir(exist_ok=True)
-    blocks = {"architecture": architecture(), "session": session(), "setup": setup()}
+    (OUT / "architecture-elk.mmd").write_text(architecture() + "\n")   # rendered to SVG by render_svg.sh
+    (OUT / "architecture.mmd").unlink(missing_ok=True)
+    blocks = {"session": session(), "setup": setup()}                 # embedded in the README
     for name, text in blocks.items():
         (OUT / f"{name}.mmd").write_text(text + "\n")
     readme = ROOT / "README.md"
@@ -198,7 +178,7 @@ def main():
         if pattern.search(md):
             md = pattern.sub(lambda m: m.group(1) + "```mermaid\n" + text + "\n```\n", md)
     readme.write_text(md)
-    print("wrote", ", ".join(f"{k}.mmd" for k in blocks))
+    print("wrote architecture-elk.mmd,", ", ".join(f"{k}.mmd" for k in blocks))
 
 
 if __name__ == "__main__":

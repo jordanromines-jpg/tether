@@ -1,0 +1,157 @@
+%%{init: {"layout": "elk", "elk": {"nodePlacementStrategy": "BRANDES_KOEPF", "mergeEdges": false}, "flowchart": {"curve": "stepBefore", "htmlLabels": false}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
+  subgraph DEVICE["Your iPhone / iPad / Mac browser (PWA)"]
+    you("`**You**
+touch · mouse · keys`"):::external
+    input("`**input + keys**
+swipes · ⌘ keys`"):::frontend
+    audioc("`**audio.js**
+AAC / PCM decode`"):::frontend
+    ui("`**App shell (app.js)**
+toolbar · sheets · banner`"):::frontend
+    passkeyc("`**passkey.js**
+WebAuthn Face/Touch ID`"):::frontend
+    stream("`**stream.js**
+WSS + WebCodecs decode`"):::frontend
+    cursorc("`**cursor.js**
+local cursor, predicted`"):::frontend
+    filesui("`**Files sheet**
+XHR upload · download`"):::frontend
+    macs("`**Macs switcher**
+probe peers' /healthz`"):::frontend
+  end
+  subgraph MAC["The Mac you control"]
+    serve("`**tailscale serve**
+HTTPS :443`"):::security
+    appsupport("`**App Support/Tether**
+passkeys · HMAC secret`"):::database
+    folders("`**Downloads · Desktop**
+Files & Folders consent`"):::database
+    displays("`**Displays**
+physical + virtual`"):::external
+    hid("`**macOS input**
+HID event tap`"):::external
+    pasteboard("`**NSPasteboard**
+general pasteboard`"):::database
+    subgraph APP["Tether.app · listens on 127.0.0.1:7400 only"]
+      gate("`**Identity gate**
+login allowlist`"):::security
+      static("`**Static web client**
+FileMiddleware · web/`"):::backend
+      auth("`**/auth/∗ routes**
+register · options · verify`"):::backend
+      ws("`**/ws WebSocket**
+JSON control + binary A/V`"):::backend
+      files("`**File routes**
+/files /download /upload`"):::backend
+      peers("`**/peers · /healthz**
+CORS: same tailnet`"):::backend
+      pstore("`**PasskeyStore**
+P-256 · 12 h cookie`"):::security
+      sandbox("`**FileSandbox**
+blocks .. and symlinks`"):::security
+      peersnode("`**Peers**
+tailscale status --json`"):::backend
+      hub("`**Hub**
+sessions`"):::backend
+      fit("`**FitDisplay (opt-in)**
+CGVirtualDisplay mirror`"):::backend
+      audioenc("`**AudioEncoder**
+AAC-LC 48k / PCM 24k`"):::backend
+      streamer("`**ScreenStreamer**
+ScreenCaptureKit, no cursor`"):::backend
+      encoder("`**VideoEncoder**
+VideoToolbox HEVC / H.264`"):::backend
+      adaptive("`**AdaptiveController**
+RTT · queue · drops`"):::backend
+      inputinj("`**InputInjector**
+CGEvent mouse · keys · text`"):::backend
+      clip("`**ClipboardSync**
+poll changeCount 0.5 s`"):::backend
+      cursorw("`**CursorWatcher**
+shape 8 Hz · pos 60 Hz`"):::backend
+    end
+  end
+  you -->|"taps"| ui
+  you -->|"gestures"| input
+  input -->|"JSON input"| stream
+  stream -->|"cursor pos"| cursorc
+  stream -->|"audio frames"| audioc
+  ui --> serve
+  passkeyc -.-> serve
+  stream ==>|"WSS /ws"| serve
+  filesui --> serve
+  macs --> serve
+  serve ==>|"→ :7400"| gate
+  gate --> static
+  gate -.-> auth
+  gate ==> ws
+  gate --> files
+  gate --> peers
+  auth -.->|"verify"| pstore
+  pstore -->|"persist"| appsupport
+  ws ==>|"messages"| hub
+  files -->|"resolve"| sandbox
+  sandbox -->|"read"| folders
+  peers -->|"list"| peersnode
+  hub --> fit
+  streamer -->|"samples"| audioenc
+  audioenc -.-> hub
+  hub ==> streamer
+  streamer ==>|"frames"| encoder
+  encoder ==> hub
+  hub --> adaptive
+  hub --> inputinj
+  hub --> clip
+  hub --> cursorw
+  fit -->|"virtual"| displays
+  displays -->|"pixels"| streamer
+  inputinj -->|"CGEvent"| hid
+  clip -->|"sync"| pasteboard
+  linkStyle 0 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 1 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 2 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 3 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 4 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 5 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 6 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 7 stroke:#059669,stroke-width:2.5px
+  linkStyle 8 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 9 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 10 stroke:#059669,stroke-width:2.5px
+  linkStyle 11 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 12 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 13 stroke:#059669,stroke-width:2.5px
+  linkStyle 14 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 15 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 16 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 17 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 18 stroke:#059669,stroke-width:2.5px
+  linkStyle 19 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 20 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 21 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 22 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 23 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 24 stroke:#94a3b8,stroke-width:1.5px,stroke-dasharray:4 4
+  linkStyle 25 stroke:#059669,stroke-width:2.5px
+  linkStyle 26 stroke:#059669,stroke-width:2.5px
+  linkStyle 27 stroke:#059669,stroke-width:2.5px
+  linkStyle 28 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 29 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 30 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 31 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 32 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 33 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 34 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 35 stroke:#94a3b8,stroke-width:1.5px
+  classDef frontend fill:#0891b21f,stroke:#0891b2,stroke-width:1.5px,rx:6,ry:6
+  classDef backend fill:#0596691f,stroke:#059669,stroke-width:1.5px,rx:6,ry:6
+  classDef security fill:#e11d481f,stroke:#e11d48,stroke-width:1.5px,rx:6,ry:6
+  classDef database fill:#7c3aed1f,stroke:#7c3aed,stroke-width:1.5px,rx:6,ry:6
+  classDef external fill:#64748b1f,stroke:#64748b,stroke-width:1.5px,rx:6,ry:6
+  classDef cloud fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef messagebus fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef region fill:transparent,stroke:#d97706,stroke-width:1px,stroke-dasharray:6 4
+  classDef guard fill:transparent,stroke:#e11d48,stroke-width:1px,stroke-dasharray:6 4
+  class DEVICE,MAC region
+  class APP guard

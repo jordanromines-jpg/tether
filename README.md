@@ -82,13 +82,13 @@ Details, including what to do if a device is lost: [SECURITY.md](SECURITY.md).
 
 ## How it works
 
-Three diagrams map Tether end to end, top to bottom. GitHub draws them right here, so they stay sharp at any zoom; use the expand button to pan around.
+Three diagrams map Tether end to end, top to bottom. All of them stay sharp at any zoom: the session and setup diagrams are drawn by GitHub itself (use the expand button to pan), and the architecture is a vector image.
 
 Each has an **[interactive version](https://jordanromines-jpg.github.io/tether/)** made with [Archify](https://github.com/tt-a1i/archify). There you can click any box to see the exact file and lines that implement it, trace paths, and switch guided views.
 
 ### 1. System architecture
 
-From your device at the top, through Tailscale and the identity gate, to the agent's routes, the Hub that feeds every viewer from one capture, the capture and input engines, and macOS at the bottom.
+Every component and every link, from your device at the top, through Tailscale and the identity gate, to the agent's routes, the Hub that feeds every viewer from one capture, the capture and input engines, and macOS at the bottom. This one is a vector image rather than a live Mermaid block: it uses Mermaid's ELK layout engine, which untangles a map this dense, and GitHub's built-in Mermaid doesn't include ELK.
 
 **Colours:**
 - cyan: your device
@@ -103,162 +103,12 @@ From your device at the top, through Tailscale and the identity gate, to the age
 - dashed red: security checks
 - dashed grey: returns
 
-[Open the interactive architecture map →](https://jordanromines-jpg.github.io/tether/diagrams/architecture.html)
+<a href="https://jordanromines-jpg.github.io/tether/diagrams/architecture-elk-light.svg"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-elk-dark.svg">
+  <img alt="Tether architecture: every component and link, from your device through Tailscale and the identity gate to the Hub, capture and input engines, and macOS" src="docs/diagrams/architecture-elk-light.svg">
+</picture></a>
 
-<!-- mermaid:architecture -->
-```mermaid
-%%{init: {"flowchart": {"curve": "stepBefore", "nodeSpacing": 28, "rankSpacing": 44, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
-flowchart TB
-  subgraph L1["Your device · screen and input"]
-    direction LR
-    you("`**You**
-touch · mouse · keys`"):::external
-    input("`**input + keys**
-swipes · ⌘ keys`"):::frontend
-    stream("`**stream.js**
-WSS + WebCodecs decode`"):::frontend
-    cursorc("`**cursor.js**
-local cursor, predicted`"):::frontend
-    audioc("`**audio.js**
-AAC / PCM decode`"):::frontend
-  end
-  subgraph L2["Your device · lock, files and other Macs"]
-    direction LR
-    passkeyc("`**passkey.js**
-WebAuthn Face/Touch ID`"):::frontend
-    ui("`**App shell (app.js)**
-toolbar · sheets · banner`"):::frontend
-    filesui("`**Files sheet**
-XHR upload · download`"):::frontend
-    macs("`**Macs switcher**
-probe peers' /healthz`"):::frontend
-  end
-  subgraph L3["Your tailnet → the Mac"]
-    direction LR
-    serve("`**tailscale serve**
-HTTPS :443`"):::security
-    gate("`**Identity gate**
-login allowlist`"):::security
-  end
-  subgraph L4["Tether.app routes · 127.0.0.1:7400 only"]
-    direction LR
-    static("`**Static web client**
-FileMiddleware · web/`"):::backend
-    auth("`**/auth/∗ routes**
-register · options · verify`"):::backend
-    ws("`**/ws WebSocket**
-JSON control + binary A/V`"):::backend
-    files("`**File routes**
-/files /download /upload`"):::backend
-    peers("`**/peers · /healthz**
-CORS: same tailnet`"):::backend
-  end
-  subgraph L5["Services and storage"]
-    direction LR
-    pstore("`**PasskeyStore**
-P-256 · 12 h cookie`"):::security
-    appsupport("`**App Support/Tether**
-passkeys · HMAC secret`"):::database
-    sandbox("`**FileSandbox**
-blocks .. and symlinks`"):::security
-    folders("`**Downloads · Desktop**
-Files & Folders consent`"):::database
-    peersnode("`**Peers**
-tailscale status --json`"):::backend
-  end
-  subgraph L6["Hub · one capture feeds every viewer"]
-    direction LR
-    hub("`**Hub**
-sessions`"):::backend
-    adaptive("`**AdaptiveController**
-RTT · queue · drops`"):::backend
-  end
-  subgraph L7["Capture and encode"]
-    direction LR
-    fit("`**FitDisplay (opt-in)**
-CGVirtualDisplay mirror`"):::backend
-    streamer("`**ScreenStreamer**
-ScreenCaptureKit, no cursor`"):::backend
-    encoder("`**VideoEncoder**
-VideoToolbox HEVC / H.264`"):::backend
-    audioenc("`**AudioEncoder**
-AAC-LC 48k / PCM 24k`"):::backend
-  end
-  subgraph L8["Input and sync"]
-    direction LR
-    inputinj("`**InputInjector**
-CGEvent mouse · keys · text`"):::backend
-    clip("`**ClipboardSync**
-poll changeCount 0.5 s`"):::backend
-    cursorw("`**CursorWatcher**
-shape 8 Hz · pos 60 Hz`"):::backend
-  end
-  subgraph L9["macOS"]
-    direction LR
-    displays("`**Displays**
-physical + virtual`"):::external
-    hid("`**macOS input**
-HID event tap`"):::external
-    pasteboard("`**NSPasteboard**
-general pasteboard`"):::database
-  end
-  you -->|"gestures"| input
-  input -->|"JSON input"| stream
-  stream -->|"cursor pos"| cursorc
-  stream -->|"audio frames"| audioc
-  serve ==>|"→ :7400"| gate
-  pstore -->|"persist"| appsupport
-  sandbox -->|"read"| folders
-  streamer -->|"samples"| audioenc
-  streamer ==>|"frames"| encoder
-  hub --> adaptive
-  L1 -.-> L2
-  L2 ==>|"HTTPS + WSS (tailnet only)"| L3
-  L3 ==>|"verified login → :7400"| L4
-  L4 -.->|"verify · resolve · list"| L5
-  L4 ==>|"/ws messages"| L6
-  L6 ==>|"start · keyframe · bitrate"| L7
-  L7 -.-> L8
-  L8 -->|"CGEvent · pasteboard · pixels"| L9
-  L1 ~~~ L2 ~~~ L3 ~~~ L4 ~~~ L5 ~~~ L6 ~~~ L7 ~~~ L8 ~~~ L9
-  you ~~~ input ~~~ stream ~~~ cursorc ~~~ audioc
-  passkeyc ~~~ ui ~~~ filesui ~~~ macs
-  serve ~~~ gate
-  static ~~~ auth ~~~ ws ~~~ files ~~~ peers
-  pstore ~~~ appsupport ~~~ sandbox ~~~ folders ~~~ peersnode
-  hub ~~~ adaptive
-  fit ~~~ streamer ~~~ encoder ~~~ audioenc
-  inputinj ~~~ clip ~~~ cursorw
-  displays ~~~ hid ~~~ pasteboard
-  linkStyle 0 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 1 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 2 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 3 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 4 stroke:#059669,stroke-width:2.5px
-  linkStyle 5 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 6 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 7 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 8 stroke:#059669,stroke-width:2.5px
-  linkStyle 9 stroke:#94a3b8,stroke-width:1.5px
-  linkStyle 10 stroke:#94a3b8,stroke-width:1.5px,stroke-dasharray:4 4
-  linkStyle 11 stroke:#059669,stroke-width:2.5px
-  linkStyle 12 stroke:#059669,stroke-width:2.5px
-  linkStyle 13 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
-  linkStyle 14 stroke:#059669,stroke-width:2.5px
-  linkStyle 15 stroke:#059669,stroke-width:2.5px
-  linkStyle 16 stroke:#94a3b8,stroke-width:1.5px,stroke-dasharray:4 4
-  linkStyle 17 stroke:#94a3b8,stroke-width:1.5px
-  classDef frontend fill:#0891b21f,stroke:#0891b2,stroke-width:1.5px,rx:6,ry:6
-  classDef backend fill:#0596691f,stroke:#059669,stroke-width:1.5px,rx:6,ry:6
-  classDef security fill:#e11d481f,stroke:#e11d48,stroke-width:1.5px,rx:6,ry:6
-  classDef database fill:#7c3aed1f,stroke:#7c3aed,stroke-width:1.5px,rx:6,ry:6
-  classDef external fill:#64748b1f,stroke:#64748b,stroke-width:1.5px,rx:6,ry:6
-  classDef cloud fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
-  classDef messagebus fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
-  classDef region fill:transparent,stroke:#d97706,stroke-width:1px,stroke-dasharray:6 4
-  classDef guard fill:transparent,stroke:#e11d48,stroke-width:1px,stroke-dasharray:6 4
-  class L1,L2,L3,L4,L5,L6,L7,L8,L9 region
-```
+**[View the full-size graphic](https://jordanromines-jpg.github.io/tether/diagrams/architecture-elk-light.svg)** ([dark version](https://jordanromines-jpg.github.io/tether/diagrams/architecture-elk-dark.svg)). It's vector, so zoom in as far as you like. Or **[open the interactive architecture map →](https://jordanromines-jpg.github.io/tether/diagrams/architecture.html)**, where you can click any box for its source code.
 
 ### 2. One session, step by step
 
@@ -468,7 +318,7 @@ Tailscale admin → DNS`"]):::action
 - `web/`: the client. Plain JavaScript modules with no build step, installable to the Home Screen.
 - `scripts/`: the setup, build, signing and update scripts.
 - `CLAUDE.md`: the runbook Claude follows.
-- `docs/diagrams/`: the diagrams. `src/*.json` are the Archify sources for the interactive versions; rebuild one with `archify finalize <type> docs/diagrams/src/<name>.json <out>.html --repo-root .`. The README's Mermaid diagrams are generated from the same sources by `python3 docs/diagrams/make_mermaid.py`.
+- `docs/diagrams/`: the diagrams. `src/*.json` are the Archify sources for the interactive versions; rebuild one with `archify finalize <type> docs/diagrams/src/<name>.json <out>.html --repo-root .`. The README's Mermaid diagrams are generated from the same sources by `python3 docs/diagrams/make_mermaid.py`, and `docs/diagrams/render_svg.sh` renders the architecture's ELK version to `architecture-elk-{light,dark}.svg`.
 
 ## Development
 
