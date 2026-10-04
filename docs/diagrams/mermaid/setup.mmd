@@ -1,0 +1,85 @@
+%%{init: {"flowchart": {"curve": "stepBefore", "nodeSpacing": 28, "rankSpacing": 44, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
+  subgraph CHECKS["Checks — this Mac runs scripts/setup.sh"]
+    direction TB
+    macos("`**macOS 14+**
+else ✗ stop`"):::external
+    clt("`**Command Line Tools**
+Swift toolchain`"):::backend
+    tailscale("`**Tailscale**
+installed · signed in`"):::cloud
+    ssh("`**SSH to other Mac**
+--remote only`"):::security
+    https("`**HTTPS certificates**
+tailnet CertDomains`"):::security
+    signing("`**Signing identity**
+dedicated keychain`"):::security
+  end
+  subgraph INSTALL["Build here → install on the Mac you'll control"]
+    direction TB
+    build("`**Build Tether.app**
+skipped if unchanged`"):::backend
+    copy("`**Copy app**
+~/Applications`"):::backend
+    agent("`**LaunchAgent**
+runs at login`"):::backend
+    serve("`**tailscale serve**
+https://<mac>.ts.net`"):::cloud
+    perms("`**Permission check**
+asks Tether's /healthz`"):::security
+    ready("`**✓ Tether is ready**
+link + QR code`"):::frontend
+  end
+  a_clt(["`**✋ Click Install**
+or accept license`"]):::action
+  a_ts(["`**✋ Install + sign in**
+same account`"]):::action
+  a_ssh(["`**✋ Remote Login on**
++ ssh-copy-id once`"]):::action
+  a_https(["`**✋ Enable HTTPS**
+Tailscale admin → DNS`"]):::action
+  a_perms(["`**✋ Allow Tether**
+2 privacy switches`"]):::action
+  macos ==> clt
+  clt ==> tailscale
+  tailscale ==> ssh
+  ssh ==> https
+  https ==> signing
+  signing ==>|"build + install"| build
+  build ==> copy
+  copy ==> agent
+  agent ==> serve
+  serve ==> perms
+  perms ==> ready
+  clt -.->|"missing"| a_clt
+  tailscale -.->|"missing"| a_ts
+  ssh -.->|"no access"| a_ssh
+  https -.->|"off"| a_https
+  perms -.->|"not yet"| a_perms
+  linkStyle 0 stroke:#059669,stroke-width:2.5px
+  linkStyle 1 stroke:#059669,stroke-width:2.5px
+  linkStyle 2 stroke:#059669,stroke-width:2.5px
+  linkStyle 3 stroke:#059669,stroke-width:2.5px
+  linkStyle 4 stroke:#059669,stroke-width:2.5px
+  linkStyle 5 stroke:#059669,stroke-width:2.5px
+  linkStyle 6 stroke:#059669,stroke-width:2.5px
+  linkStyle 7 stroke:#059669,stroke-width:2.5px
+  linkStyle 8 stroke:#059669,stroke-width:2.5px
+  linkStyle 9 stroke:#059669,stroke-width:2.5px
+  linkStyle 10 stroke:#059669,stroke-width:2.5px
+  linkStyle 11 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 12 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 13 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 14 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 15 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  classDef frontend fill:#0891b21f,stroke:#0891b2,stroke-width:1.5px,rx:6,ry:6
+  classDef backend fill:#0596691f,stroke:#059669,stroke-width:1.5px,rx:6,ry:6
+  classDef security fill:#e11d481f,stroke:#e11d48,stroke-width:1.5px,rx:6,ry:6
+  classDef database fill:#7c3aed1f,stroke:#7c3aed,stroke-width:1.5px,rx:6,ry:6
+  classDef external fill:#64748b1f,stroke:#64748b,stroke-width:1.5px,rx:6,ry:6
+  classDef cloud fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef messagebus fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef region fill:transparent,stroke:#d97706,stroke-width:1px,stroke-dasharray:6 4
+  classDef guard fill:transparent,stroke:#e11d48,stroke-width:1px,stroke-dasharray:6 4
+  classDef action fill:#e11d4814,stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:4 3
+  class CHECKS,INSTALL region

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Tether — system architecture (browser → tailnet → Mac agent → macOS)",
+    "title": "Tether — system architecture, top to bottom",
     "output": ".archify/architecture-tether-20261003-143311/tether-architecture.html",
     "quality_profile": "showcase",
     "locale": "en",
@@ -90,11 +90,11 @@
       "sublabel": "touch · mouse · keys",
       "pos": [
         40,
-        60
+        40
       ],
       "size": [
-        120,
-        60
+        150,
+        56
       ],
       "icon": "person"
     },
@@ -104,12 +104,12 @@
       "label": "input + keys",
       "sublabel": "swipes · ⌘ keys",
       "pos": [
-        40,
-        280
+        408,
+        40
       ],
       "size": [
-        120,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -138,12 +138,12 @@
       "label": "audio.js",
       "sublabel": "AAC / PCM decode",
       "pos": [
-        40,
-        400
+        960,
+        158
       ],
       "size": [
-        120,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -160,12 +160,12 @@
       "label": "App shell (app.js)",
       "sublabel": "toolbar · sheets · banner",
       "pos": [
-        234,
-        60
+        40,
+        158
       ],
       "size": [
         150,
-        60
+        56
       ],
       "sources": [
         {
@@ -193,12 +193,12 @@
       "label": "passkey.js",
       "sublabel": "WebAuthn Face/Touch ID",
       "pos": [
-        234,
-        170
+        224,
+        276
       ],
       "size": [
         150,
-        60
+        56
       ],
       "sources": [
         {
@@ -227,12 +227,12 @@
       "label": "stream.js",
       "sublabel": "WSS + WebCodecs decode",
       "pos": [
-        234,
-        280
+        776,
+        40
       ],
       "size": [
         150,
-        60
+        56
       ],
       "sources": [
         {
@@ -261,12 +261,12 @@
       "label": "cursor.js",
       "sublabel": "local cursor, predicted",
       "pos": [
-        234,
-        400
+        592,
+        158
       ],
       "size": [
         150,
-        60
+        56
       ],
       "sources": [
         {
@@ -283,12 +283,12 @@
       "label": "Files sheet",
       "sublabel": "XHR upload · download",
       "pos": [
-        234,
-        510
+        408,
+        276
       ],
       "size": [
         150,
-        60
+        56
       ],
       "sources": [
         {
@@ -305,12 +305,12 @@
       "label": "Macs switcher",
       "sublabel": "probe peers' /healthz",
       "pos": [
-        234,
-        730
+        592,
+        276
       ],
       "size": [
         150,
-        60
+        56
       ],
       "sources": [
         {
@@ -328,12 +328,12 @@
       "sublabel": "HTTPS :443",
       "tag": "adds login · tailnet only",
       "pos": [
-        454,
-        60
+        40,
+        398
       ],
       "size": [
-        100,
-        730
+        1070,
+        48
       ],
       "sources": [
         {
@@ -355,12 +355,12 @@
       "sublabel": "login allowlist",
       "tag": "+ passkey · 403 / 401",
       "pos": [
-        624,
-        60
+        40,
+        516
       ],
       "size": [
-        100,
-        730
+        1070,
+        48
       ],
       "sources": [
         {
@@ -389,12 +389,12 @@
       "label": "Static web client",
       "sublabel": "FileMiddleware · web/",
       "pos": [
-        769,
-        60
+        40,
+        630
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -416,12 +416,12 @@
       "label": "/auth/* routes",
       "sublabel": "register · options · verify",
       "pos": [
-        769,
-        170
+        224,
+        630
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -444,12 +444,12 @@
       "label": "/ws WebSocket",
       "sublabel": "JSON control + binary A/V",
       "pos": [
-        769,
-        280
+        408,
+        630
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -477,12 +477,12 @@
       "label": "File routes",
       "sublabel": "/files /download /upload",
       "pos": [
-        769,
-        510
+        776,
+        630
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -511,12 +511,12 @@
       "label": "/peers · /healthz",
       "sublabel": "CORS: same tailnet",
       "pos": [
-        769,
-        730
+        960,
+        630
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -533,12 +533,12 @@
       "label": "App Support/Tether",
       "sublabel": "passkeys · HMAC secret",
       "pos": [
-        999,
-        60
+        224,
+        866
       ],
       "size": [
-        145,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -555,12 +555,12 @@
       "label": "PasskeyStore",
       "sublabel": "P-256 · 12 h cookie",
       "pos": [
-        999,
-        170
+        224,
+        748
       ],
       "size": [
-        145,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -588,12 +588,12 @@
       "label": "FileSandbox",
       "sublabel": "blocks .. and symlinks",
       "pos": [
-        999,
-        510
+        776,
+        748
       ],
       "size": [
-        145,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -610,12 +610,12 @@
       "label": "Downloads · Desktop",
       "sublabel": "Files & Folders consent",
       "pos": [
-        999,
-        620
+        776,
+        866
       ],
       "size": [
-        145,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -638,12 +638,12 @@
       "label": "Peers",
       "sublabel": "tailscale status --json",
       "pos": [
-        999,
-        730
+        960,
+        748
       ],
       "size": [
-        145,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -661,12 +661,12 @@
       "sublabel": "sessions",
       "tag": "1 capture → N viewers",
       "pos": [
-        1194,
-        60
+        40,
+        988
       ],
       "size": [
-        100,
-        840
+        1070,
+        48
       ],
       "sources": [
         {
@@ -695,12 +695,12 @@
       "label": "FitDisplay (opt-in)",
       "sublabel": "CGVirtualDisplay mirror",
       "pos": [
-        1364,
-        60
+        40,
+        1102
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -723,12 +723,12 @@
       "label": "AudioEncoder",
       "sublabel": "AAC-LC 48k / PCM 24k",
       "pos": [
-        1364,
-        170
+        408,
+        1220
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -745,12 +745,12 @@
       "label": "ScreenStreamer",
       "sublabel": "ScreenCaptureKit, no cursor",
       "pos": [
-        1364,
-        280
+        224,
+        1102
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -773,12 +773,12 @@
       "label": "VideoEncoder",
       "sublabel": "VideoToolbox HEVC / H.264",
       "pos": [
-        1364,
-        400
+        224,
+        1220
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -801,12 +801,12 @@
       "label": "AdaptiveController",
       "sublabel": "RTT · queue · drops",
       "pos": [
-        1364,
-        510
+        408,
+        1102
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -829,12 +829,12 @@
       "label": "InputInjector",
       "sublabel": "CGEvent mouse · keys · text",
       "pos": [
-        1364,
-        620
+        592,
+        1102
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -851,12 +851,12 @@
       "label": "ClipboardSync",
       "sublabel": "poll changeCount 0.5 s",
       "pos": [
-        1364,
-        730
+        776,
+        1102
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -873,12 +873,12 @@
       "label": "CursorWatcher",
       "sublabel": "shape 8 Hz · pos 60 Hz",
       "pos": [
-        1364,
-        840
+        960,
+        1102
       ],
       "size": [
-        155,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -901,12 +901,12 @@
       "label": "Displays",
       "sublabel": "physical + virtual",
       "pos": [
-        1589,
-        280
+        40,
+        1220
       ],
       "size": [
-        130,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -923,12 +923,12 @@
       "label": "macOS input",
       "sublabel": "HID event tap",
       "pos": [
-        1589,
-        620
+        592,
+        1220
       ],
       "size": [
-        130,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -944,12 +944,12 @@
       "label": "NSPasteboard",
       "sublabel": "general pasteboard",
       "pos": [
-        1589,
-        730
+        776,
+        1220
       ],
       "size": [
-        130,
-        60
+        150,
+        56
       ],
       "sources": [
         {
@@ -1055,32 +1055,28 @@
       "id": "stream-cursor",
       "from": "stream",
       "to": "cursorc",
-      "label": "cursor pos",
-      "fromSide": "bottom",
-      "toSide": "top"
+      "label": "cursor pos"
     },
     {
       "id": "stream-audio",
       "from": "stream",
       "to": "audioc",
-      "label": "audio frames",
-      "fromSide": "bottom",
-      "toSide": "top"
+      "label": "audio frames"
     },
     {
       "id": "ui-serve",
       "from": "ui",
       "to": "serve",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          444,
-          90.0
+          115.0,
+          384
         ],
         [
-          444,
-          425.0
+          575.0,
+          384
         ]
       ]
     },
@@ -1089,16 +1085,16 @@
       "from": "passkeyc",
       "to": "serve",
       "variant": "security",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          444,
-          200.0
+          299.0,
+          384
         ],
         [
-          444,
-          425.0
+          575.0,
+          384
         ]
       ]
     },
@@ -1108,16 +1104,16 @@
       "to": "serve",
       "label": "WSS /ws",
       "variant": "emphasis",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          444,
-          310.0
+          851.0,
+          384
         ],
         [
-          444,
-          425.0
+          575.0,
+          384
         ]
       ],
       "labelSegment": 0
@@ -1126,16 +1122,16 @@
       "id": "files-serve",
       "from": "filesui",
       "to": "serve",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          444,
-          540.0
+          483.0,
+          384
         ],
         [
-          444,
-          425.0
+          575.0,
+          384
         ]
       ]
     },
@@ -1143,16 +1139,16 @@
       "id": "macs-serve",
       "from": "macs",
       "to": "serve",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          444,
-          760.0
+          667.0,
+          384
         ],
         [
-          444,
-          425.0
+          575.0,
+          384
         ]
       ]
     },
@@ -1167,16 +1163,16 @@
       "id": "gate-static",
       "from": "gate",
       "to": "static",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          746.5,
-          425.0
+          575.0,
+          578
         ],
         [
-          746.5,
-          90.0
+          115.0,
+          578
         ]
       ]
     },
@@ -1185,16 +1181,16 @@
       "from": "gate",
       "to": "auth",
       "variant": "security",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          746.5,
-          425.0
+          575.0,
+          578
         ],
         [
-          746.5,
-          200.0
+          299.0,
+          578
         ]
       ]
     },
@@ -1203,16 +1199,16 @@
       "from": "gate",
       "to": "ws",
       "variant": "emphasis",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          746.5,
-          425.0
+          575.0,
+          578
         ],
         [
-          746.5,
-          310.0
+          483.0,
+          578
         ]
       ]
     },
@@ -1220,16 +1216,16 @@
       "id": "gate-files",
       "from": "gate",
       "to": "files",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          746.5,
-          425.0
+          575.0,
+          578
         ],
         [
-          746.5,
-          540.0
+          851.0,
+          578
         ]
       ]
     },
@@ -1237,16 +1233,16 @@
       "id": "gate-peers",
       "from": "gate",
       "to": "peers",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          746.5,
-          425.0
+          575.0,
+          578
         ],
         [
-          746.5,
-          760.0
+          1035.0,
+          578
         ]
       ]
     },
@@ -1261,9 +1257,7 @@
       "id": "pstore-disk",
       "from": "pstore",
       "to": "appsupport",
-      "label": "persist",
-      "fromSide": "top",
-      "toSide": "bottom"
+      "label": "persist"
     },
     {
       "id": "ws-hub",
@@ -1271,16 +1265,16 @@
       "to": "hub",
       "label": "messages",
       "variant": "emphasis",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1174,
-          310.0
+          483.0,
+          974
         ],
         [
-          1174,
-          480.0
+          575.0,
+          974
         ]
       ],
       "labelSegment": 0
@@ -1295,9 +1289,7 @@
       "id": "sandbox-folders",
       "from": "sandbox",
       "to": "folders",
-      "label": "read",
-      "fromSide": "bottom",
-      "toSide": "top"
+      "label": "read"
     },
     {
       "id": "peers-peersnode",
@@ -1309,16 +1301,16 @@
       "id": "hub-fit",
       "from": "hub",
       "to": "fit",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1334,
-          480.0
+          575.0,
+          1050
         ],
         [
-          1334,
-          90.0
+          115.0,
+          1050
         ]
       ]
     },
@@ -1326,25 +1318,27 @@
       "id": "streamer-audioenc",
       "from": "streamer",
       "to": "audioenc",
-      "label": "samples",
-      "fromSide": "top",
-      "toSide": "bottom"
+      "label": "samples"
     },
     {
       "id": "audioenc-hub",
       "from": "audioenc",
       "to": "hub",
       "variant": "dashed",
-      "fromSide": "left",
+      "fromSide": "bottom",
       "toSide": "right",
       "via": [
         [
-          1308,
-          200.0
+          483.0,
+          1306
         ],
         [
-          1308,
-          480.0
+          1134,
+          1306
+        ],
+        [
+          1134,
+          1012.0
         ]
       ]
     },
@@ -1353,16 +1347,16 @@
       "from": "hub",
       "to": "streamer",
       "variant": "emphasis",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1334,
-          480.0
+          575.0,
+          1050
         ],
         [
-          1334,
-          310.0
+          299.0,
+          1050
         ]
       ]
     },
@@ -1371,8 +1365,6 @@
       "from": "streamer",
       "to": "encoder",
       "label": "frames",
-      "fromSide": "bottom",
-      "toSide": "top",
       "variant": "emphasis"
     },
     {
@@ -1380,16 +1372,20 @@
       "from": "encoder",
       "to": "hub",
       "variant": "emphasis",
-      "fromSide": "left",
-      "toSide": "right",
+      "fromSide": "bottom",
+      "toSide": "left",
       "via": [
         [
-          1308,
-          430.0
+          299.0,
+          1294
         ],
         [
-          1308,
-          480.0
+          16,
+          1294
+        ],
+        [
+          16,
+          1012.0
         ]
       ]
     },
@@ -1397,16 +1393,16 @@
       "id": "hub-adaptive",
       "from": "hub",
       "to": "adaptive",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1334,
-          480.0
+          575.0,
+          1050
         ],
         [
-          1334,
-          540.0
+          483.0,
+          1050
         ]
       ]
     },
@@ -1414,16 +1410,16 @@
       "id": "hub-inputinj",
       "from": "hub",
       "to": "inputinj",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1334,
-          480.0
+          575.0,
+          1050
         ],
         [
-          1334,
-          650.0
+          667.0,
+          1050
         ]
       ]
     },
@@ -1431,16 +1427,16 @@
       "id": "hub-clip",
       "from": "hub",
       "to": "clip",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1334,
-          480.0
+          575.0,
+          1050
         ],
         [
-          1334,
-          760.0
+          851.0,
+          1050
         ]
       ]
     },
@@ -1448,16 +1444,16 @@
       "id": "hub-cursorw",
       "from": "hub",
       "to": "cursorw",
-      "fromSide": "right",
-      "toSide": "left",
+      "fromSide": "bottom",
+      "toSide": "top",
       "via": [
         [
-          1334,
-          480.0
+          575.0,
+          1050
         ],
         [
-          1334,
-          870.0
+          1035.0,
+          1050
         ]
       ]
     },
@@ -1465,9 +1461,7 @@
       "id": "fit-displays",
       "from": "fit",
       "to": "displays",
-      "label": "virtual",
-      "fromSide": "right",
-      "toSide": "top"
+      "label": "virtual"
     },
     {
       "id": "displays-streamer",

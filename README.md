@@ -82,26 +82,187 @@ Details, including what to do if a device is lost: [SECURITY.md](SECURITY.md).
 
 ## How it works
 
-Three diagrams map Tether end to end. They're generated with [Archify](https://github.com/tt-a1i/archify) from the source code: every box links to the exact file and lines that implement it, pinned to a commit.
+Three diagrams map Tether end to end, top to bottom. GitHub draws them right here, so they stay sharp at any zoom; use the expand button to pan around.
 
-Each picture links to an **interactive version** on GitHub Pages ([all diagrams](https://jordanromines-jpg.github.io/tether/)). There you can:
-- click any box to see its source links;
-- trace a path through the system;
-- switch between guided views such as *Video path*, *Input path* and *Who can connect*;
-- toggle light and dark mode, or export.
+Each has an **[interactive version](https://jordanromines-jpg.github.io/tether/)** made with [Archify](https://github.com/tt-a1i/archify). There you can click any box to see the exact file and lines that implement it, trace paths, and switch guided views.
 
 ### 1. System architecture
 
-Everything that runs, where it runs, and how it connects: your device's browser app, Tailscale, the identity gate, the agent's routes, the Hub that feeds every viewer from one capture, the capture and input engines, and the macOS pieces they touch.
+From your device at the top, through Tailscale and the identity gate, to the agent's routes, the Hub that feeds every viewer from one capture, the capture and input engines, and macOS at the bottom.
 
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/architecture.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
-  <img alt="Tether system architecture: browser modules, tailscale serve, identity gate, agent routes, Hub, capture/encode/input engines and macOS" src="docs/diagrams/architecture-light.png">
-</picture></a>
+**Colours:**
+- cyan: your device
+- green: app logic
+- rose: security
+- violet: storage
+- slate: outside systems
+- amber: cloud
+
+**Lines:**
+- bold green: the main path
+- dashed red: security checks
+- dashed grey: returns
+
+[Open the interactive architecture map →](https://jordanromines-jpg.github.io/tether/diagrams/architecture.html)
+
+<!-- mermaid:architecture -->
+```mermaid
+%%{init: {"flowchart": {"curve": "stepBefore", "nodeSpacing": 28, "rankSpacing": 44, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
+  subgraph L1["Your device · screen and input"]
+    direction LR
+    you("`**You**
+touch · mouse · keys`"):::external
+    input("`**input + keys**
+swipes · ⌘ keys`"):::frontend
+    stream("`**stream.js**
+WSS + WebCodecs decode`"):::frontend
+    cursorc("`**cursor.js**
+local cursor, predicted`"):::frontend
+    audioc("`**audio.js**
+AAC / PCM decode`"):::frontend
+  end
+  subgraph L2["Your device · lock, files and other Macs"]
+    direction LR
+    passkeyc("`**passkey.js**
+WebAuthn Face/Touch ID`"):::frontend
+    ui("`**App shell (app.js)**
+toolbar · sheets · banner`"):::frontend
+    filesui("`**Files sheet**
+XHR upload · download`"):::frontend
+    macs("`**Macs switcher**
+probe peers' /healthz`"):::frontend
+  end
+  subgraph L3["Your tailnet → the Mac"]
+    direction LR
+    serve("`**tailscale serve**
+HTTPS :443`"):::security
+    gate("`**Identity gate**
+login allowlist`"):::security
+  end
+  subgraph L4["Tether.app routes · 127.0.0.1:7400 only"]
+    direction LR
+    static("`**Static web client**
+FileMiddleware · web/`"):::backend
+    auth("`**/auth/∗ routes**
+register · options · verify`"):::backend
+    ws("`**/ws WebSocket**
+JSON control + binary A/V`"):::backend
+    files("`**File routes**
+/files /download /upload`"):::backend
+    peers("`**/peers · /healthz**
+CORS: same tailnet`"):::backend
+  end
+  subgraph L5["Services and storage"]
+    direction LR
+    pstore("`**PasskeyStore**
+P-256 · 12 h cookie`"):::security
+    appsupport("`**App Support/Tether**
+passkeys · HMAC secret`"):::database
+    sandbox("`**FileSandbox**
+blocks .. and symlinks`"):::security
+    folders("`**Downloads · Desktop**
+Files & Folders consent`"):::database
+    peersnode("`**Peers**
+tailscale status --json`"):::backend
+  end
+  subgraph L6["Hub · one capture feeds every viewer"]
+    direction LR
+    hub("`**Hub**
+sessions`"):::backend
+    adaptive("`**AdaptiveController**
+RTT · queue · drops`"):::backend
+  end
+  subgraph L7["Capture and encode"]
+    direction LR
+    fit("`**FitDisplay (opt-in)**
+CGVirtualDisplay mirror`"):::backend
+    streamer("`**ScreenStreamer**
+ScreenCaptureKit, no cursor`"):::backend
+    encoder("`**VideoEncoder**
+VideoToolbox HEVC / H.264`"):::backend
+    audioenc("`**AudioEncoder**
+AAC-LC 48k / PCM 24k`"):::backend
+  end
+  subgraph L8["Input and sync"]
+    direction LR
+    inputinj("`**InputInjector**
+CGEvent mouse · keys · text`"):::backend
+    clip("`**ClipboardSync**
+poll changeCount 0.5 s`"):::backend
+    cursorw("`**CursorWatcher**
+shape 8 Hz · pos 60 Hz`"):::backend
+  end
+  subgraph L9["macOS"]
+    direction LR
+    displays("`**Displays**
+physical + virtual`"):::external
+    hid("`**macOS input**
+HID event tap`"):::external
+    pasteboard("`**NSPasteboard**
+general pasteboard`"):::database
+  end
+  you -->|"gestures"| input
+  input -->|"JSON input"| stream
+  stream -->|"cursor pos"| cursorc
+  stream -->|"audio frames"| audioc
+  serve ==>|"→ :7400"| gate
+  pstore -->|"persist"| appsupport
+  sandbox -->|"read"| folders
+  streamer -->|"samples"| audioenc
+  streamer ==>|"frames"| encoder
+  hub --> adaptive
+  L1 -.-> L2
+  L2 ==>|"HTTPS + WSS (tailnet only)"| L3
+  L3 ==>|"verified login → :7400"| L4
+  L4 -.->|"verify · resolve · list"| L5
+  L4 ==>|"/ws messages"| L6
+  L6 ==>|"start · keyframe · bitrate"| L7
+  L7 -.-> L8
+  L8 -->|"CGEvent · pasteboard · pixels"| L9
+  L1 ~~~ L2 ~~~ L3 ~~~ L4 ~~~ L5 ~~~ L6 ~~~ L7 ~~~ L8 ~~~ L9
+  you ~~~ input ~~~ stream ~~~ cursorc ~~~ audioc
+  passkeyc ~~~ ui ~~~ filesui ~~~ macs
+  serve ~~~ gate
+  static ~~~ auth ~~~ ws ~~~ files ~~~ peers
+  pstore ~~~ appsupport ~~~ sandbox ~~~ folders ~~~ peersnode
+  hub ~~~ adaptive
+  fit ~~~ streamer ~~~ encoder ~~~ audioenc
+  inputinj ~~~ clip ~~~ cursorw
+  displays ~~~ hid ~~~ pasteboard
+  linkStyle 0 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 1 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 2 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 3 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 4 stroke:#059669,stroke-width:2.5px
+  linkStyle 5 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 6 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 7 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 8 stroke:#059669,stroke-width:2.5px
+  linkStyle 9 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 10 stroke:#94a3b8,stroke-width:1.5px,stroke-dasharray:4 4
+  linkStyle 11 stroke:#059669,stroke-width:2.5px
+  linkStyle 12 stroke:#059669,stroke-width:2.5px
+  linkStyle 13 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 14 stroke:#059669,stroke-width:2.5px
+  linkStyle 15 stroke:#059669,stroke-width:2.5px
+  linkStyle 16 stroke:#94a3b8,stroke-width:1.5px,stroke-dasharray:4 4
+  linkStyle 17 stroke:#94a3b8,stroke-width:1.5px
+  classDef frontend fill:#0891b21f,stroke:#0891b2,stroke-width:1.5px,rx:6,ry:6
+  classDef backend fill:#0596691f,stroke:#059669,stroke-width:1.5px,rx:6,ry:6
+  classDef security fill:#e11d481f,stroke:#e11d48,stroke-width:1.5px,rx:6,ry:6
+  classDef database fill:#7c3aed1f,stroke:#7c3aed,stroke-width:1.5px,rx:6,ry:6
+  classDef external fill:#64748b1f,stroke:#64748b,stroke-width:1.5px,rx:6,ry:6
+  classDef cloud fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef messagebus fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef region fill:transparent,stroke:#d97706,stroke-width:1px,stroke-dasharray:6 4
+  classDef guard fill:transparent,stroke:#e11d48,stroke-width:1px,stroke-dasharray:6 4
+  class L1,L2,L3,L4,L5,L6,L7,L8,L9 region
+```
 
 ### 2. One session, step by step
 
-A whole session in one vertical timeline, read top to bottom. The columns are who acts: your device, Tailscale and the server gate, the Hub, and the Mac side (capture, input, macOS). Each numbered box is one step, labeled with who sent it to whom. The 43 steps are grouped into eight phases:
+A whole session read top to bottom, as 43 numbered steps in eight shaded phases:
 1. lock check
 2. passkey unlock
 3. WebSocket hello
@@ -111,19 +272,195 @@ A whole session in one vertical timeline, read top to bottom. The columns are wh
 7. clipboard and sound
 8. teardown
 
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/session.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/session-dark.png">
-  <img alt="Tether session timeline: 43 numbered steps from lock check to teardown across four columns" src="docs/diagrams/session-light.png">
-</picture></a>
+The columns are grouped by who acts: your device, Tailscale and the server gate, the Hub, and the Mac side.
+
+[Open the interactive session timeline →](https://jordanromines-jpg.github.io/tether/diagrams/session.html)
+
+<!-- mermaid:session -->
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false, "messageAlign": "left", "actorMargin": 16, "width": 104, "boxMargin": 6, "messageFontSize": 14, "actorFontSize": 13, "noteFontSize": 13}}}%%
+sequenceDiagram
+  autonumber
+  box rgba(8,145,178,0.10) Your device
+    actor You as You
+    participant App as Tether app
+  end
+  box rgba(225,29,72,0.08) Tailscale + server gate
+    participant TS as Tailscale serve
+    participant Server as Tether server
+    participant Passkeys as Passkeys
+  end
+  box rgba(5,150,105,0.10) Hub
+    participant Hub as Hub
+  end
+  box rgba(100,116,139,0.10) Mac side
+    participant Input as InputInjector
+    participant Capture as Capture
+    participant macOS as macOS
+  end
+  rect rgba(225,29,72,0.05)
+    Note over You,App: 1. Lock check (every load)
+    You->>App: open the app
+    App->>TS: GET /auth/status
+    TS->>Server: + verified login
+    Server->>Passkeys: lock on? cookie ok?
+    Passkeys-->>App: locked → lock screen
+  end
+  rect rgba(124,58,237,0.05)
+    Note over App,You: 2. Passkey unlock (only if the lock is on)
+    App-->>You: Face ID prompt
+    You->>App: approve
+    App->>Server: POST /auth/verify
+    Server->>Passkeys: check signature
+    Passkeys-->>App: Set-Cookie (12 h)
+  end
+  rect rgba(5,150,105,0.05)
+    Note over App,TS: 3. WebSocket hello
+    App->>TS: WSS /ws?device=…
+    TS->>Server: upgrade + login
+    Server->>Hub: add client
+    Hub-->>macOS: notify · wake display
+    Hub-->>App: hello: displays · perms
+    App->>Hub: hello: codecs · quality
+  end
+  rect rgba(8,145,178,0.05)
+    Note over Hub,Capture: 4. First frame
+    Hub->>Capture: start(HEVC, 1920 w, 60 fps)
+    Capture->>macOS: SCStream, no cursor
+    macOS-->>Capture: pixel buffers
+    Capture->>Hub: keyframe + hvcC
+    Hub->>App: config + keyframe
+    App-->>You: decode → canvas
+  end
+  rect rgba(5,150,105,0.05)
+    Note over Hub,App: 5. Live loop + Auto quality
+    Hub-->>App: cursor shape + x,y @60 Hz
+    Capture->>Hub: P-frames (≤3 in flight)
+    Hub->>App: binary video
+    App-->>Hub: ping + stats (1 s)
+    Hub-->>App: pong
+    Hub->>Capture: Auto: new bitrate / size
+  end
+  rect rgba(8,145,178,0.05)
+    Note over You,App: 6. Input
+    You->>App: drag · tap · type
+    App->>Hub: mrel · btn · key · text
+    Hub->>Input: apply
+    Input->>macOS: CGEvent → HID tap
+    macOS-->>Capture: screen changes → frames
+  end
+  rect rgba(217,119,6,0.05)
+    Note over macOS,Hub: 7. Clipboard + sound
+    macOS-->>Hub: pasteboard changed
+    Hub-->>App: clip → Copy toast
+    App->>Hub: sound on (AAC)
+    Hub->>Capture: restart with audio
+    Capture-->>Hub: AAC frames
+    Hub-->>App: binary audio
+  end
+  rect rgba(100,116,139,0.05)
+    Note over App,Hub: 8. Teardown
+    App-->>Hub: socket closes
+    Hub->>Input: release all keys
+    Hub->>Capture: stop (last viewer)
+    Hub-->>macOS: release keep-awake
+  end
+```
 
 ### 3. Setup
 
-What `scripts/setup.sh` checks, builds and installs, and exactly where it stops and waits for you.
+What `scripts/setup.sh` checks, builds and installs. The ✋ boxes are the moments it stops and waits for you; run it again afterwards and it carries on.
 
-<a href="https://jordanromines-jpg.github.io/tether/diagrams/setup.html"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/setup-dark.png">
-  <img alt="Setup workflow: checks, build, install, and the ACTION NEEDED steps" src="docs/diagrams/setup-light.png">
-</picture></a>
+[Open the interactive setup flow →](https://jordanromines-jpg.github.io/tether/diagrams/setup.html)
+
+<!-- mermaid:setup -->
+```mermaid
+%%{init: {"flowchart": {"curve": "stepBefore", "nodeSpacing": 28, "rankSpacing": 44, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
+  subgraph CHECKS["Checks — this Mac runs scripts/setup.sh"]
+    direction TB
+    macos("`**macOS 14+**
+else ✗ stop`"):::external
+    clt("`**Command Line Tools**
+Swift toolchain`"):::backend
+    tailscale("`**Tailscale**
+installed · signed in`"):::cloud
+    ssh("`**SSH to other Mac**
+--remote only`"):::security
+    https("`**HTTPS certificates**
+tailnet CertDomains`"):::security
+    signing("`**Signing identity**
+dedicated keychain`"):::security
+  end
+  subgraph INSTALL["Build here → install on the Mac you'll control"]
+    direction TB
+    build("`**Build Tether.app**
+skipped if unchanged`"):::backend
+    copy("`**Copy app**
+~/Applications`"):::backend
+    agent("`**LaunchAgent**
+runs at login`"):::backend
+    serve("`**tailscale serve**
+https://<mac>.ts.net`"):::cloud
+    perms("`**Permission check**
+asks Tether's /healthz`"):::security
+    ready("`**✓ Tether is ready**
+link + QR code`"):::frontend
+  end
+  a_clt(["`**✋ Click Install**
+or accept license`"]):::action
+  a_ts(["`**✋ Install + sign in**
+same account`"]):::action
+  a_ssh(["`**✋ Remote Login on**
++ ssh-copy-id once`"]):::action
+  a_https(["`**✋ Enable HTTPS**
+Tailscale admin → DNS`"]):::action
+  a_perms(["`**✋ Allow Tether**
+2 privacy switches`"]):::action
+  macos ==> clt
+  clt ==> tailscale
+  tailscale ==> ssh
+  ssh ==> https
+  https ==> signing
+  signing ==>|"build + install"| build
+  build ==> copy
+  copy ==> agent
+  agent ==> serve
+  serve ==> perms
+  perms ==> ready
+  clt -.->|"missing"| a_clt
+  tailscale -.->|"missing"| a_ts
+  ssh -.->|"no access"| a_ssh
+  https -.->|"off"| a_https
+  perms -.->|"not yet"| a_perms
+  linkStyle 0 stroke:#059669,stroke-width:2.5px
+  linkStyle 1 stroke:#059669,stroke-width:2.5px
+  linkStyle 2 stroke:#059669,stroke-width:2.5px
+  linkStyle 3 stroke:#059669,stroke-width:2.5px
+  linkStyle 4 stroke:#059669,stroke-width:2.5px
+  linkStyle 5 stroke:#059669,stroke-width:2.5px
+  linkStyle 6 stroke:#059669,stroke-width:2.5px
+  linkStyle 7 stroke:#059669,stroke-width:2.5px
+  linkStyle 8 stroke:#059669,stroke-width:2.5px
+  linkStyle 9 stroke:#059669,stroke-width:2.5px
+  linkStyle 10 stroke:#059669,stroke-width:2.5px
+  linkStyle 11 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 12 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 13 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 14 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  linkStyle 15 stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:5 4
+  classDef frontend fill:#0891b21f,stroke:#0891b2,stroke-width:1.5px,rx:6,ry:6
+  classDef backend fill:#0596691f,stroke:#059669,stroke-width:1.5px,rx:6,ry:6
+  classDef security fill:#e11d481f,stroke:#e11d48,stroke-width:1.5px,rx:6,ry:6
+  classDef database fill:#7c3aed1f,stroke:#7c3aed,stroke-width:1.5px,rx:6,ry:6
+  classDef external fill:#64748b1f,stroke:#64748b,stroke-width:1.5px,rx:6,ry:6
+  classDef cloud fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef messagebus fill:#d977061f,stroke:#d97706,stroke-width:1.5px,rx:6,ry:6
+  classDef region fill:transparent,stroke:#d97706,stroke-width:1px,stroke-dasharray:6 4
+  classDef guard fill:transparent,stroke:#e11d48,stroke-width:1px,stroke-dasharray:6 4
+  classDef action fill:#e11d4814,stroke:#e11d48,stroke-width:1.5px,stroke-dasharray:4 3
+  class CHECKS,INSTALL region
+```
 
 ### Code layout
 
@@ -131,7 +468,7 @@ What `scripts/setup.sh` checks, builds and installs, and exactly where it stops 
 - `web/`: the client. Plain JavaScript modules with no build step, installable to the Home Screen.
 - `scripts/`: the setup, build, signing and update scripts.
 - `CLAUDE.md`: the runbook Claude follows.
-- `docs/diagrams/`: the diagrams above, plus their Archify sources in `src/`. To regenerate one, run `archify finalize <type> docs/diagrams/src/<name>.json <out>.html --repo-root .`
+- `docs/diagrams/`: the diagrams. `src/*.json` are the Archify sources for the interactive versions; rebuild one with `archify finalize <type> docs/diagrams/src/<name>.json <out>.html --repo-root .`. The README's Mermaid diagrams are generated from the same sources by `python3 docs/diagrams/make_mermaid.py`.
 
 ## Development
 

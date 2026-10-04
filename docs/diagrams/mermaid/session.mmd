@@ -1,0 +1,87 @@
+%%{init: {"sequence": {"mirrorActors": false, "messageAlign": "left", "actorMargin": 16, "width": 104, "boxMargin": 6, "messageFontSize": 14, "actorFontSize": 13, "noteFontSize": 13}}}%%
+sequenceDiagram
+  autonumber
+  box rgba(8,145,178,0.10) Your device
+    actor You as You
+    participant App as Tether app
+  end
+  box rgba(225,29,72,0.08) Tailscale + server gate
+    participant TS as Tailscale serve
+    participant Server as Tether server
+    participant Passkeys as Passkeys
+  end
+  box rgba(5,150,105,0.10) Hub
+    participant Hub as Hub
+  end
+  box rgba(100,116,139,0.10) Mac side
+    participant Input as InputInjector
+    participant Capture as Capture
+    participant macOS as macOS
+  end
+  rect rgba(225,29,72,0.05)
+    Note over You,App: 1. Lock check (every load)
+    You->>App: open the app
+    App->>TS: GET /auth/status
+    TS->>Server: + verified login
+    Server->>Passkeys: lock on? cookie ok?
+    Passkeys-->>App: locked → lock screen
+  end
+  rect rgba(124,58,237,0.05)
+    Note over App,You: 2. Passkey unlock (only if the lock is on)
+    App-->>You: Face ID prompt
+    You->>App: approve
+    App->>Server: POST /auth/verify
+    Server->>Passkeys: check signature
+    Passkeys-->>App: Set-Cookie (12 h)
+  end
+  rect rgba(5,150,105,0.05)
+    Note over App,TS: 3. WebSocket hello
+    App->>TS: WSS /ws?device=…
+    TS->>Server: upgrade + login
+    Server->>Hub: add client
+    Hub-->>macOS: notify · wake display
+    Hub-->>App: hello: displays · perms
+    App->>Hub: hello: codecs · quality
+  end
+  rect rgba(8,145,178,0.05)
+    Note over Hub,Capture: 4. First frame
+    Hub->>Capture: start(HEVC, 1920 w, 60 fps)
+    Capture->>macOS: SCStream, no cursor
+    macOS-->>Capture: pixel buffers
+    Capture->>Hub: keyframe + hvcC
+    Hub->>App: config + keyframe
+    App-->>You: decode → canvas
+  end
+  rect rgba(5,150,105,0.05)
+    Note over Hub,App: 5. Live loop + Auto quality
+    Hub-->>App: cursor shape + x,y @60 Hz
+    Capture->>Hub: P-frames (≤3 in flight)
+    Hub->>App: binary video
+    App-->>Hub: ping + stats (1 s)
+    Hub-->>App: pong
+    Hub->>Capture: Auto: new bitrate / size
+  end
+  rect rgba(8,145,178,0.05)
+    Note over You,App: 6. Input
+    You->>App: drag · tap · type
+    App->>Hub: mrel · btn · key · text
+    Hub->>Input: apply
+    Input->>macOS: CGEvent → HID tap
+    macOS-->>Capture: screen changes → frames
+  end
+  rect rgba(217,119,6,0.05)
+    Note over macOS,Hub: 7. Clipboard + sound
+    macOS-->>Hub: pasteboard changed
+    Hub-->>App: clip → Copy toast
+    App->>Hub: sound on (AAC)
+    Hub->>Capture: restart with audio
+    Capture-->>Hub: AAC frames
+    Hub-->>App: binary audio
+  end
+  rect rgba(100,116,139,0.05)
+    Note over App,Hub: 8. Teardown
+    App-->>Hub: socket closes
+    Hub->>Input: release all keys
+    Hub->>Capture: stop (last viewer)
+    Hub-->>macOS: release keep-awake
+  end
