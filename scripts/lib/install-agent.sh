@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Runs ON the Mac being controlled (locally, or piped over SSH by setup.sh/deploy.sh).
 # Expects ~/Applications/Tether.app to already be in place. Idempotent.
+# Uses only tools that ship with macOS (no python3), so the controlled Mac doesn't need
+# Apple's developer tools.
 #
 #   install-agent.sh <allowed-logins> [port]
 #
-# Installs/refreshes the login agent, publishes it to the tailnet with `tailscale serve`
-# (when HTTPS certificates are enabled) and prints a machine-readable summary line:
+# - Writes ~/Library/Application Support/Tether/config.json (logins, port, public URL), so Tether
+#   starts the same way at login or when opened from Applications.
+# - Installs the login agent: starts at login, restarts only after a crash (Quit stays quit).
+#   If the person turned "Start Tether at login" off, that choice is kept and Tether is just opened.
+# - Publishes it to the tailnet with `tailscale serve` (when HTTPS certificates are enabled).
+# - Prints a machine-readable summary line:
 #   TETHER_RESULT url=<https url> certs=<yes|no> screen=<true|false> input=<true|false>
 set -euo pipefail
 LOGINS="${1:?allowed logins required}"
@@ -15,12 +21,18 @@ APP="$HOME/Applications/Tether.app"
 [[ -x "$APP/Contents/MacOS/Tether" ]] || { echo "  ✗ $APP is missing" >&2; exit 1; }
 
 if command -v tailscale >/dev/null 2>&1; then TS="$(command -v tailscale)"; else TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale; fi
-read -r DNS CERTS < <("$TS" status --json | python3 -c 'import json,sys
-d=json.load(sys.stdin)
-print(d["Self"]["DNSName"].rstrip("."), "yes" if d.get("CertDomains") else "no")')
+STATUS="$("$TS" status --json)"
+json() { plutil -extract "$1" raw -o - - <<<"$2" 2>/dev/null || true; }
+DNS="$(json Self.DNSName "$STATUS")"; DNS="${DNS%.}"
+CERTS="$([[ -n "$(json CertDomains.0 "$STATUS")" ]] && echo yes || echo no)"
 URL="https://$DNS"
 
-mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+SUPPORT="$HOME/Library/Application Support/Tether"
+mkdir -p "$SUPPORT" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+chmod 700 "$SUPPORT"
+printf '{"allowedLogins":"%s","port":%s,"publicURL":"%s"}\n' "$LOGINS" "$PORT" "$URL" > "$SUPPORT/config.json"
+chmod 600 "$SUPPORT/config.json"
+
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 cat > "$PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
@@ -30,14 +42,8 @@ cat > "$PLIST" <<PL
   <key>Label</key><string>$LABEL</string>
   <key>Program</key><string>$APP/Contents/MacOS/Tether</string>
   <key>AssociatedBundleIdentifiers</key><string>$LABEL</string>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>TETHER_PORT</key><string>$PORT</string>
-    <key>TETHER_ALLOWED_LOGINS</key><string>$LOGINS</string>
-    <key>TETHER_PUBLIC_URL</key><string>$URL</string>
-  </dict>
   <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>LimitLoadToSessionType</key><string>Aqua</string>
   <key>ProcessType</key><string>Interactive</string>
   <key>StandardOutPath</key><string>$HOME/Library/Logs/Tether.log</string>
@@ -47,18 +53,27 @@ cat > "$PLIST" <<PL
 PL
 DOMAIN="gui/$(id -u)"
 launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
-# bootout finishes asynchronously (a busy app can take several seconds); retry for up to 20s.
-for attempt in $(seq 1 20); do
-  launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null && break
-  if [[ $attempt == 20 ]]; then
-    echo "  ✗ Couldn't start Tether. This Mac must be logged in at its desktop (not just the login screen)." >&2
-    echo "    Log in on that Mac, then run setup again." >&2
-    exit 1
-  fi
+pkill -x Tether 2>/dev/null || true   # a copy opened from Applications, outside launchd
+
+if launchctl print-disabled "$DOMAIN" 2>/dev/null | grep -Eq "\"$LABEL\" => (disabled|true)"; then
+  # The person turned "Start Tether at login" off: keep that, just start it now.
   sleep 1
-done
-launchctl kickstart -k "$DOMAIN/$LABEL"
-echo "  ✓ Tether is running and will start automatically at login"
+  open -g "$APP"
+  echo "  ✓ Tether is running (Start at login is off, as you chose)"
+else
+  # bootout finishes asynchronously (a busy app can take several seconds); retry for up to 20s.
+  for attempt in $(seq 1 20); do
+    launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null && break
+    if [[ $attempt == 20 ]]; then
+      echo "  ✗ Couldn't start Tether. This Mac must be logged in at its desktop (not just the login screen)." >&2
+      echo "    Log in on that Mac, then run setup again." >&2
+      exit 1
+    fi
+    sleep 1
+  done
+  launchctl kickstart -k "$DOMAIN/$LABEL"
+  echo "  ✓ Tether is running and will start automatically at login"
+fi
 
 if [[ "$CERTS" == yes ]]; then
   "$TS" serve --bg --https=443 "http://127.0.0.1:$PORT" >/dev/null
@@ -73,7 +88,5 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   [[ "$HEALTH" == *'"ok"'* ]] && break
   sleep 1
 done
-read -r SCREEN INPUT < <(printf '%s' "$HEALTH" | python3 -c 'import json,sys
-try: p=json.load(sys.stdin)["perms"]; print(str(p["screen"]).lower(), str(p["input"]).lower())
-except Exception: print("unknown unknown")')
-echo "TETHER_RESULT url=$URL certs=$CERTS screen=$SCREEN input=$INPUT"
+SCREEN="$(json perms.screen "$HEALTH")"; INPUT="$(json perms.input "$HEALTH")"
+echo "TETHER_RESULT url=$URL certs=$CERTS screen=${SCREEN:-unknown} input=${INPUT:-unknown}"

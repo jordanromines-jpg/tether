@@ -53,6 +53,12 @@ When `setup.sh` prints **"✓ Tether is ready"**:
 3. Suggest they try it.
 4. Point them to `SECURITY.md` if they ask how it's protected. In short: only their tailnet devices can reach it, and only their Tailscale login is allowed.
 
+### Turning it off, or removing it
+- **Pause:** the Tether menu-bar icon → **Pause remote access**. Same place to resume.
+- **Quit:** **Quit Tether** stays off until they open Tether from `~/Applications` or Spotlight.
+- **Start at login:** a checkbox in the same menu.
+- **Remove:** `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac); add `--all` to delete settings and passkeys too. Confirm with them before running it.
+
 ### Updating later
 - **This Mac:** run `scripts/setup.sh` again.
 - **Another Mac:** run `scripts/deploy.sh <name>`. The target name was saved during setup, in `~/.config/tether/targets/`.
@@ -66,5 +72,5 @@ When `setup.sh` prints **"✓ Tether is ready"**:
 - `web/`: the browser client. Plain ES modules, no build step.
 - `scripts/dev.sh`: runs the agent on this Mac at `http://localhost:7400` in dev mode. Dev mode allows header-less local requests, so never use it for real installs. Use it to test the client, and don't inject input into the developer's own Mac without asking.
 - `scripts/build-app.sh`: builds `build/Tether.app`, signed with the stable identity from `scripts/setup-signing.sh`.
-- `scripts/lib/install-agent.sh`: runs on the controlled Mac (locally or over SSH). It sets up the LaunchAgent and `tailscale serve`.
+- `scripts/lib/install-agent.sh`: runs on the controlled Mac (locally or over SSH). It writes `~/Library/Application Support/Tether/config.json` and sets up the LaunchAgent and `tailscale serve`. The LaunchAgent restarts Tether only after a crash (`KeepAlive.SuccessfulExit = false`), so Quit stays quit. It uses only built-in macOS tools, so the controlled Mac doesn't need Apple's developer tools.
 - Logs on the controlled Mac are in `~/Library/Logs/Tether.log`.

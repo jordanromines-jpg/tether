@@ -1,26 +1,26 @@
 import AppKit
 import TetherCore
 
-let env = ProcessInfo.processInfo.environment
-let port = Int(env["TETHER_PORT"] ?? "") ?? 7400
-let devMode = env["TETHER_DEV"] == "1"
-let policy = AuthPolicy(allowedLoginsList: env["TETHER_ALLOWED_LOGINS"] ?? "", devMode: devMode)
-let webDirectory = env["TETHER_WEB_DIR"]
-    ?? Bundle.main.resourceURL?.appendingPathComponent("web").path
-    ?? "web"
+if SingleInstance.otherInstanceRunning() {
+    NSLog("Tether: already running; this copy exits.")
+    exit(0)
+}
 
-if policy.allowedLogins.isEmpty && !devMode {
-    NSLog("Tether: TETHER_ALLOWED_LOGINS is empty — every request will be refused.")
+let config = AppConfig.load()
+let policy = AuthPolicy(allowedLoginsList: config.allowedLogins, devMode: config.devMode)
+
+if policy.allowedLogins.isEmpty && !config.devMode {
+    NSLog("Tether: no allowed logins configured (run scripts/setup.sh) — every request will be refused.")
 }
 
 let app = NSApplication.shared
-let delegate = AppDelegate(port: port, publicURL: env["TETHER_PUBLIC_URL"])
+let delegate = AppDelegate(port: config.port, publicURL: config.publicURL)
 app.delegate = delegate
 app.setActivationPolicy(.accessory)
 
 Task.detached {
     do {
-        try await Server.run(port: port, webDirectory: webDirectory, policy: policy, publicURL: env["TETHER_PUBLIC_URL"])
+        try await Server.run(port: config.port, webDirectory: config.webDirectory, policy: policy, publicURL: config.publicURL)
         // Graceful shutdown (SIGTERM/SIGINT) finished; end the AppKit run loop too.
         exit(0)
     } catch {

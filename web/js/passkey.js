@@ -12,7 +12,12 @@ async function post(path, body) {
 }
 
 export async function passkeyStatus() {
-  try { return await (await fetch('auth/status', { cache: 'no-store' })).json(); } catch { return { ok: true }; }
+  try {
+    const r = await fetch('auth/status', { cache: 'no-store' });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 503 && data.paused) return { ok: false, paused: true, msg: data.msg };
+    return data;
+  } catch { return { ok: true }; }
 }
 
 export async function registerPasskey(device) {

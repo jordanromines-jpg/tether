@@ -60,10 +60,21 @@ function deviceName() {
 stream.deviceName = deviceName();
 
 // ---------- Passkey lock ----------
+let pausePoll;
 async function passkeyGate() {
   const st = await passkeyStatus();
   if (st.ok) return true;
   stream.paused = true;
+  if (st.paused) {
+    // Remote access paused from the Mac's menu bar: wait quietly, reconnect when resumed.
+    status('Paused on the Mac', st.msg || 'Resume it from the Tether menu-bar icon.', false);
+    $('#status').classList.add('locked');
+    clearTimeout(pausePoll);
+    pausePoll = setTimeout(async () => {
+      if (await passkeyGate()) { $('#status').classList.remove('locked'); stream.paused = false; stream.reconnect(); }
+    }, 5000);
+    return false;
+  }
   const card = $('#status .status-card');
   const showLock = (msg, detail, buttonLabel, action) => {
     status(msg, detail, false);

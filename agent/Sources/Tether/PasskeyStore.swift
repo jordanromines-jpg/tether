@@ -29,8 +29,7 @@ final class PasskeyStore {
     static let sessionLength: TimeInterval = 12 * 3600
 
     private init() {
-        dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Tether")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        dir = AppPaths.supportDirectory
         let secretURL = dir.appendingPathComponent("session-secret")
         var secret = (try? Data(contentsOf: secretURL)) ?? Data()
         if secret.count != 32 {

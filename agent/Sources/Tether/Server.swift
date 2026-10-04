@@ -21,6 +21,22 @@ struct TailscaleAuthMiddleware<Context: RequestContext>: RouterMiddleware {
     }
 }
 
+/// While remote access is paused from the menu bar, everything except the static web app
+/// (which shows "Paused on the Mac") is refused.
+struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
+    func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
+        let path = request.uri.path
+        let api = path == "/ws" || path == "/upload" || path == "/files" || path == "/download"
+            || path == "/peers" || path.hasPrefix("/auth/")
+        if AppState.shared.paused, api {
+            let body = #"{"paused":true,"msg":"Remote access is paused on the Mac. Resume it from the Tether menu-bar icon."}"#
+            return Response(status: .serviceUnavailable, headers: [.contentType: "application/json"],
+                            body: .init(byteBuffer: ByteBuffer(string: body)))
+        }
+        return try await next(request, context)
+    }
+}
+
 /// When the passkey lock is on, the screen, input and file endpoints also need a valid session cookie.
 struct PasskeyGateMiddleware<Context: RequestContext>: RouterMiddleware {
     static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download"] }
@@ -55,6 +71,7 @@ enum Server {
         let tailnetSuffix = Peers.tailnetSuffix(publicURL: publicURL)
         Server.publicURL = publicURL
         router.middlewares.add(TailscaleAuthMiddleware(policy: policy))
+        router.middlewares.add(PauseMiddleware())
         router.middlewares.add(PasskeyGateMiddleware())
         router.middlewares.add(FileMiddleware(
             webDirectory,
@@ -63,6 +80,7 @@ enum Server {
 
         router.get("healthz") { request, _ -> Response in
             var response = json(["ok": true, "name": Host.current().localizedName ?? "Mac", "perms": Permissions.json,
+                                 "paused": AppState.shared.paused,
                                  "clients": Hub.shared.queue.sync { Hub.shared.clients.count }])
             // Let the Tether page on another of your Macs (same tailnet) see that this one is up.
             if let origin = request.headers[.origin], let suffix = tailnetSuffix,

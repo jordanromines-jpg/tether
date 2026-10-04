@@ -29,19 +29,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        let name = clientCount > 0 ? "display.and.arrow.down" : "display"
+        let paused = AppState.shared.paused
+        let name = paused ? "pause.rectangle" : clientCount > 0 ? "display.and.arrow.down" : "display"
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "Tether")
         image?.isTemplate = true
         statusItem.button?.image = image
-        statusItem.button?.toolTip = clientCount > 0 ? "Tether — \(clientCount) connected" : "Tether"
+        statusItem.button?.toolTip = paused ? "Tether — paused" : clientCount > 0 ? "Tether — \(clientCount) connected" : "Tether"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let header = NSMenuItem(title: clientCount == 0 ? "Tether — idle" : "Tether — \(clientCount) connected",
+        let paused = AppState.shared.paused
+        let header = NSMenuItem(title: paused ? "Tether — remote access paused"
+                                    : clientCount == 0 ? "Tether — ready, nobody connected" : "Tether — \(clientCount) connected",
                                 action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
+        menu.addItem(item(paused ? "Resume remote access" : "Pause remote access", #selector(togglePause), key: "p"))
         if let publicURL {
             menu.addItem(item("Show QR code for your phone…", #selector(showQR)))
             menu.addItem(item("Copy link: \(publicURL)", #selector(copyLink)))
@@ -73,7 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Accessibility: \(Permissions.accessibility ? "✓ allowed" : "✗ needed — open Settings")",
                           #selector(openAccessibilitySettings)))
         menu.addItem(.separator())
-        menu.addItem(item("Quit Tether", #selector(quit), key: "q"))
+        if LoginItem.isInstalled {
+            let login = item("Start Tether at login", #selector(toggleLoginItem))
+            login.state = LoginItem.isEnabled ? .on : .off
+            menu.addItem(login)
+        }
+        menu.addItem(item("Quit Tether (open it from Applications to start again)", #selector(quit), key: "q"))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -123,6 +132,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         PasskeyStore.shared.openEnrollment()
         Hub.shared.disconnectAll()
     }
+
+    @objc private func togglePause() {
+        AppState.shared.setPaused(!AppState.shared.paused)
+        updateIcon()
+    }
+
+    @objc private func toggleLoginItem() { LoginItem.setEnabled(!LoginItem.isEnabled) }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

@@ -62,6 +62,16 @@ The toolbar also has:
 - **Sound** on or off.
 - **Display & quality:** pick a monitor, choose Auto, Fast, Balanced or Sharp, fit the screen to your device, or switch to another of your Macs running Tether.
 
+## Turning it on and off
+
+Tether lives in your Mac's menu bar. Setup makes it start automatically when you log in.
+
+- **Pause remote access:** in the Tether menu, or press ⌘P with the menu open. Everyone is disconnected and nobody can connect until you choose **Resume**. Your phone shows "Paused on the Mac" and reconnects by itself when you resume. Pausing survives restarts.
+- **Quit Tether:** Tether stops completely and stays off. To start it again, open **Tether** from the Applications folder in your home folder, or from Spotlight.
+- **Start Tether at login:** a checkbox in the menu. Turn it off if you'd rather start Tether yourself.
+- **While nobody is connected,** Tether isn't recording the screen or watching the clipboard. It just waits for a connection. If it ever crashes, it restarts by itself.
+- **To remove it completely,** run `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac you set up). Add `--all` to also delete its settings and passkeys.
+
 ## How it stays private
 
 - **Only devices on your Tailscale network can reach it.** Everyone else on the internet can't connect at all.
@@ -130,6 +140,7 @@ swift run --package-path agent SelfTest   # core logic tests
 scripts/dev.sh                            # run the agent on this Mac at http://localhost:7400 (dev mode)
 scripts/build-app.sh                      # build/Tether.app, signed with a stable local identity
 scripts/deploy.sh <target>                # update another Mac (targets live in ~/.config/tether/targets/)
+scripts/uninstall.sh [<target>] [--all]   # remove Tether from this Mac or another one
 ```
 
 Logs on the controlled Mac are in `~/Library/Logs/Tether.log`.
