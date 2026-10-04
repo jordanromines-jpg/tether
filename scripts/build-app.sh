@@ -41,6 +41,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key><string>Tether Setup Assistant</string>
+    <key>CFBundleURLSchemes</key><array><string>tether</string></array>
+  </dict></array>
 </dict>
 </plist>
 PLIST

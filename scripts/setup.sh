@@ -6,6 +6,8 @@
 #   scripts/setup.sh --check [--remote ...]   # read-only: report what's done and what's left
 #   options for --remote:  --key ~/.ssh/some_key  (an SSH key you already use for that Mac)
 #                          --name studio          (short name to save it under for scripts/deploy.sh)
+#   shortcut:  --shortcut-dir <folder>  where to put the "Tether" shortcut (default: /Applications)
+#              --no-shortcut            don't make one
 #
 # Exit codes: 0 done · 3 ACTION NEEDED (a step for the person at the Mac; run again after) · 1 error
 set -euo pipefail
@@ -14,14 +16,16 @@ source "$ROOT/scripts/lib/common.sh"
 # Any unexpected failure still ends with a readable ✗ line and exit code 1.
 trap 'rc=$?; printf "\n  ✗ Setup stopped unexpectedly at line %s (%s, exit %s).\n    Run it again; if it repeats, share this output.\n" "$LINENO" "$BASH_COMMAND" "$rc" >&2; exit 1' ERR
 
-CHECK=0; REMOTE=""; NAME=""; KEY_ARG=""
+CHECK=0; REMOTE=""; NAME=""; KEY_ARG=""; SHORTCUT_DIR="/Applications"; NO_SHORTCUT=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) CHECK=1 ;;
     --remote) REMOTE="${2:?--remote needs user@machine}"; shift ;;
     --name) NAME="${2:?}"; shift ;;
     --key) KEY_ARG="${2:?--key needs a path}"; shift ;;
-    -h|--help) sed -n 2,10p "$0"; exit 0 ;;
+    --shortcut-dir) SHORTCUT_DIR="${2:?--shortcut-dir needs a folder}"; shift ;;
+    --no-shortcut) SHORTCUT_DIR="" ; NO_SHORTCUT=1 ;;
+    -h|--help) sed -n 2,13p "$0"; exit 0 ;;
     *) fail "unknown option $1" ;;
   esac
   shift
@@ -206,22 +210,36 @@ else
   MISSING=()
   [[ "$SCREEN" == true ]] || MISSING+=("Screen Recording")
   [[ "$INPUT" == true ]] || MISSING+=("Accessibility")
+  # The Setup Assistant (in the app) walks through this with live checkmarks.
   if [[ -z "$REMOTE" ]]; then
-    open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture" || true
-    open -R "$HOME/Applications/Tether.app" || true   # Finder window with Tether selected, ready to drag in
-    WHERE="On this Mac (System Settings and a Finder window showing Tether just opened)"
+    open "tether://setup" 2>/dev/null || open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture" || true
+    WHERE="On this Mac, the Tether Setup Assistant just opened. Follow its Permissions step"
   else
-    WHERE="Someone at the OTHER Mac (${REMOTE#*@}) — or you, through Screen Sharing — needs to do this. There"
+    on_target 'open "tether://setup"' >/dev/null 2>&1 || true
+    WHERE="On the OTHER Mac (${REMOTE#*@}), the Tether Setup Assistant just opened. Someone there (or you, through Screen Sharing) follows its Permissions step"
   fi
   BULLETS=(); for m in "${MISSING[@]}"; do BULLETS+=("  • $m"); done
-  action_needed "$WHERE: System Settings → Privacy & Security → turn on \"Tether\" under:" \
+  action_needed "$WHERE. It turns on \"Tether\" in System Settings → Privacy & Security under:" \
     "${BULLETS[@]}" \
-    "If Tether isn't in the list, drag it from the Finder window into the list (or click +, press ⌘⇧H for your" \
-    "home folder, open Applications there — not the main Applications folder — and choose Tether)." \
-    "If it's listed but was allowed before an update, select it, click −, then add it again."
+    "Its checkmarks turn green by themselves. If the window isn't showing, click the Tether icon in the" \
+    "menu bar and choose Setup Assistant. If Tether isn't in a list: click +, press ⌘⇧H for the home folder," \
+    "open Applications there (not the main Applications folder) and choose Tether. If it was allowed before" \
+    "an update, select it, click −, then add it again."
 fi
 
-# 10 ── Done ───────────────────────────────────────────────────────────────
+# 10 ── Shortcut ─────────────────────────────────────────────────────────────
+if [[ $NO_SHORTCUT == 0 ]]; then
+  step "Adding a Tether shortcut to $SHORTCUT_DIR on $TARGET_NAME"
+  ALIAS_CMD="\"\$HOME/Applications/Tether.app/Contents/MacOS/Tether\" --make-alias $(printf '%q' "$SHORTCUT_DIR")"
+  if ALIAS_OUT="$(on_target "$ALIAS_CMD" 2>&1)"; then
+    ok "shortcut at $ALIAS_OUT (open it to start Tether again after quitting)"
+  else
+    info "Skipped: $ALIAS_OUT"
+    info "Make one later from the Tether menu-bar icon → Add a shortcut, or: scripts/shortcut.sh app <folder>"
+  fi
+fi
+
+# 11 ── Done ───────────────────────────────────────────────────────────────
 step "Tips"
 SLEEP="$(on_target "pmset -g | awk '/^ sleep / {print \$2}'" 2>/dev/null || echo "")"
 if [[ -n "$SLEEP" && "$SLEEP" != 0 ]]; then
@@ -238,4 +256,8 @@ cat <<DONE
   On each device: install Tailscale, sign in with the SAME account ($LOGIN),
   then open the link. On iPhone/iPad, tap Share → Add to Home Screen.
   Tip: the Tether menu-bar icon on the Mac has "Show QR code" so you can just scan it.
+
+  Controlling it from another Mac? On that Mac, in this folder, run:
+      scripts/shortcut.sh viewer ${URL}
+  to get a "Tether" app that opens the screen in its own window.
 DONE

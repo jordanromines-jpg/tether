@@ -27,6 +27,9 @@ DNS="$(json Self.DNSName "$STATUS")"; DNS="${DNS%.}"
 CERTS="$([[ -n "$(json CertDomains.0 "$STATUS")" ]] && echo yes || echo no)"
 URL="https://$DNS"
 
+# Register with LaunchServices so tether://setup (the Setup Assistant) reaches this copy.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" 2>/dev/null || true
+
 SUPPORT="$HOME/Library/Application Support/Tether"
 mkdir -p "$SUPPORT" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 chmod 700 "$SUPPORT"

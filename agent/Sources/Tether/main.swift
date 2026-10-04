@@ -1,6 +1,19 @@
 import AppKit
 import TetherCore
 
+// `Tether --make-alias <folder>`: used by scripts/shortcut.sh (also over SSH) to add a Finder
+// alias to this app without scripting Finder. Runs before the single-instance check on purpose.
+if let i = CommandLine.arguments.firstIndex(of: "--make-alias") {
+    let folder = CommandLine.arguments.dropFirst(i + 1).first ?? Shortcuts.defaultFolder.path
+    do {
+        print(try Shortcuts.addAlias(in: URL(fileURLWithPath: folder)).path)
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("\(error.localizedDescription)\n".utf8))
+        exit(1)
+    }
+}
+
 if SingleInstance.otherInstanceRunning() {
     NSLog("Tether: already running; this copy exits.")
     exit(0)
@@ -10,7 +23,7 @@ let config = AppConfig.load()
 let policy = AuthPolicy(allowedLoginsList: config.allowedLogins, devMode: config.devMode)
 
 if policy.allowedLogins.isEmpty && !config.devMode {
-    NSLog("Tether: no allowed logins configured (run scripts/setup.sh) — every request will be refused.")
+    NSLog("Tether: no allowed logins configured (run scripts/setup.sh); every request will be refused.")
 }
 
 let app = NSApplication.shared

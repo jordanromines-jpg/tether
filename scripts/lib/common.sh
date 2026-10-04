@@ -34,3 +34,19 @@ print(v if not isinstance(v,(list,dict)) else json.dumps(v))" 2>/dev/null
 }
 
 tailscale_login() { tailscale_json 'd["User"][str(d["Self"]["UserID"])]["LoginName"]'; }
+
+# Shortcut registry (~/Library/Application Support/Tether/shortcuts.json, a JSON array of paths),
+# read and written with plutil so the controlled Mac needs no extra tools.
+registry_paths() {
+  local f="$1" i=0 v
+  [[ -s "$f" ]] || return 0
+  while v="$(plutil -extract "$i" raw -o - "$f" 2>/dev/null)"; do printf '%s\n' "$v"; i=$((i + 1)); done
+}
+registry_add() {
+  local f="$1" p="$2" n
+  mkdir -p "$(dirname "$f")"
+  [[ -s "$f" ]] || echo '[]' > "$f"
+  registry_paths "$f" | grep -qxF "$p" && return 0
+  n="$(registry_paths "$f" | wc -l | tr -d ' ')"
+  plutil -insert "$n" -string "$p" "$f"
+}

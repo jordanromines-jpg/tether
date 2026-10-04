@@ -1,5 +1,5 @@
 import AppKit
-import CoreImage.CIFilterBuiltins
+import TetherUI
 
 /// A small window showing the Tether link as a QR code, for scanning with a phone.
 final class QRWindowController: NSWindowController {
@@ -17,7 +17,7 @@ final class QRWindowController: NSWindowController {
         stack.spacing = 12
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
 
-        let imageView = NSImageView(image: Self.qrImage(for: url, size: size) ?? NSImage())
+        let imageView = NSImageView(image: QRCode.image(for: url, size: size) ?? NSImage())
         imageView.imageScaling = .scaleNone
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.widthAnchor.constraint(equalToConstant: size).isActive = true
@@ -40,18 +40,5 @@ final class QRWindowController: NSWindowController {
         window.contentView = stack
         window.center()
         self.init(window: window)
-    }
-
-    static func qrImage(for text: String, size: CGFloat) -> NSImage? {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(text.utf8)
-        filter.correctionLevel = "M"
-        guard let output = filter.outputImage else { return nil }
-        let scale = size / output.extent.width
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        let rep = NSCIImageRep(ciImage: scaled)
-        let image = NSImage(size: rep.size)
-        image.addRepresentation(rep)
-        return image
     }
 }

@@ -11,11 +11,14 @@ let package = Package(
     ],
     targets: [
         .target(name: "TetherCore"),
+        // SwiftUI views and their models (menu-bar panel, Setup Assistant), shared with Snapshots.
+        .target(name: "TetherUI", dependencies: ["TetherCore"]),
         .target(name: "VirtualDisplayShim", linkerSettings: [.linkedFramework("CoreGraphics"), .linkedFramework("AppKit")]),
         .executableTarget(
             name: "Tether",
             dependencies: [
                 "TetherCore",
+                "TetherUI",
                 "VirtualDisplayShim",
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "HummingbirdWebSocket", package: "hummingbird-websocket"),
@@ -25,6 +28,8 @@ let package = Package(
         // Command Line Tools ship without XCTest/Swift Testing macros, so tests are a plain executable:
         // `swift run SelfTest`
         .executableTarget(name: "SelfTest", dependencies: ["TetherCore"]),
+        // Renders the Mac UI to PNGs for review: `swift run Snapshots <folder>`
+        .executableTarget(name: "Snapshots", dependencies: ["TetherCore", "TetherUI"]),
     ],
     swiftLanguageModes: [.v5]
 )

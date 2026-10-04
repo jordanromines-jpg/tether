@@ -151,6 +151,11 @@ final class Hub {
         queue.async { for c in self.clients.values { c.continuation.finish() } }
     }
 
+    /// Ends one viewer's session (the menu-bar panel's Disconnect button).
+    func disconnect(id: UUID) {
+        queue.async { self.clients[id]?.continuation.finish() }
+    }
+
     private func notifyClientsChanged() {
         let list = Array(clients.values)
         DispatchQueue.main.async { self.onClientsChanged?(list) }

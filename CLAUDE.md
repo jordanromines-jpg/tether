@@ -37,7 +37,8 @@ Assume they are **not technical**. This file tells you how to take them from zer
 | Tailscale | Install it from tailscale.com/download/mac, open it, and sign in or create a free account. |
 | Remote Login (another Mac only) | **On the other Mac:** System Settings → General → Sharing → **Remote Login** on. **On this Mac:** they run the printed `ssh-copy-id …` command in Terminal, answer `yes` if asked "continue connecting?", and type the *other* Mac's password themselves. |
 | HTTPS certificates | Explain first: Tailscale publishes machine names (like `my-mac.tailXXXX.ts.net`) in a public certificate log. The names become visible but stay unreachable. Get a clear "yes" before anything is changed. They click **Enable HTTPS** at login.tailscale.com/admin/dns. You may do it for them in their browser only if they explicitly ask. |
-| macOS permissions | On the controlled Mac: System Settings → Privacy & Security → **Screen Recording** and **Accessibility** → turn on **Tether**. On this Mac, setup opens Settings plus a Finder window with Tether selected, so they can drag it into the list. Tether lives in the Applications folder *inside their home folder*, not the main one. If it was allowed before an update, remove it with **−** and add it again. macOS may also ask once to let Tether access Downloads and Desktop (for file transfer) and to show notifications; they should click **Allow**. |
+| macOS permissions | Setup opens the **Tether Setup Assistant** window on the controlled Mac. Tell them to follow its **Permissions** step: **Open Settings** → turn on **Tether** under **Screen Recording** and **Accessibility**; the checkmarks turn green by themselves. If the window isn't showing: Tether menu-bar icon → **Setup Assistant…**. Tether lives in the Applications folder *inside their home folder*, not the main one (the assistant's **Show Tether in Finder** helps). If it was allowed before an update, remove it with **−** and add it again. macOS may also ask once to let Tether access Downloads and Desktop (for file transfer) and to show notifications; they should click **Allow**. |
+| Shortcut | Setup puts a **Tether** shortcut in `/Applications` by default. Before running setup, ask: *"Setup will add a Tether shortcut to your Applications folder so you can start it again after quitting. Is Applications OK, or would you like it somewhere else (like the Desktop)?"* Pass their answer as `--shortcut-dir <folder>`, or `--no-shortcut` if they don't want one. |
 | Their phone/tablet | Install Tailscale, sign in with the **same** account, open the link, then Share → **Add to Home Screen**. The Tether menu-bar icon on the Mac has **Show QR code for your phone…** |
 
 ### 4. Safety rules
@@ -49,14 +50,16 @@ Assume they are **not technical**. This file tells you how to take them from zer
 ### 5. Finish
 When `setup.sh` prints **"✓ Tether is ready"**:
 1. Give them the link.
-2. Walk them through the phone steps above.
-3. Suggest they try it.
+2. Walk them through the phone steps above. The Setup Assistant's **Your phone** step shows the QR code too.
+3. If they'll control it from another Mac, offer the viewer shortcut: on *that* Mac, in this repo, `scripts/shortcut.sh viewer <name or link>` makes a "Tether - <name>" app (Applications by default; pass a folder to choose).
+4. Suggest they try it.
 4. Point them to `SECURITY.md` if they ask how it's protected. In short: only their tailnet devices can reach it, and only their Tailscale login is allowed.
 
 ### Turning it off, or removing it
-- **Pause:** the Tether menu-bar icon → **Pause remote access**. Same place to resume.
+- **Pause:** click the Tether menu-bar icon and flip the **Remote access** switch. Same place to resume.
 - **Quit:** **Quit Tether** stays off until they open Tether from `~/Applications` or Spotlight.
-- **Start at login:** a checkbox in the same menu.
+- **Start at login:** a checkbox in the same panel.
+- **Shortcuts:** **Add a shortcut…** in the panel, or `scripts/shortcut.sh app [folder]`. Uninstall removes the shortcuts Tether made.
 - **Remove:** `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac); add `--all` to delete settings and passkeys too. Confirm with them before running it.
 
 ### Updating later
@@ -68,8 +71,10 @@ When `setup.sh` prints **"✓ Tether is ready"**:
 - `agent/`: a Swift package with these targets:
   - `Tether`: menu-bar app (capture, encoder, input, server).
   - `TetherCore`: pure, testable logic.
+  - `TetherUI`: the SwiftUI status panel and Setup Assistant. Use `ObservableObject`, not `@State`/`@Observable`: those are macros, and the Command Line Tools ship without macro plugins.
+  - `Snapshots`: renders the Mac UI to PNGs, light and dark: `swift run --package-path agent Snapshots <folder>`.
   - `SelfTest`: tests. Command Line Tools ship without XCTest, so run them with `swift run --package-path agent SelfTest`.
-- `web/`: the browser client. Plain ES modules, no build step.
+- `web/`: the browser client. Plain ES modules, no build step. Tests: `node --test web/tests/*.test.mjs`. Design rules (colours, icons, motion, copy) are in `docs/DESIGN.md`.
 - `scripts/dev.sh`: runs the agent on this Mac at `http://localhost:7400` in dev mode. Dev mode allows header-less local requests, so never use it for real installs. Use it to test the client, and don't inject input into the developer's own Mac without asking.
 - `scripts/build-app.sh`: builds `build/Tether.app`, signed with the stable identity from `scripts/setup-signing.sh`.
 - `scripts/lib/install-agent.sh`: runs on the controlled Mac (locally or over SSH). It writes `~/Library/Application Support/Tether/config.json` and sets up the LaunchAgent and `tailscale serve`. The LaunchAgent restarts Tether only after a crash (`KeepAlive.SuccessfulExit = false`), so Quit stays quit. It uses only built-in macOS tools, so the controlled Mac doesn't need Apple's developer tools.

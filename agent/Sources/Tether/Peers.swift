@@ -1,4 +1,5 @@
 import Foundation
+import TetherCore
 
 /// Other Macs on the tailnet that might be running Tether (online macOS peers).
 enum Peers {
@@ -9,6 +10,21 @@ enum Peers {
         for p in ["/usr/local/bin/tailscale", "/opt/homebrew/bin/tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"]
             where FileManager.default.isExecutableFile(atPath: p) { return p }
         return nil
+    }
+
+    /// Tailscale's state for the Setup Assistant. Runs the CLI, so call it off the main thread.
+    static func tailnetStatus() -> TailnetStatus {
+        guard let path = tailscalePath else { return .unavailable }
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: path)
+        proc.arguments = ["status", "--json"]
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+        guard (try? proc.run()) != nil else { return .unavailable }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        return TailnetStatus.parse(data)
     }
 
     static func list() -> [[String: Any]] {

@@ -34,28 +34,37 @@ struct AppConfig {
     }
 }
 
-/// Runtime switches the person controls from the menu bar. Persisted in state.json so a
-/// paused Mac stays paused across restarts.
+/// Runtime switches the person controls from the menu bar, persisted in state.json:
+/// a paused Mac stays paused across restarts, and the Setup Assistant remembers it has run.
 final class AppState {
     static let shared = AppState()
     private let lock = NSLock()
     private var pausedValue = false
+    private var onboardedValue = false
     private var url: URL { AppPaths.supportDirectory.appendingPathComponent("state.json") }
 
     private init() {
         if let d = try? Data(contentsOf: url), let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] {
             pausedValue = (o["paused"] as? Bool) ?? false
+            onboardedValue = (o["onboarded"] as? Bool) ?? false
         }
     }
 
     var paused: Bool { lock.withLock { pausedValue } }
+    var onboarded: Bool { lock.withLock { onboardedValue } }
 
     func setPaused(_ on: Bool) {
-        lock.withLock {
-            pausedValue = on
-            if let d = try? JSONSerialization.data(withJSONObject: ["paused": on]) { try? d.write(to: url) }
-        }
+        lock.withLock { pausedValue = on; save() }
         if on { Hub.shared.disconnectAll() }
+    }
+
+    func setOnboarded() { lock.withLock { onboardedValue = true; save() } }
+
+    /// Call with the lock held.
+    private func save() {
+        if let d = try? JSONSerialization.data(withJSONObject: ["paused": pausedValue, "onboarded": onboardedValue]) {
+            try? d.write(to: url)
+        }
     }
 }
 

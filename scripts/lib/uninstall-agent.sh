@@ -12,6 +12,14 @@ launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null && echo "  ✓ stopped Tether" ||
 pkill -x Tether 2>/dev/null && echo "  ✓ quit a running copy" || true
 launchctl enable "$DOMAIN/$LABEL" 2>/dev/null || true   # clear any saved "don't start at login" override
 gone() { [[ -e "$1" ]] && rm -rf "$1" && echo "  ✓ removed $2"; return 0; }
+# Shortcuts Tether made (Finder aliases, viewer apps), listed in shortcuts.json. Nothing else is touched.
+REG="$HOME/Library/Application Support/Tether/shortcuts.json"
+i=0
+while [[ -s "$REG" ]] && p="$(plutil -extract "$i" raw -o - "$REG" 2>/dev/null)"; do
+  [[ "$p" == /* && -e "$p" ]] && rm -rf "$p" && echo "  ✓ removed the shortcut $p"
+  i=$((i + 1))
+done
+[[ -f "$REG" ]] && echo '[]' > "$REG"
 gone "$HOME/Library/LaunchAgents/$LABEL.plist" "the login item"
 gone "$HOME/Applications/Tether.app" "~/Applications/Tether.app"
 

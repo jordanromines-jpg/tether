@@ -37,7 +37,15 @@ Steps:
    scripts/setup.sh --check                          # read-only: see what's done and what's left
    ```
    The script stops with **ACTION NEEDED** whenever you need to do something, such as clicking Install or flipping a permission. Do it, then run the same command again.
-2. On each phone, tablet or computer you'll control from:
+
+   When it reaches macOS permissions, the **Tether Setup Assistant** opens on the Mac. It walks you through Screen Recording and Accessibility with checkmarks that turn green by themselves, checks Tailscale, shows a QR code for your phone, and lets you pick where the Tether shortcut goes.
+2. Shortcuts. Setup puts a **Tether** shortcut in Applications, so you can start Tether again after quitting it. To choose another folder, pass `--shortcut-dir <folder>`, or skip it with `--no-shortcut`. You can also make one later:
+   ```bash
+   scripts/shortcut.sh app                    # a Tether shortcut (pick a folder; Applications by default)
+   scripts/shortcut.sh viewer studio          # on the Mac you control FROM: a "Tether - studio" app that opens that Mac's screen
+   ```
+   The viewer app opens the screen in its own window (Chrome, Edge or Brave app mode, otherwise your default browser).
+3. On each phone, tablet or computer you'll control from:
    1. Install Tailscale and sign in with the **same account**.
    2. Open the link setup printed, `https://<your-mac>.<tailnet>.ts.net`. The Tether menu-bar icon also has **Show QR code for your phone…**
    3. On iPhone or iPad, tap Share → **Add to Home Screen**.
@@ -55,22 +63,26 @@ Steps:
 | Type | ⌨︎ for keys and shortcuts, or **Compose** for autocorrect and dictation | Just type; ⌘ shortcuts pass through |
 
 The toolbar also has:
+- **Names for everything:** hover over a button, or touch and hold it on a phone or iPad, to see what it does.
+- **Put it anywhere:** drag the toolbar by its grip (the dots on the end) to any edge or corner. On the sides it stands upright. Or choose **More → Move toolbar**.
+- **More:** buttons that don't fit on a small screen move into **More** instead of scrolling off the edge. **Tips** are there too.
 - **Sticky ⌘ ⌥ ⌃ ⇧:** tap for the next key only, double-tap to lock.
-- **…** for Esc, arrows, F-keys and common shortcuts.
+- **Keys and shortcuts** for Esc, arrows, F-keys and common shortcuts.
 - **Clipboard** sync in both directions.
 - **Files:** send files to the Mac's Downloads folder, or download from its Downloads and Desktop.
 - **Sound** on or off.
-- **Display & quality:** pick a monitor, choose Auto, Fast, Balanced or Sharp, fit the screen to your device, or switch to another of your Macs running Tether.
+- **Display and quality:** pick a monitor, choose Auto, Fast, Balanced or Sharp, or fit the screen to your device.
+- **Connection:** your Mac's name with a live quality dot. Tap it for details, or to switch to another of your Macs running Tether.
 
 ## Turning it on and off
 
-Tether lives in your Mac's menu bar. Setup makes it start automatically when you log in.
+Tether lives in your Mac's menu bar. Setup makes it start automatically when you log in. Click its icon for the status panel: who's connected (with a **Disconnect** button for each), your link and QR code, the passkey lock, **Setup Assistant…** and **Add a shortcut…**. Right-click the icon for the classic menu.
 
-- **Pause remote access:** in the Tether menu, or press ⌘P with the menu open. Everyone is disconnected and nobody can connect until you choose **Resume**. Your phone shows "Paused on the Mac" and reconnects by itself when you resume. Pausing survives restarts.
-- **Quit Tether:** Tether stops completely and stays off. To start it again, open **Tether** from the Applications folder in your home folder, or from Spotlight.
+- **Pause remote access:** the switch at the top of the panel, or **Pause** in the right-click menu (⌘P). Everyone is disconnected and nobody can connect until you choose **Resume**. Your phone shows "Paused on the Mac" and reconnects by itself when you resume. Pausing survives restarts.
+- **Quit Tether:** Tether stops completely and stays off. To start it again, open the **Tether** shortcut in Applications, or find Tether in Spotlight.
 - **Start Tether at login:** a checkbox in the menu. Turn it off if you'd rather start Tether yourself.
 - **While nobody is connected,** Tether isn't recording the screen or watching the clipboard. It just waits for a connection. If it ever crashes, it restarts by itself.
-- **To remove it completely,** run `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac you set up). Add `--all` to also delete its settings and passkeys.
+- **To remove it completely,** run `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac you set up). It also removes the shortcuts Tether made. Add `--all` to also delete its settings and passkeys.
 
 ## How it stays private
 
@@ -314,8 +326,9 @@ Tailscale admin → DNS`"]):::action
 
 ### Code layout
 
-- `agent/`: the Swift menu-bar app. It captures the screen, encodes it with the hardware encoder in low-latency mode, injects input, and adapts quality to your connection.
+- `agent/`: the Swift menu-bar app. It captures the screen, encodes it with the hardware encoder in low-latency mode, injects input, and adapts quality to your connection. `TetherUI` holds the SwiftUI status panel and Setup Assistant.
 - `web/`: the client. Plain JavaScript modules with no build step, installable to the Home Screen.
+- `docs/DESIGN.md`: colours, type, icons, motion and copy rules for both the client and the Mac app.
 - `scripts/`: the setup, build, signing and update scripts.
 - `CLAUDE.md`: the runbook Claude follows.
 - `docs/diagrams/`: the diagrams. `src/*.json` are the Archify sources for the interactive versions; rebuild one with `archify finalize <type> docs/diagrams/src/<name>.json <out>.html --repo-root .`. The README's Mermaid diagrams are generated from the same sources by `python3 docs/diagrams/make_mermaid.py`, and `docs/diagrams/render_svg.sh` renders the architecture's ELK version to `architecture-elk-{light,dark}.svg`.
@@ -324,6 +337,8 @@ Tailscale admin → DNS`"]):::action
 
 ```bash
 swift run --package-path agent SelfTest   # core logic tests
+node --test web/tests/*.test.mjs          # client logic tests (toolbar docking and folding)
+swift run --package-path agent Snapshots snaps/   # render the Mac UI to PNGs (light and dark) for review
 scripts/dev.sh                            # run the agent on this Mac at http://localhost:7400 (dev mode)
 scripts/build-app.sh                      # build/Tether.app, signed with a stable local identity
 scripts/deploy.sh <target>                # update another Mac (targets live in ~/.config/tether/targets/)

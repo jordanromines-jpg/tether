@@ -161,5 +161,35 @@ do {
     expect(!tokens.isValid(t.replacingOccurrences(of: "owner", with: "0wner"), login: "0wner@example.com"), "forged token rejected")
 }
 
+// Setup Assistant: Tailscale status, when to open, shortcut registry
+do {
+    let ok = Data(#"{"BackendState":"Running","Self":{"DNSName":"studio.tail1234.ts.net."},"CertDomains":["studio.tail1234.ts.net"]}"#.utf8)
+    let s = TailnetStatus.parse(ok)
+    expect(s.running && !s.needsLogin, "running tailnet")
+    expect(s.dnsName == "studio.tail1234.ts.net", "trailing dot removed from DNS name")
+    expect(s.url == "https://studio.tail1234.ts.net", "link built from DNS name")
+    expect(s.httpsEnabled, "HTTPS certificates detected")
+    let noCerts = TailnetStatus.parse(Data(#"{"BackendState":"Running","Self":{"DNSName":"a.b.ts.net."},"CertDomains":null}"#.utf8))
+    expect(noCerts.running && !noCerts.httpsEnabled, "null CertDomains means HTTPS off")
+    let login = TailnetStatus.parse(Data(#"{"BackendState":"NeedsLogin","Self":{"DNSName":""}}"#.utf8))
+    expect(!login.running && login.needsLogin && login.dnsName == nil, "signed-out tailnet")
+    expect(TailnetStatus.parse(Data("not json".utf8)) == .unavailable, "garbage is unavailable")
+
+    expect(SetupPolicy.shouldOpenAssistant(onboarded: false, requested: false, screenAllowed: true, inputAllowed: true), "first launch opens")
+    expect(!SetupPolicy.shouldOpenAssistant(onboarded: true, requested: false, screenAllowed: true, inputAllowed: true), "set up and allowed stays closed")
+    expect(SetupPolicy.shouldOpenAssistant(onboarded: true, requested: false, screenAllowed: false, inputAllowed: true), "missing Screen Recording opens")
+    expect(SetupPolicy.shouldOpenAssistant(onboarded: true, requested: false, screenAllowed: true, inputAllowed: false), "missing Accessibility opens")
+    expect(SetupPolicy.shouldOpenAssistant(onboarded: true, requested: true, screenAllowed: true, inputAllowed: true), "tether://setup opens")
+
+    var reg = ShortcutRegistry(json: Data(#"["/Applications/Tether", "relative/path", 3]"#.utf8))
+    expect(reg.paths == ["/Applications/Tether"], "registry keeps only absolute paths")
+    reg.add("/Applications/Tether")
+    reg.add("/Users/me/Desktop/Tether")
+    expect(reg.paths.count == 2, "registry has no duplicates")
+    reg.remove("/Applications/Tether")
+    expect(ShortcutRegistry(json: reg.json).paths == ["/Users/me/Desktop/Tether"], "registry round-trips through JSON")
+    expect(ShortcutRegistry(json: nil).paths.isEmpty, "missing registry is empty")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)
