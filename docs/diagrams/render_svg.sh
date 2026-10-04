@@ -16,7 +16,10 @@ for theme in ("default", "dark"):
 import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs";
 import elk from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs";
 mermaid.registerLayoutLoaders(elk);
-mermaid.initialize({{startOnLoad: false, theme: "{theme}", securityLevel: "strict"}});
+const text = "{theme}" === "dark"
+  ? {{nodeTextColor: "#e6edf3", primaryTextColor: "#e6edf3", textColor: "#c9d1d9", titleColor: "#c9d1d9", edgeLabelBackground: "#262c36"}}
+  : {{nodeTextColor: "#1f2328", primaryTextColor: "#1f2328", textColor: "#424a53", titleColor: "#424a53", edgeLabelBackground: "#eef1f4"}};
+mermaid.initialize({{startOnLoad: false, theme: "{theme}", securityLevel: "strict", themeVariables: text}});
 try {{ const {{svg}} = await mermaid.render("tether", document.getElementById("src").textContent);
   // Mermaid returns HTML-serialized markup; a standalone .svg (shown via <img>) must be strict XML.
   const holder = document.createElement("div"); holder.innerHTML = svg;
