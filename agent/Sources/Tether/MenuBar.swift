@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let panel = PanelModel()
     private let menu = NSMenu()
     private var setupRequested = CommandLine.arguments.contains("--setup")
+    private var panelTimer: Timer?
 
     init(port: Int, publicURL: String?) {
         self.port = port
@@ -88,6 +89,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = statusItem.button else { return }
         refreshPanel()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        // Keep "idle 12 min" labels fresh while the panel is open.
+        panelTimer?.invalidate()
+        panelTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            guard let self, self.popover.isShown else { self?.panelTimer?.invalidate(); return }
+            self.refreshPanel()
+        }
         popover.contentViewController?.view.window?.makeKey()
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -97,7 +104,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.paused = AppState.shared.paused
         panel.url = publicURL
         panel.sessions = sessions.sorted { $0.connectedAt < $1.connectedAt }
-            .map { SessionRow(id: $0.id, device: $0.device, login: $0.login, since: $0.connectedAt) }
+            .map { SessionRow(id: $0.id, device: $0.device, login: $0.login, since: $0.connectedAt,
+                              viewOnly: $0.observe, lastInput: $0.lastInput) }
+        panel.curtainOn = Curtain.shared.isOn
         panel.screenAllowed = Permissions.screenRecording
         panel.inputAllowed = Permissions.accessibility
         panel.passkeyRequired = store.required
@@ -123,6 +132,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         a.openSetup = { [weak self] in self?.popover.performClose(nil); self?.showSetup() }
         a.addShortcut = { [weak self] in self?.popover.performClose(nil); Shortcuts.addInteractively() }
         a.quit = { NSApp.terminate(nil) }
+        a.setCurtain = { on in Curtain.shared.set(on) }
+        a.openHelp = { [weak self] in self?.popover.performClose(nil); Self.open("help") }
+        a.reportProblem = { [weak self] in self?.popover.performClose(nil); Self.open("issues") }
         return a
     }
 
@@ -181,7 +193,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Accessibility: \(Permissions.accessibility ? "allowed" : "needed, open Settings")",
                           #selector(openAccessibilitySettings)))
         menu.addItem(.separator())
+        if Curtain.shared.isOn { menu.addItem(item("Turn off curtain", #selector(curtainOff))) }
         menu.addItem(item("Setup Assistant…", #selector(showSetup)))
+        menu.addItem(item("Help and docs", #selector(openHelp)))
+        menu.addItem(item("Report a problem", #selector(reportProblem)))
         menu.addItem(item("Add a shortcut…", #selector(addShortcut)))
         if LoginItem.isInstalled {
             let login = item("Start Tether at login", #selector(toggleLoginItem))
@@ -247,6 +262,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func addShortcut() { Shortcuts.addInteractively() }
+
+    @objc private func curtainOff() { Curtain.shared.set(false) }
+    @objc private func openHelp() { Self.open("help") }
+    @objc private func reportProblem() { Self.open("issues") }
+
+    static func open(_ link: String) {
+        if let s = BuildInfo.links[link], let url = URL(string: s) { NSWorkspace.shared.open(url) }
+    }
 
     @objc private func toggleLoginItem() { LoginItem.setEnabled(!LoginItem.isEnabled) }
 

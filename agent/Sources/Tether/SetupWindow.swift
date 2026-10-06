@@ -46,6 +46,7 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
         }
         a.chooseFolder = { Shortcuts.chooseFolder() }
         a.finish = { [weak self] in self?.finish() }
+        a.openHelp = { AppDelegate.open("help") }
         model.actions = a
     }
 

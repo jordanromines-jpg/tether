@@ -191,5 +191,50 @@ do {
     expect(ShortcutRegistry(json: nil).paths.isEmpty, "missing registry is empty")
 }
 
+// v4 protocol and policy
+do {
+    expect(ClientMessage.parse(#"{"t":"observe","on":true}"#) == .observe(true), "observe parses")
+    expect(ClientMessage.parse(#"{"t":"curtain","on":false}"#) == .curtain(false), "curtain parses")
+    expect(ClientMessage.parse(#"{"t":"action","name":"volumeUp"}"#) == .action(.volumeUp), "quick action parses")
+    expect(ClientMessage.parse(#"{"t":"action","name":"rm -rf"}"#) == nil, "unknown action rejected")
+    expect(ClientMessage.parse(#"{"t":"openURL","url":"https://example.com"}"#) == .openURL("https://example.com"), "openURL parses")
+    expect(ClientMessage.parse(#"{"t":"openApp","path":"/Applications/Calculator.app"}"#) == .openApp("/Applications/Calculator.app"), "openApp parses")
+    expect(ClientMessage.parse(#"{"t":"windows"}"#) == .windows, "windows parses")
+    expect(ClientMessage.parse(#"{"t":"focusWindow","id":42}"#) == .focusWindow(42), "focusWindow parses")
+    expect(ClientMessage.parse(#"{"t":"captureWindow","id":7,"fit":true}"#) == .captureWindow(7, fit: true), "captureWindow parses")
+    expect(ClientMessage.parse(#"{"t":"captureWindow"}"#) == .captureWindow(nil, fit: false), "captureWindow without id = whole screen")
+    expect(ClientMessage.parse(#"{"t":"activity"}"#) == .activity, "activity parses")
+
+    for m: ClientMessage in [.move(x: 0, y: 0), .key(code: "KeyA", down: true), .text("x"), .setClipboard("x"),
+                             .action(.mute), .openURL("https://a.b"), .curtain(true), .captureWindow(1, fit: false), .wake] {
+        expect(InputPolicy.isControl(m), "\(m) is control (blocked when view only)")
+    }
+    for m: ClientMessage in [.quality("fast"), .display(1), .ping(id: 1), .stats(rttMs: 1, decodeQueue: 0), .windows,
+                             .audio(on: true, format: .aac), .observe(true), .keyframe] {
+        expect(!InputPolicy.isControl(m), "\(m) is allowed when view only")
+    }
+    expect(InputPolicy.isActivity(.activity) && InputPolicy.isActivity(.scroll(dx: 0, dy: 1)), "activity counts")
+    expect(!InputPolicy.isActivity(.ping(id: 1)), "pings don't count as activity")
+
+    expect(SafeURL.validate("https://example.com/a?b=c") != nil, "https link allowed")
+    expect(SafeURL.validate("  http://example.com ") != nil, "http link allowed, trimmed")
+    for bad in ["file:///etc/passwd", "javascript:alert(1)", "x-apple.systempreferences:com.apple", "https://", "not a url",
+                "https://" + String(repeating: "a", count: 5000) + ".com"] {
+        expect(SafeURL.validate(bad) == nil, "\(bad.prefix(30)) rejected")
+    }
+
+    expect(QuickAction.volumeUp.mediaKey == 0 && QuickAction.mute.mediaKey == 7 && QuickAction.next.mediaKey == 17, "media key codes")
+    expect(QuickAction.lockScreen.combo == ["ControlLeft", "MetaLeft", "KeyQ"] && QuickAction.sleepDisplay.mediaKey == nil, "combo actions")
+    for a in QuickAction.allCases { expect(a.mediaKey != nil || a.combo != nil || a == .sleepDisplay, "\(a) has a way to run") }
+
+    expect(Links.repo(fromRemote: "https://github.com/someone/tether.git") == "someone/tether", "repo from https remote")
+    expect(Links.repo(fromRemote: "git@github.com:someone/fork.git") == "someone/fork", "repo from ssh remote")
+    expect(Links.repo(fromRemote: "https://gitlab.com/x/y") == nil, "non-GitHub remote ignored")
+    expect(Links.urls(repo: "a/b")["issues"] == "https://github.com/a/b/issues/new", "issues link")
+
+    expect(TetherMarker.isRemote(eventUserData: TetherMarker.eventUserData), "marker recognised")
+    expect(!TetherMarker.isRemote(eventUserData: 0), "physical events have no marker")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

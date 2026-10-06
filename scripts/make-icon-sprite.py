@@ -21,6 +21,10 @@ ICONS = [
     "download-simple", "sun", "arrow-clockwise", "lightbulb", "arrows-out-cardinal", "check", "copy",
     # first-run tips
     "hand-tap", "mouse-scroll", "hand-swipe-left", "cursor-click",
+    # v4: idle, view only, curtain, help, quick actions, windows, Macs, clipboard, shortcuts
+    "eye", "eye-slash", "moon-stars", "question", "bug", "camera", "link", "app-window", "squares-four",
+    "speaker-low", "speaker-x", "play-pause", "skip-forward", "skip-back", "lock-key", "magnifying-glass",
+    "push-pin", "image", "chart-bar", "arrow-circle-up", "cursor", "monitor-play", "rocket-launch",
 ]
 
 pkg = Path(sys.argv[1] if len(sys.argv) > 1 else "package")

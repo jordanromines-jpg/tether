@@ -35,6 +35,7 @@ public struct SetupActions {
     public var copy: (String) -> Void = { _ in }
     public var chooseFolder: () -> URL? = { nil }
     public var finish: () -> Void = {}
+    public var openHelp: () -> Void = {}
     public init() {}
 }
 
@@ -157,6 +158,7 @@ public struct SetupAssistantView: View {
                  text: "Tether runs quietly in the menu bar. Click its icon to pause it, see who's connected, or come back here.")
             Fact(symbol: "checklist", title: "What's next",
                  text: "Allow two permissions, check your network, then open Tether on your phone.")
+            Button("Learn more about Tether", action: model.actions.openHelp).buttonStyle(.link).padding(.leading, 42)
         }
     }
 

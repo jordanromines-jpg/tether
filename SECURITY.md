@@ -17,6 +17,10 @@ Tether gives full control of a Mac, so it is built to be reachable **only by you
 - **macOS permissions.** Screen Recording and Accessibility are granted to the `com.tether.agent` app by you, in System Settings. The app is signed with a self-signed identity kept in a dedicated keychain on the build Mac, so the grants survive updates.
 - **Uploads and downloads are sandboxed.** Files go only to `~/Downloads`. Browsing is limited to `~/Downloads` and `~/Desktop`, and paths are checked so they can't escape those folders.
 
+- **View only is enforced by the Mac.** A device in view-only mode can watch, but the Mac ignores its clicks, typing, clipboard pastes and actions, not just its browser.
+- **Curtain mode is for privacy, not access control.** It blacks out the Mac's own screen so people in the room can't see what you're doing. The Mac's keyboard and mouse keep working, and pressing ⌃⌥⌘ Return on that keyboard lifts the curtain. Keys sent remotely can't lift it: Tether marks every event it injects and the escape check ignores marked keys.
+- **Idle and background pauses end the session.** When a device pauses (no interaction for the chosen time, or the page goes out of sight), it disconnects. If the passkey lock is on, it also discards its unlock, so resuming asks for Face ID or Touch ID again.
+
 ## Reporting a problem
 
 Please open a GitHub issue. Don't include secrets, and for anything sensitive, contact the maintainer privately first.

@@ -6,8 +6,22 @@ public struct SessionRow: Identifiable, Equatable {
     public let device: String
     public let login: String
     public let since: Date
-    public init(id: UUID, device: String, login: String, since: Date) {
+    public let viewOnly: Bool
+    public let lastInput: Date
+    public init(id: UUID, device: String, login: String, since: Date, viewOnly: Bool = false, lastInput: Date = Date()) {
         self.id = id; self.device = device; self.login = login; self.since = since
+        self.viewOnly = viewOnly; self.lastInput = lastInput
+    }
+
+    public var detail: String { "\(login), since \(since.formatted(date: .omitted, time: .shortened))" }
+
+    /// "Viewing only, idle 14 min" (idle shows after 2 minutes without input), or nil.
+    public func activity(now: Date = Date()) -> String? {
+        var parts: [String] = []
+        if viewOnly { parts.append("Viewing only") }
+        let idle = Int(now.timeIntervalSince(lastInput) / 60)
+        if idle >= 2 { parts.append(parts.isEmpty ? "Idle \(idle) min" : "idle \(idle) min") }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 }
 
@@ -27,6 +41,9 @@ public struct PanelActions {
     public var openSetup: () -> Void = {}
     public var addShortcut: () -> Void = {}
     public var quit: () -> Void = {}
+    public var setCurtain: (Bool) -> Void = { _ in }
+    public var openHelp: () -> Void = {}
+    public var reportProblem: () -> Void = {}
     public init() {}
 }
 
@@ -42,6 +59,7 @@ public final class PanelModel: ObservableObject {
     @Published public var loginItemInstalled = false
     @Published public var startAtLogin = false
     @Published public var linkCopied = false
+    @Published public var curtainOn = false
     public var actions = PanelActions()
     public init() {}
 
@@ -75,6 +93,7 @@ public struct StatusPanelView: View {
             header
             Divider()
             VStack(alignment: .leading, spacing: 14) {
+                if model.curtainOn { curtain }
                 if !model.screenAllowed || !model.inputAllowed { permissions }
                 if let url = model.url, !model.paused { link(url) }
                 devices
@@ -176,8 +195,11 @@ public struct StatusPanelView: View {
                         Image(systemName: icon(for: s.device)).frame(width: 20).foregroundStyle(.secondary)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(s.device).font(.callout.weight(.medium))
-                            Text("\(s.login), since \(s.since.formatted(date: .omitted, time: .shortened))")
+                            Text(s.detail)
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            if let a = s.activity() {
+                                Text(a).font(.caption.weight(.medium)).foregroundStyle(Color.accentColor)
+                            }
                         }
                         Spacer()
                         Button("Disconnect") { model.actions.disconnect(s.id) }
@@ -189,12 +211,13 @@ public struct StatusPanelView: View {
     }
 
     private func icon(for device: String) -> String {
-        switch device {
-        case "iPhone": return "iphone"
-        case "iPad": return "ipad"
-        case "Mac": return "laptopcomputer"
-        default: return "display"
-        }
+        // Devices can be renamed ("Jordan's iPhone"), so match by what the name contains.
+        let d = device.lowercased()
+        if d.contains("iphone") { return "iphone" }
+        if d.contains("ipad") { return "ipad" }
+        if d.contains("mac") { return "laptopcomputer" }
+        if d.contains("android") { return "candybarphone" }
+        return "display"
     }
 
     private var passkeys: some View {
@@ -222,6 +245,20 @@ public struct StatusPanelView: View {
         }
     }
 
+    private var curtain: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "eye.slash.fill").foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Curtain is on").font(.subheadline.weight(.semibold))
+                Text("This Mac's screen is black for anyone in the room.").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Turn off") { model.curtainOn = false; model.actions.setCurtain(false) }.controlSize(.small)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.1)))
+    }
+
     private var footer: some View {
         VStack(alignment: .leading, spacing: 2) {
             if model.loginItemInstalled {
@@ -229,6 +266,8 @@ public struct StatusPanelView: View {
             }
             FooterButton(title: "Setup Assistant…", symbol: "wand.and.stars", action: model.actions.openSetup)
             FooterButton(title: "Add a shortcut…", symbol: "plus.app", action: model.actions.addShortcut)
+            FooterButton(title: "Help and docs", symbol: "questionmark.circle", action: model.actions.openHelp)
+            FooterButton(title: "Report a problem", symbol: "exclamationmark.bubble", action: model.actions.reportProblem)
             FooterButton(title: "Quit Tether", symbol: "power", action: model.actions.quit)
                 .help("Tether stays off until you open it again from Applications")
         }

@@ -6,6 +6,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/Tether.app"
 BUNDLE_ID="com.tether.agent"
 VERSION="$(git -C "$ROOT" describe --always --dirty 2>/dev/null || echo dev)"
+# Which GitHub repo this was built from (help links and update checks follow forks), and when
+# its commit was made. TETHER_BUILD_DATE overrides the date (used to test the update banner).
+REPO="$(git -C "$ROOT" remote get-url origin 2>/dev/null | sed -E 's#\.git$##; s#^.*github\.com[:/]##')"
+[[ "$REPO" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || REPO="jordanromines-jpg/tether"
+BUILD_DATE="${TETHER_BUILD_DATE:-$(git -C "$ROOT" log -1 --format=%cI 2>/dev/null || true)}"
 
 echo "› swift build (release)"
 swift build -c release --package-path "$ROOT/agent"
@@ -40,6 +45,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
+  <key>TetherRepo</key><string>$REPO</string>
+  <key>TetherBuildDate</key><string>$BUILD_DATE</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>CFBundleURLTypes</key>
   <array><dict>

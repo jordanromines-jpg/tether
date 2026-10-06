@@ -21,6 +21,8 @@ final class ClientConnection {
     var codecs: Set<VideoCodec> = [.h264]
     var lastStats = LinkStats(rttMs: 0, decodeQueue: 0, droppedFrames: 0)
     var audioFormat: AudioFormat?   // nil = sound off
+    var observe = false             // view only: control messages are ignored
+    var lastInput = Date()          // for "idle 12 min" in the menu-bar panel
     private let lock = NSLock()
     private var inFlightVideo = 0
     private var waitingForKeyframe = true
@@ -97,6 +99,9 @@ final class Hub {
     private var lastCursor: CGPoint?
     private var macState: [String: Bool] = [:]
     private let fit = FitDisplay()
+    /// Curtain windows to leave out of the stream (set from the main thread via Curtain.onChange).
+    private var curtainWindowIDs: [CGWindowID] = []
+    var keepAwake: Bool { queue.sync { power.held } }
     private var displayBeforeFit: CGDirectDisplayID?
 
     private init() {
@@ -116,6 +121,15 @@ final class Hub {
                 guard let self else { return }
                 let buffer = ByteBuffer(bytes: frame)
                 for c in self.clients.values where c.audioFormat == format { c.continuation.yield(.audio(buffer)) }
+            }
+        }
+        Curtain.shared.onChange = { [weak self] on, ids in
+            self?.queue.async {
+                guard let self else { return }
+                self.curtainWindowIDs = ids
+                if !self.clients.isEmpty { self.restartCapture() }
+                self.broadcastText(jsonMessage("curtain", ["on": on]))
+                self.notifyClientsChanged()
             }
         }
         cursor.onChange = { [weak self] shape in
@@ -171,6 +185,8 @@ final class Hub {
             "perms": Permissions.json,
             "state": Self.readMacState(),
             "fitAvailable": FitDisplay.isAvailable,
+            "curtain": Curtain.shared.isOnApprox,
+            "links": BuildInfo.links,
         ]))
         if let shape = cursor.current { client.send(text: Self.cursorShapeMessage(shape, display: current)) }
         queue.async {
@@ -192,6 +208,7 @@ final class Hub {
 
     private func endSession() {
         stopFit()
+        DispatchQueue.main.async { Curtain.shared.set(false) }
         power.setKeepAwake(false)
         clipboard.stop()
         cursor.stop()
@@ -207,10 +224,11 @@ final class Hub {
     private var currentSettings: ScreenStreamer.Settings {
         if let preset {
             return .init(displayID: displayID, codec: codec, maxWidth: preset.maxWidth, fps: preset.fps,
-                         bitrate: codec == .hevc ? preset.bitrate * 7 / 10 : preset.bitrate, audio: wantsAudio)
+                         bitrate: codec == .hevc ? preset.bitrate * 7 / 10 : preset.bitrate, audio: wantsAudio,
+                         excludedWindowIDs: curtainWindowIDs)
         }
         return .init(displayID: displayID, codec: codec, maxWidth: adaptive.maxWidth, fps: adaptive.fps,
-                     bitrate: adaptive.bitrate, audio: wantsAudio)
+                     bitrate: adaptive.bitrate, audio: wantsAudio, excludedWindowIDs: curtainWindowIDs)
     }
 
     private var wantsAudio: Bool { clients.values.contains { $0.audioFormat != nil } }
@@ -361,6 +379,9 @@ final class Hub {
     }
 
     private func apply(_ message: ClientMessage, from client: ClientConnection) {
+        if InputPolicy.isActivity(message) { client.lastInput = Date() }
+        // View only is enforced here, not just in the browser.
+        if client.observe && InputPolicy.isControl(message) { return }
         switch message {
         case let .hello(quality, display, codecs):
             client.codecs = Set(codecs.isEmpty ? [.h264] : codecs)
@@ -411,6 +432,16 @@ final class Hub {
         case let .text(s): input.type(text: s)
         case let .setClipboard(s): clipboard.set(s)
         case .releaseAll: input.releaseAll()
+        case let .observe(on):
+            client.observe = on
+            if on { input.releaseAll() }
+            notifyClientsChanged()
+        case let .curtain(on):
+            DispatchQueue.main.async { Curtain.shared.set(on) }
+        case .activity:
+            break
+        case .action, .openURL, .openApp, .windows, .focusWindow, .captureWindow:
+            break   // Quick actions and windows arrive in the next batches.
         }
     }
 }

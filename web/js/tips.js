@@ -62,3 +62,10 @@ export function showTips({ touch, force = false, closed = () => {} }) {
 }
 
 export const tipsOpen = () => !root.hidden;
+
+/** Hides the tips without marking them as seen (a status card took over); they show again next time. */
+export function dismissTips() {
+  if (root.hidden) return;
+  root.hidden = true;
+  onClose();
+}

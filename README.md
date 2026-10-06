@@ -81,6 +81,10 @@ Tether lives in your Mac's menu bar. Setup makes it start automatically when you
 - **Pause remote access:** the switch at the top of the panel, or **Pause** in the right-click menu (⌘P). Everyone is disconnected and nobody can connect until you choose **Resume**. Your phone shows "Paused on the Mac" and reconnects by itself when you resume. Pausing survives restarts.
 - **Quit Tether:** Tether stops completely and stays off. To start it again, open the **Tether** shortcut in Applications, or find Tether in Spotlight.
 - **Start Tether at login:** a checkbox in the menu. Turn it off if you'd rather start Tether yourself.
+- **Pause when idle:** a device that hasn't been touched for 15 minutes stops streaming and shows "Paused to save power"; tap to carry on. Choose 5, 15 or 30 minutes, or Never, in **Display and quality**. It doesn't happen while sound is playing or in view only. A page that goes into the background pauses too (straight away on a phone, after a minute on a computer) and reconnects when you come back. With the passkey lock on, resuming asks for Face ID again. For testing, add `?idle=0.25` to the link to pause after 15 seconds.
+- **View only:** **More → View only** lets you watch without controlling. The Mac ignores that device's clicks and typing.
+- **Curtain:** **More → Curtain** blacks out the Mac's own screen while you work, so people in the room can't see. You still see everything. Anyone at the Mac can lift it with ⌃⌥⌘ Return, and it turns off when everyone disconnects.
+- **Help:** **More → Help and docs** (or **Help and docs** in the Mac's panel) opens this page; **Report a problem** opens a GitHub issue.
 - **While nobody is connected,** Tether isn't recording the screen or watching the clipboard. It just waits for a connection. If it ever crashes, it restarts by itself.
 - **To remove it completely,** run `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac you set up). It also removes the shortcuts Tether made. Add `--all` to also delete its settings and passkeys.
 

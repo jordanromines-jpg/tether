@@ -102,6 +102,15 @@ public enum ClientMessage: Equatable, Sendable {
     case wake
     case fit(mode: String, width: Double, height: Double)
     case stats(rttMs: Double, decodeQueue: Int)
+    case observe(Bool)                         // view only: the Mac ignores this client's control messages
+    case curtain(Bool)                         // black out the Mac's own screen
+    case action(QuickAction)                   // media keys, display sleep, Mission Control…
+    case openURL(String)
+    case openApp(String)                       // path from GET /apps
+    case windows                               // list on-screen windows
+    case focusWindow(UInt32)                   // bring a window to the front
+    case captureWindow(UInt32?, fit: Bool)     // stream only this window (nil = whole screen again)
+    case activity                              // local interaction (zoom, pan) that counts as "not idle"
 
     public static func parse(_ text: String) -> ClientMessage? {
         guard let data = text.data(using: .utf8),
@@ -148,6 +157,24 @@ public enum ClientMessage: Equatable, Sendable {
             return .ping(id: num("id") ?? 0)
         case "stats":
             return .stats(rttMs: num("rtt") ?? 0, decodeQueue: Int(num("queue") ?? 0))
+        case "observe":
+            return .observe(bool("on"))
+        case "curtain":
+            return .curtain(bool("on"))
+        case "action":
+            return str("name").flatMap(QuickAction.init(rawValue:)).map { .action($0) }
+        case "openURL":
+            return str("url").map { .openURL($0) }
+        case "openApp":
+            return str("path").map { .openApp($0) }
+        case "windows":
+            return .windows
+        case "focusWindow":
+            return num("id").map { .focusWindow(UInt32($0)) }
+        case "captureWindow":
+            return .captureWindow(num("id").map { UInt32($0) }, fit: bool("fit"))
+        case "activity":
+            return .activity
         default:
             return nil
         }

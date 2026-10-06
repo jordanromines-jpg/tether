@@ -88,7 +88,7 @@ export class Input {
       this.g = { kind: 'one', x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, t0: now, moved: false, dragging: false };
       if (this.touchMode === 'direct') {
         const p = this.view.toNormalized(t.clientX, t.clientY);
-        this.cursor?.predictAt(p.x, p.y);
+        if (!this.stream.observe) this.cursor?.predictAt(p.x, p.y);
         this.flushMove(p);
       } else {
         // Touch-and-hold starts a drag (like a trackpad click-and-hold).
@@ -138,14 +138,14 @@ export class Input {
       if (!g.moved) return;
       if (this.touchMode === 'direct') {
         const p = this.view.toNormalized(t.clientX, t.clientY);
-        this.cursor?.predictAt(p.x, p.y);
+        if (!this.stream.observe) this.cursor?.predictAt(p.x, p.y);
         this.queueMove(p);
       } else {
         // Pointer acceleration: slow moves are precise, fast flicks cover the screen.
         const speed = Math.hypot(dx, dy);
         const gain = 1.3 + Math.min(2.2, speed / 10);
         const ndx = (dx * gain) / this.view.displayedWidth, ndy = (dy * gain) / this.view.displayedHeight;
-        this.cursor?.predictDelta(ndx, ndy);
+        if (!this.stream.observe) this.cursor?.predictDelta(ndx, ndy);
         this.send({ t: 'mrel', dx: ndx, dy: ndy });
       }
     } else if (g.kind === 'two' && e.touches.length === 2) {

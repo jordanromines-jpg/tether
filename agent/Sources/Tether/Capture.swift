@@ -52,6 +52,7 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
         var fps: Int
         var bitrate: Int
         var audio: Bool
+        var excludedWindowIDs: [CGWindowID] = []
     }
 
     var onFrame: ((VideoEncoder.Output) -> Void)?
@@ -98,7 +99,9 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
             config.excludesCurrentProcessAudio = true
         }
 
-        let filter = SCContentFilter(display: display, excludingWindows: [])
+        // Tether's own curtain windows are left out, so the person controlling sees the desktop.
+        let excluded = content.windows.filter { settings.excludedWindowIDs.contains($0.windowID) }
+        let filter = SCContentFilter(display: display, excludingWindows: excluded)
         let s = SCStream(filter: filter, configuration: config, delegate: self)
         try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
         if settings.audio {

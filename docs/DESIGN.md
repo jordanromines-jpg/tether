@@ -93,7 +93,8 @@ Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, e
 
 - **Toolbar.** A grip, then three groups (input: keyboard, modifiers, compose, keys · transfer: clipboard, files · session: connection, sound, display, full screen), then More and Hide. It docks to the top, bottom or a side; sides make it vertical. Buttons that do not fit fold into More instead of scrolling.
 - **Tooltip.** The button's name plus how to use it. Shown on hover with a mouse and on touch-and-hold on touch screens; a touch-and-hold never fires the button.
-- **Status screen.** One card: icon, title, one line of explanation, one primary action. Used for connecting, paused, locked, passkey, error and unsupported browser.
+- **Status screen.** One card: icon, title, one line of explanation, one primary action. Used for connecting, paused, locked, passkey, idle (the whole card is tappable to resume), error and unsupported browser.
+- **Toggle rows.** Menu rows that switch something on or off (View only, Curtain) show an On/Off pill on the right; On uses the accent.
 - **Sheet.** A bottom sheet on phones (with a drag handle), a centred panel on larger screens. Focus is trapped inside; Esc closes it; focus returns to the button that opened it.
 - **Banner.** The Mac's state while video is live (display asleep, locked), with one action.
 - **Toast.** Short confirmations at the top, auto-dismissed; at most one action.

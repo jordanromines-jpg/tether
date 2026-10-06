@@ -7,7 +7,12 @@ import TetherCore
 final class InputInjector {
     var displayID: CGDirectDisplayID = CGMainDisplayID()
 
-    private let source = CGEventSource(stateID: .hidSystemState)
+    /// Every injected event carries TetherMarker in its user data (see the curtain's escape keys).
+    private let source: CGEventSource? = {
+        let s = CGEventSource(stateID: .hidSystemState)
+        s?.userData = TetherMarker.eventUserData
+        return s
+    }()
     private var buttonsDown = Set<Int>()
     private var heldKeys = Set<UInt16>()
     private var heldModifiers = Set<UInt16>()

@@ -30,7 +30,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
             || path == "/peers" || path.hasPrefix("/auth/")
         if AppState.shared.paused, api {
             let body = #"{"paused":true,"msg":"Remote access is paused on the Mac. Resume it from the Tether menu-bar icon."}"#
-            return Response(status: .serviceUnavailable, headers: [.contentType: "application/json"],
+            return Response(status: .serviceUnavailable, headers: [.contentType: "application/json; charset=utf-8"],
                             body: .init(byteBuffer: ByteBuffer(string: body)))
         }
         return try await next(request, context)
@@ -81,7 +81,9 @@ enum Server {
         router.get("healthz") { request, _ -> Response in
             var response = json(["ok": true, "name": Host.current().localizedName ?? "Mac", "perms": Permissions.json,
                                  "paused": AppState.shared.paused,
-                                 "clients": Hub.shared.queue.sync { Hub.shared.clients.count }])
+                                 "clients": Hub.shared.queue.sync { Hub.shared.clients.count },
+                                 "keepAwake": Hub.shared.keepAwake,
+                                 "curtain": Curtain.shared.status()])
             // Let the Tether page on another of your Macs (same tailnet) see that this one is up.
             if let origin = request.headers[.origin], let suffix = tailnetSuffix,
                let host = URL(string: origin)?.host, origin.hasPrefix("https://"), host.hasSuffix("." + suffix) {
@@ -99,6 +101,14 @@ enum Server {
             return json(["required": store.required, "enrolled": !store.credentials(for: login).isEmpty,
                          "enrolling": store.enrolling,
                          "ok": !store.required || store.sessionIsValid(cookieHeader: request.headers[.cookie], login: login)])
+        }
+
+        // Forget this browser's unlock (used when a device pauses for being idle), so the next
+        // connection asks for Face ID / Touch ID again.
+        router.post("auth/lock") { _, _ -> Response in
+            var response = json(["locked": true])
+            response.headers[.setCookie] = "\(PasskeyStore.cookieName)=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
+            return response
         }
 
         router.post("auth/register/options") { request, _ -> Response in
@@ -277,7 +287,7 @@ enum Server {
 
     private static func json(_ obj: [String: Any], status: HTTPResponse.Status = .ok) -> Response {
         let data = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data("{}".utf8)
-        return Response(status: status, headers: [.contentType: "application/json"],
+        return Response(status: status, headers: [.contentType: "application/json; charset=utf-8"],
                         body: .init(byteBuffer: ByteBuffer(bytes: data)))
     }
 }

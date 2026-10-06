@@ -4,7 +4,7 @@ import IOKit.pwr_mgt
 /// Wakes the display when someone connects and keeps it awake while connected.
 final class PowerManager {
     private var displayAssertion: IOPMAssertionID = 0
-    private var held = false
+    private(set) var held = false
 
     func wake() {
         var id: IOPMAssertionID = 0

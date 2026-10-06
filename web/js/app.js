@@ -9,8 +9,9 @@ import { passkeyStatus, registerPasskey, unlockWithPasskey } from './passkey.js'
 import { refreshTip, hideTip } from './tooltip.js';
 import { initToolbar, setDock, currentDock, foldedItems, fit } from './toolbar.js';
 import { LABELS as DOCK_LABELS } from './dock.js';
-import { showTips, tipsOpen } from './tips.js';
+import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
+import { idleMinutes, shouldIdlePause, shouldHiddenPause, HIDDEN_PAUSE_MS, DEFAULT_IDLE_MINUTES } from './idle.js';
 
 const $ = (s) => document.querySelector(s);
 const canvas = $('#screen');
@@ -68,9 +69,10 @@ const macName = () => hello?.name || 'your Mac';
 
 // ---------- Status screen ----------
 // One card for every "not showing the screen yet" state: icon, title, one line, one main action.
-const STATE_ICON = { paused: 'pause-circle', locked: 'lock-simple', passkey: 'fingerprint', error: 'warning-circle', offline: 'plugs' };
+const STATE_ICON = { paused: 'pause-circle', locked: 'lock-simple', passkey: 'fingerprint', error: 'warning-circle', offline: 'plugs', idle: 'moon-stars' };
 let helpTimer;
 function status(kind, title, detail = '', actions = []) {
+  dismissTips();   // a status card always wins over the first-run tips
   const s = $('#status');
   // Reconnect attempts repeat 'connecting'; keep counting toward the help from the first one.
   const stillConnecting = kind === 'connecting' && !s.hidden && s.dataset.kind === 'connecting';
@@ -129,9 +131,11 @@ stream.deviceName = deviceName();
 
 // ---------- Passkey lock and pause ----------
 let pausePoll;
+let lockRequired = false;   // the Mac asks for Face ID / Touch ID (so an idle pause locks again)
 const resume = () => { stream.paused = false; stream.reconnect(); };
 async function passkeyGate() {
   const st = await passkeyStatus();
+  lockRequired = !!st.required;
   if (st.ok) return true;
   stream.paused = true;
   if (st.paused) {
@@ -164,7 +168,10 @@ if (unsupported) {
 }
 
 stream.addEventListener('connecting', () => { if (!stream.hasVideo) status('connecting', `Connecting to ${macName()}`); });
-stream.addEventListener('open', () => { if (!stream.hasVideo) status('connecting', `Connecting to ${macName()}`, 'Waiting for the first picture.'); });
+stream.addEventListener('open', () => {
+  if (viewOnly) stream.send({ t: 'observe', on: true });
+  if (!stream.hasVideo) status('connecting', `Connecting to ${macName()}`, 'Waiting for the first picture.');
+});
 stream.addEventListener('firstframe', () => {
   hideStatus();
   preloadMotion();
@@ -180,6 +187,7 @@ stream.addEventListener('hello', (e) => {
   currentDisplay = hello.display;
   document.title = `${hello.name} · Tether`;
   $('.conn-name').textContent = hello.name;
+  curtainOn = !!hello.curtain;
   updateConnection();
   const missing = [];
   if (!hello.perms?.screen) missing.push('Screen Recording');
@@ -188,6 +196,10 @@ stream.addEventListener('hello', (e) => {
   if (missing.length) toast(`On the Mac, allow Tether in Privacy & Security: ${missing.join(' and ')}.`, null, 9000);
 });
 stream.addEventListener('display', (e) => { currentDisplay = e.detail.id; });
+stream.addEventListener('curtain', (e) => {
+  curtainOn = !!e.detail.on;
+  toast(curtainOn ? 'Curtain on. The Mac\'s own screen is black.' : 'Curtain off');
+});
 stream.addEventListener('state', (e) => showMacState(e.detail));
 stream.addEventListener('cursor', (e) => {
   cursor.setRemote(e.detail.x, e.detail.y);
@@ -207,13 +219,101 @@ stream.addEventListener('clip', (e) => {
   toast(`Mac copied: "${preview}"`, { label: 'Copy', run: () => copyLocal(lastMacClip) }, 6000);
 });
 
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    if (!stream.connected) stream.reconnect(); else stream.requestKeyframe();
+// ---------- Saving power: idle and background pauses ----------
+// After a stretch with no interaction, or when the page goes out of sight, stop streaming so the
+// Mac can stop capturing and let its display sleep. Coming back resumes (with Face ID again if
+// the Mac requires it).
+let lastActive = Date.now();
+let lastActivitySent = 0;
+let pausedReason = null;   // 'idle' | 'hidden' | null
+let hiddenSince = null;
+let hiddenTimer;
+let viewOnly = false;
+let curtainOn = false;
+const idleLimit = () => idleMinutes(location.search, pref('idleMinutes', DEFAULT_IDLE_MINUTES));
+
+function noteActivity() {
+  lastActive = Date.now();
+  // Tell the Mac now and then, so its panel doesn't call a zooming, scrolling person "idle".
+  if (stream.connected && lastActive - lastActivitySent > 30_000) { lastActivitySent = lastActive; stream.send({ t: 'activity' }); }
+}
+for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) document.addEventListener(ev, noteActivity, { capture: true, passive: true });
+document.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') noteActivity(); }, { capture: true, passive: true });
+
+setInterval(() => {
+  if (pausedReason || !stream.hasVideo) return;
+  if (shouldIdlePause({ now: Date.now(), lastActive, minutes: idleLimit(), audioOn: audio.on, viewOnly,
+    visible: document.visibilityState === 'visible' })) pauseFor('idle');
+}, 5000);
+
+function pauseFor(reason) {
+  if (pausedReason) return;
+  kb.releaseAll();
+  pausedReason = reason;
+  stream.pause();
+  closeSheet();
+  if (lockRequired) fetch('auth/lock', { method: 'POST' }).catch(() => {});
+  const resumeAction = [{ label: 'Resume', run: resumeNow }];
+  if (reason === 'idle') {
+    const m = Math.round(idleLimit());
+    const span = m >= 1 ? `${m} minute${m === 1 ? '' : 's'}` : 'a little while';
+    status('idle', 'Paused to save power', `Nothing happened for ${span}, so Tether stopped streaming and ${macName()} can rest. Tap anywhere to pick up where you left off.`, resumeAction);
   } else {
-    kb.releaseAll();
+    status('idle', 'Paused in the background', 'Tether stops streaming while this page is out of sight, and reconnects when you come back.', resumeAction);
   }
+}
+
+async function resumeNow() {
+  if (!pausedReason) return;
+  pausedReason = null;
+  lastActive = Date.now();
+  status('connecting', `Connecting to ${macName()}`);
+  if (await passkeyGate()) { stream.paused = false; stream.retry = 0; stream.connect(); }
+}
+$('#status').addEventListener('click', (e) => {
+  if ($('#status').dataset.kind === 'idle' && !e.target.closest('button')) resumeNow();
 });
+
+document.addEventListener('visibilitychange', () => {
+  clearTimeout(hiddenTimer);
+  if (document.visibilityState === 'visible') {
+    hiddenSince = null;
+    if (pausedReason === 'hidden') { resumeNow(); return; }
+    if (pausedReason) return;
+    if (!stream.connected) stream.reconnect(); else stream.requestKeyframe();
+    return;
+  }
+  kb.releaseAll();
+  hiddenSince = Date.now();
+  if (audio.on || pausedReason) return;
+  // Phones and tablets freeze background pages (timers stop), so pause straight away there;
+  // desktop browsers get a minute's grace for a quick look at another tab.
+  if (isTouch) { pauseFor('hidden'); return; }
+  hiddenTimer = setTimeout(() => {
+    if (shouldHiddenPause({ now: Date.now(), hiddenSince, audioOn: audio.on })) pauseFor('hidden');
+  }, HIDDEN_PAUSE_MS + 100);
+});
+
+// ---------- View only and curtain ----------
+function setViewOnly(on) {
+  viewOnly = on;
+  if (on) kb.releaseAll();
+  stream.observe = on;
+  stream.send({ t: 'observe', on });
+  document.body.classList.toggle('view-only', on);
+  $('[data-action="viewonly"]').hidden = !on;
+  if (on && document.activeElement === sink) sink.blur();
+  fit();
+  toast(on ? 'View only. Your taps and typing won\'t reach the Mac.' : 'You can control the Mac again');
+}
+function setCurtain(on) {
+  stream.send({ t: 'curtain', on });
+}
+function openLink(name) {
+  const url = hello?.links?.[name];
+  if (url) window.open(url, '_blank', 'noopener');
+}
+
 addEventListener('blur', () => kb.releaseAll());
 
 // ---------- Connection quality (toolbar chip) ----------
@@ -354,6 +454,7 @@ const actions = {
   fullscreen: () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.()),
   hide: () => setToolbarHidden(true),
   more: openMoreSheet,
+  viewonly: () => setViewOnly(false),
   move: openDockSheet,
   tips: () => { closeSheet(); input.enabled = false; showTips({ touch: isTouch, force: true, closed: () => { input.enabled = !sheetOpen(); } }); },
 };
@@ -478,7 +579,16 @@ function openMoreSheet() {
     menu.append(
       el('button', { className: 'menu-item', role: 'menuitem', onclick: () => openDockSheet() },
         icon('arrows-out-cardinal'), el('span', { textContent: 'Move toolbar' }), el('small', { textContent: DOCK_LABELS[currentDock()] })),
+      toggleRow('eye', 'View only', viewOnly, () => { setViewOnly(!viewOnly); closeSheet(); }),
+      ...(viewOnly ? [] : [toggleRow('eye-slash', 'Curtain', curtainOn, () => { setCurtain(!curtainOn); closeSheet(); },
+        'Blacks out the Mac\'s own screen')]),
+      el('hr'),
       el('button', { className: 'menu-item', role: 'menuitem', onclick: actions.tips }, icon('lightbulb'), el('span', { textContent: 'Tips' })));
+    if (hello?.links) {
+      menu.append(
+        el('button', { className: 'menu-item', role: 'menuitem', onclick: () => openLink('help') }, icon('question'), el('span', { textContent: 'Help and docs' })),
+        el('button', { className: 'menu-item', role: 'menuitem', onclick: () => openLink('issues') }, icon('bug'), el('span', { textContent: 'Report a problem' })));
+    }
     if (!folded.some((f) => f.dataset.action === 'hide')) {
       menu.append(el('button', { className: 'menu-item', role: 'menuitem', onclick: () => { closeSheetThen(actions.hide); } },
         icon('caret-down'), el('span', { textContent: 'Hide toolbar' })));
@@ -487,6 +597,14 @@ function openMoreSheet() {
   });
   syncSticky();
 }
+// A menu row that switches something on or off.
+function toggleRow(glyph, label, on, run, hint = '') {
+  const b = el('button', { className: 'menu-item', role: 'menuitemcheckbox', onclick: run },
+    icon(glyph), el('span', {}, label, hint ? el('small', { className: 'hint', textContent: hint }) : ''), el('small', { className: `state${on ? ' on' : ''}`, textContent: on ? 'On' : 'Off' }));
+  b.setAttribute('aria-checked', String(on));
+  return b;
+}
+
 // Run a toolbar action from the More menu: actions that open their own sheet replace this one.
 function closeSheetThen(fn) {
   const opensSheet = [actions.keys, actions.clipboard, actions.files, actions.compose, actions.macs, actions.settings].includes(fn);
@@ -616,6 +734,11 @@ function openSettingsSheet() {
       [['auto', 'Auto', 'adapts'], ['fast', 'Fast', 'cellular'], ['balanced', 'Balanced', '1080p'], ['sharp', 'Sharp', 'full res']],
       pref('quality', 'auto'),
       (q) => { setPref('quality', q); stream.send({ t: 'quality', preset: q }); }, 'Quality'));
+    body.append(el('h3', { textContent: 'Pause when idle' }), segmented(
+      [[5, '5 min'], [15, '15 min'], [30, '30 min'], [0, 'Never']],
+      pref('idleMinutes', DEFAULT_IDLE_MINUTES),
+      (m) => setPref('idleMinutes', m), 'Pause when idle'),
+      el('p', { className: 'muted', textContent: 'Stops streaming when nobody has touched anything for a while, so the Mac can rest. Not while sound is playing or in view only.' }));
     if (isTouch) {
       body.append(el('h3', { textContent: 'Touch' }), segmented(
         [['trackpad', 'Trackpad', 'drag to move'], ['direct', 'Direct', 'tap where you point']],
@@ -638,6 +761,10 @@ function openConnectionSheet() {
         ? `${view.videoW} × ${view.videoH}, ${s.codec}, ${s.fps} fps, ${(s.kbps / 1000).toFixed(1)} Mbps, ${Math.round(s.rtt)} ms${pref('quality', 'auto') === 'auto' ? ', Auto quality' : ''}`
         : 'Waiting for video.' }),
       el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Reconnect', onclick: () => { stream.reconnect(); closeSheet(); } })));
+    body.append(el('div', { className: 'menu' },
+      toggleRow('eye', 'View only', viewOnly, () => { setViewOnly(!viewOnly); closeSheet(); }, 'Watch without controlling'),
+      ...(viewOnly ? [] : [toggleRow('eye-slash', 'Curtain', curtainOn, () => { setCurtain(!curtainOn); closeSheet(); },
+        'Blacks out the Mac\'s own screen')])));
     const macs = el('div', { className: 'list' }, el('p', { className: 'muted', textContent: 'Looking for your other Macs.' }));
     body.append(el('h3', { textContent: 'Your Macs' }), macs);
     loadMacs(macs);

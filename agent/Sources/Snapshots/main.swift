@@ -52,6 +52,17 @@ fresh.passkeyCount = 2
 fresh.loginItemInstalled = true
 render(StatusPanelView(model: fresh).background(.background), "panel-needs-permission")
 
+// v4: curtain on, a view-only session that's been idle, help links in the footer.
+let curtained = PanelModel()
+curtained.url = sampleURL
+curtained.curtainOn = true
+curtained.sessions = [
+    SessionRow(id: UUID(), device: "Jordan's iPhone", login: "owner@example.com", since: Date().addingTimeInterval(-3600),
+               viewOnly: true, lastInput: Date().addingTimeInterval(-14 * 60)),
+]
+render(StatusPanelView(model: curtained).background(.background), "panel-curtain-viewing")
+render(CurtainView().frame(width: 960, height: 600), "curtain")
+
 let paused = PanelModel()
 paused.paused = true
 paused.url = sampleURL

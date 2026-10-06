@@ -1,5 +1,8 @@
 // WebSocket connection to the agent + H.264 decoding with WebCodecs.
 const FRAME_HEADER = 10;
+// Messages that act on the Mac. In view-only mode they're never sent (and the Mac ignores them too).
+const CONTROL = new Set(['move', 'mrel', 'btn', 'scroll', 'key', 'text', 'release', 'setclip', 'action',
+  'openURL', 'openApp', 'focusWindow', 'captureWindow', 'curtain', 'wake']);
 
 export class Stream extends EventTarget {
   constructor(canvas, view) {
@@ -83,6 +86,17 @@ export class Stream extends EventTarget {
     };
   }
 
+  /** Stops streaming on purpose (idle or hidden): no "connection lost", no automatic retry. */
+  pause() {
+    this.paused = true;
+    clearTimeout(this.retryTimer);
+    const ws = this.ws;
+    this.ws = null;   // so onclose doesn't treat this as a dropped connection
+    ws?.close();
+    this.resetDecoder();
+    this.hasVideo = false;
+  }
+
   reconnect() {
     const ws = this.ws;
     this.ws = null;
@@ -94,6 +108,7 @@ export class Stream extends EventTarget {
   get connected() { return this.ws?.readyState === 1; }
 
   send(obj) {
+    if (this.observe && CONTROL.has(obj.t)) return;
     if (this.ws?.readyState === 1) this.ws.send(JSON.stringify(obj));
   }
 
