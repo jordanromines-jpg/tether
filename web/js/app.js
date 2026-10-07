@@ -14,7 +14,8 @@ import { healthKind, diagnose, pollDelay } from './diagnose.js';
 import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
-import { Loupe } from './loupe.js';
+import { Loupe, MenuBarStrip } from './loupe.js';
+import { inMenuBar } from './gesture.js';
 import { comboLabel, buildCombo, parsePinned, togglePinned, isPinned, MAX_PINNED } from './shortcuts.js';
 import { formatBytes, addToDay, crossedLimit, localDay } from './usage.js';
 import { idleMinutes, shouldIdlePause, shouldHiddenPause, HIDDEN_PAUSE_MS, DEFAULT_IDLE_MINUTES } from './idle.js';
@@ -26,7 +27,6 @@ const isTouch = navigator.maxTouchPoints > 0;
 document.body.classList.toggle('desktop', !isTouch);
 // Phone, tablet or desktop: picks the default toolbar, and each keeps its own layout.
 const DEVICE = deviceClass({ touch: isTouch, shortSide: Math.min(screen.width, screen.height) });
-document.body.classList.toggle('compact', pref('toolbarLabels', true) === false);
 
 const view = new View(canvas, viewport);
 const stream = new Stream(canvas, view);
@@ -40,6 +40,26 @@ input.touchMode = pref('touchMode', 'trackpad');
 cursor.scale = pref('pointerScale', 1);
 const loupe = new Loupe(canvas, view, cursor);
 loupe.enabled = pref('loupe', true);
+input.momentum = pref('momentum', true);
+
+// Menu-bar magnifier (touch screens): a 3x strip of the menu bar while the pointer is up there.
+const menuStrip = new MenuBarStrip(canvas, view, cursor);
+setInterval(() => menuStrip.set(isTouch && pref('menuBarZoom', true) && !!stream.hasVideo && $('#status').hidden
+  && inMenuBar(cursor.pos?.y ?? 1, view.zoom)), 100);
+
+// Tap feedback: a quick ripple where the click lands (and a tiny buzz where phones allow it).
+input.onClick = () => {
+  if (!isTouch || !pref('tapFeedback', true) || !cursor.pos) return;
+  navigator.vibrate?.(8);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const { x, y } = view.toClient(cursor.pos.x, cursor.pos.y);
+  const r = el('div', { className: 'tap-ripple', 'aria-hidden': 'true' });
+  r.style.left = `${x}px`;
+  r.style.top = `${y}px`;
+  document.body.append(r);
+  setTimeout(() => r.remove(), 400);
+};
+
 input.onFinger = (state, x, y) => {
   if (state === 'start') loupe.show(x, y);
   else if (state === 'move') loupe.move(x, y);
@@ -688,9 +708,10 @@ renderToolbar();
 setToolbarHidden(pref('toolbarHidden', false));
 pill.addEventListener('click', () => setToolbarHidden(false));
 
-function setLabels(on) {
-  setPref('toolbarLabels', on);
-  document.body.classList.toggle('compact', !on);
+// Toolbar labels: 'auto' (labels when they fit, icons only rather than hiding tools), true or false.
+const labelsMode = () => pref('toolbarLabels', 'auto');
+function setLabels(mode) {
+  setPref('toolbarLabels', mode);
   fit();
 }
 
@@ -966,7 +987,11 @@ function openEditToolbarSheet() {
         const down = el('button', { className: 'reorder', 'aria-label': `Move ${t.label} later`, disabled: i === current.length - 1 }, icon('arrow-down'));
         up.addEventListener('click', () => save(moveTool(current, t.id, -1), `[aria-label="Move ${t.label} earlier"]`));
         down.addEventListener('click', () => save(moveTool(current, t.id, 1), `[aria-label="Move ${t.label} later"]`));
-        return el('div', { className: 'edit-row' }, sw, up, down);
+        const handle = el('span', { className: 'drag-handle', 'aria-hidden': 'true', title: 'Drag to reorder' }, icon('dots-six-vertical'));
+        const row = el('div', { className: 'edit-row' }, handle, sw, up, down);
+        row.dataset.id = t.id;
+        handle.addEventListener('pointerdown', (e) => dragRow(e, row, current));
+        return row;
       };
       list.replaceChildren(
         el('h3', { textContent: 'In the toolbar' }),
@@ -977,25 +1002,62 @@ function openEditToolbarSheet() {
       note.textContent = !folded ? 'Everything in the toolbar fits on this screen.'
         : `${folded === 1 ? '1 tool doesn\'t' : `${folded} tools don't`} fit on this screen, so the last ${folded === 1 ? 'one is' : 'ones are'} hidden. Everything is still in More.`;
     };
+    // Drag a row by its handle; it settles into the gap it's dropped on. ↑/↓ do the same by keyboard.
+    const dragRow = (e, row, current) => {
+      e.preventDefault();
+      const rows = [...list.querySelectorAll('.edit-row[data-id]')];
+      const centers = rows.map((r) => { const b = r.getBoundingClientRect(); return b.top + b.height / 2; });
+      const from = rows.indexOf(row);
+      const startY = e.clientY;
+      let to = from;
+      row.classList.add('dragging');
+      try { e.target.setPointerCapture(e.pointerId); } catch { /* window listeners below still track it */ }
+      const move = (ev) => {
+        const dy = ev.clientY - startY;
+        row.style.transform = `translateY(${dy}px)`;
+        const y = centers[from] + dy;
+        to = centers.reduce((best, c, i) => (Math.abs(c - y) < Math.abs(centers[best] - y) ? i : best), from);
+      };
+      const end = () => {
+        removeEventListener('pointermove', move);
+        removeEventListener('pointerup', end);
+        removeEventListener('pointercancel', end);
+        row.classList.remove('dragging');
+        row.style.transform = '';
+        if (to === from) return;
+        const next = current.filter((id) => id !== row.dataset.id);
+        next.splice(to, 0, row.dataset.id);
+        save(next);
+      };
+      addEventListener('pointermove', move);
+      addEventListener('pointerup', end);
+      addEventListener('pointercancel', end);
+    };
     const save = (next, focusSel) => {
       setPref(layoutKey, next);
       renderToolbar();
       draw();
       if (focusSel) list.querySelector(focusSel)?.focus();
     };
-    const labels = toggleRow('sliders-horizontal', 'Labels under icons', pref('toolbarLabels', true), (e) => {
-      const on = !pref('toolbarLabels', true);
-      setLabels(on);
-      const b = e.currentTarget;
-      b.setAttribute('aria-checked', String(on));
-      const st = b.querySelector('.state'); st.textContent = on ? 'On' : 'Off'; st.classList.toggle('on', on);
-      draw();
-    }, 'Turn off for a smaller, icons-only toolbar');
-    body.append(note, el('div', { className: 'menu' }, labels), list,
+    const labels = segmented([['auto', 'Auto', 'labels if they fit'], [true, 'Labels', 'always'], [false, 'Compact', 'icons only']],
+      labelsMode(), (v) => { setLabels(v); draw(); }, 'Toolbar labels');
+    body.append(note, el('h3', { textContent: 'Labels' }), labels, list,
       el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Reset to default', onclick: () => save(defaultLayout(DEVICE)) })),
       el('p', { className: 'muted', textContent: 'More always lists every tool. Pinned shortcuts (from Keys) sit after these.' }));
     draw();
   });
+}
+
+// A switch row for a simple on/off preference (default on).
+function prefRow(glyph, label, key, hint, changed = () => {}) {
+  return toggleRow(glyph, label, pref(key, true), (e) => {
+    const on = !pref(key, true);
+    setPref(key, on);
+    changed(on);
+    const b = e.currentTarget;
+    b.setAttribute('aria-checked', String(on));
+    const st = b.querySelector('.state'); st.textContent = on ? 'On' : 'Off'; st.classList.toggle('on', on);
+  }, hint);
 }
 
 // A menu row that switches something on or off.
@@ -1298,9 +1360,24 @@ function openClipboardSheet() {
         } }),
         el('button', { className: 'secondary', textContent: 'Send', onclick: () => { sendClip(area.value, false); closeSheet(); } }),
         el('button', { className: 'secondary', textContent: 'Paste image', onclick: pasteImageToMac }),
+        el('button', { className: 'secondary', textContent: 'Type it on the Mac', onclick: () => typeOnMac(area) }),
         el('button', { className: 'primary', textContent: 'Send and paste', onclick: () => { sendClip(area.value, true); closeSheet(); } })),
     );
   });
+}
+
+// Types this device's clipboard (or the box) on the Mac as keystrokes: for password managers and
+// fields that don't accept pasting. Long text asks first.
+async function typeOnMac(area) {
+  let text = area.value;
+  if (!text) {
+    try { text = await navigator.clipboard.readText(); } catch { toast('Clipboard access was blocked. Paste into the box, then try again.'); return; }
+  }
+  if (!text) { toast('Nothing to type yet'); return; }
+  if (text.length > 200 && !confirm(`Type ${text.length} characters on the Mac?`)) return;
+  closeSheet();
+  kb.text(text);
+  toast(`Typed ${text.length} character${text.length === 1 ? '' : 's'} on the Mac`);
 }
 
 function segmented(options, current, onPick, label) {
@@ -1377,11 +1454,14 @@ function openSettingsSheet() {
         const b = e.currentTarget;
         b.setAttribute('aria-checked', String(loupe.enabled));
         const st = b.querySelector('.state'); st.textContent = loupe.enabled ? 'On' : 'Off'; st.classList.toggle('on', loupe.enabled);
-      }, 'A zoomed view above your finger when dragging')));
+      }, 'A zoomed view above your finger when dragging'),
+        prefRow('squares-four', 'Menu bar magnifier', 'menuBarZoom', 'Zooms in on the menu bar while the pointer is up there'),
+        prefRow('hand-tap', 'Tap feedback', 'tapFeedback', 'A ripple where each click lands'),
+        prefRow('mouse-scroll', 'Momentum scrolling', 'momentum', 'Scrolling keeps going after a quick flick', (on) => { input.momentum = on; })));
     }
     body.append(el('h3', { textContent: 'Toolbar' }), segmented(
-      [[true, 'Labels', 'icon and name'], [false, 'Compact', 'icons only']], pref('toolbarLabels', true),
-      (v) => setLabels(v), 'Toolbar'),
+      [['auto', 'Auto', 'labels if they fit'], [true, 'Labels', 'always'], [false, 'Compact', 'icons only']], labelsMode(),
+      (v) => setLabels(v), 'Toolbar labels'),
       el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Edit toolbar', onclick: openEditToolbarSheet })));
     body.append(el('h3', { textContent: 'Data' }), segmented(
       [[0, 'No warning'], [250, '250 MB'], [500, '500 MB'], [1000, '1 GB']], pref('usageWarn', 0),

@@ -45,6 +45,10 @@ export function fit() {
     : innerWidth - 2 * edge - inset('--safe-l') - inset('--safe-r');
   const length = () => (vertical ? toolbar.offsetHeight : toolbar.offsetWidth);
   const pins = items.filter((el) => el.classList.contains('pin'));
+  // Labels: 'auto' shows them when everything fits, and drops to icons only before hiding any tool.
+  const mode = pref('toolbarLabels', 'auto');
+  document.body.classList.toggle('compact', mode === false);
+  if (mode === 'auto' && length() > available) document.body.classList.add('compact');
   // Measure the real bar after each step (labels and the Mac's name vary in width).
   for (const el of foldOrder(items.filter((i) => !pins.includes(i)), pins)) {
     if (length() <= available) break;

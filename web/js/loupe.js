@@ -63,3 +63,61 @@ export class Loupe {
     c.stroke();
   }
 }
+
+// The menu-bar magnifier: while the Mac's pointer is in its menu bar (on a touch screen, not zoomed
+// in), a wide strip across the top shows the bar at 3x around the pointer, so its small icons and
+// menus are easy to aim at. It only shows; taps still go where the pointer is.
+const STRIP_ZOOM = 3;
+const STRIP_H = 64;
+
+export class MenuBarStrip {
+  constructor(source, view, cursor) {
+    this.source = source;
+    this.view = view;
+    this.cursor = cursor;
+    this.el = document.createElement('canvas');
+    this.el.id = 'menubar-zoom';
+    this.el.hidden = true;
+    this.el.setAttribute('aria-hidden', 'true');
+    document.body.append(this.el);
+    this.ctx = this.el.getContext('2d');
+    this.active = false;
+  }
+
+  set(show) {
+    if (show === this.active) return;
+    this.active = show;
+    this.el.hidden = !show;
+    if (!show) return;
+    const dpr = devicePixelRatio || 1;
+    this.width = Math.min(innerWidth - 16, 640);
+    this.el.width = Math.round(this.width * dpr);
+    this.el.height = Math.round(STRIP_H * dpr);
+    this.el.style.width = `${this.width}px`;
+    const loop = () => { if (!this.active) return; this.draw(); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
+
+  draw() {
+    const pos = this.cursor.pos;
+    if (!pos || !this.view.videoW) return;
+    const W = this.el.width, H = this.el.height;
+    const scale = this.view.scale || 1;
+    const spanX = this.width / (scale * STRIP_ZOOM);               // video px across the strip
+    const spanY = spanX * (H / W);
+    const cx = pos.x * this.view.videoW;
+    const sx = Math.max(0, Math.min(this.view.videoW - spanX, cx - spanX / 2));
+    const c = this.ctx;
+    c.fillStyle = '#000';
+    c.fillRect(0, 0, W, H);
+    c.imageSmoothingEnabled = true;
+    c.drawImage(this.source, sx, 0, spanX, spanY, 0, 0, W, H);
+    // Where the pointer is, inside the strip.
+    const px = ((cx - sx) / spanX) * W, py = ((pos.y * this.view.videoH) / spanY) * H;
+    c.strokeStyle = 'rgba(255,255,255,.95)';
+    c.lineWidth = Math.max(2, W / 320);
+    c.beginPath();
+    c.arc(px, py, H / 5, 0, Math.PI * 2);
+    c.stroke();
+  }
+}

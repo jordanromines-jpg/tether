@@ -63,19 +63,21 @@
 
 <!-- Keys above the on-screen keyboard, while typing on a phone or iPad. Buttons keep the keyboard up. -->
 <div id="keyrow" role="toolbar" aria-label="Keys" hidden>
-  <div class="keys">
+  <div class="keys row1">
     <button data-mod="MetaLeft" aria-pressed="false" aria-label="Command">⌘</button>
     <button data-mod="AltLeft" aria-pressed="false" aria-label="Option">⌥</button>
     <button data-mod="ControlLeft" aria-pressed="false" aria-label="Control">⌃</button>
     <button data-mod="ShiftLeft" aria-pressed="false" aria-label="Shift">⇧</button>
-    <span class="sep" aria-hidden="true"></span>
     <button data-key="Escape" aria-label="Escape">esc</button>
     <button data-key="Tab" aria-label="Tab">tab</button>
-    <span class="sep" aria-hidden="true"></span>
+  </div>
+  <div class="keys row2">
     <button data-key="ArrowLeft" data-repeat aria-label="Left arrow">←</button>
     <button data-key="ArrowUp" data-repeat aria-label="Up arrow">↑</button>
     <button data-key="ArrowDown" data-repeat aria-label="Down arrow">↓</button>
     <button data-key="ArrowRight" data-repeat aria-label="Right arrow">→</button>
+    <button data-key="Backspace" data-repeat aria-label="Delete">⌫</button>
+    <button data-key="Enter" aria-label="Return">↩</button>
   </div>
   <button class="done" data-key-action="done" aria-label="Hide the keyboard"><svg class="i"><use href="icons.svg#caret-down"/></svg></button>
 </div>

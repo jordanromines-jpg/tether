@@ -236,26 +236,42 @@ body:not(.compact) #toolbar[data-dock="left"] [data-action="more"], body:not(.co
 body.typing #toolbar, body.typing #toolbar-show { display: none !important; }
 
 /* ---------- Key row (above the on-screen keyboard) ---------- */
+/* One row on wider screens; on phones two rows, so every key is at least 44 px wide:
+   ⌘ ⌥ ⌃ ⇧ esc tab [hide]  /  ← ↑ ↓ → ⌫ ↩ */
 #keyrow {
-  position: fixed; left: 0; right: 0; top: 0; z-index: 22; height: 48px;
-  display: flex; align-items: center; gap: 6px; padding: 0 calc(6px + var(--safe-r)) 0 calc(6px + var(--safe-l));
+  position: fixed; left: 0; right: 0; top: 0; z-index: 22;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+  padding: 5px calc(6px + var(--safe-r)) 5px calc(6px + var(--safe-l));
   background: var(--surface); border-top: 1px solid var(--line); box-shadow: var(--shadow);
   touch-action: none; -webkit-user-select: none; user-select: none;
 }
 #keyrow[hidden] { display: none; }
-/* All ten keys share the width (about 29 px each on a 375 px phone, like the keyboard's own keys). */
-#keyrow .keys { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; }
+#keyrow .keys { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 4px; }
+#keyrow .row1 { order: 1; } #keyrow .row2 { order: 2; } #keyrow .done { order: 3; }
 #keyrow button {
-  flex: 1 1 0; min-width: 0; max-width: 56px; height: 38px; padding: 0; border: 0; border-radius: 8px;
-  background: var(--fill); color: var(--text); font: inherit; font-size: 16px; cursor: pointer;
+  flex: 1 1 0; min-width: 0; max-width: 64px; height: 40px; padding: 0; border: 0; border-radius: 8px;
+  background: var(--fill); color: var(--text); font: inherit; font-size: 17px; cursor: pointer;
 }
-#keyrow button[data-key="Escape"], #keyrow button[data-key="Tab"] { font-size: 13px; }
+#keyrow button[data-key="Escape"], #keyrow button[data-key="Tab"] { font-size: 14px; }
 #keyrow button:active { background: var(--fill-strong); }
 #keyrow button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 #keyrow button.locked { box-shadow: inset 0 -3px 0 var(--on-accent); }
-#keyrow .sep { flex: none; width: 1px; height: 22px; background: var(--line); }
-#keyrow .done { flex: none; width: 40px; max-width: none; background: transparent; color: var(--accent-text); display: grid; place-items: center; }
+#keyrow .done { flex: none; width: 44px; max-width: none; background: transparent; color: var(--accent-text); display: grid; place-items: center; }
 #keyrow .done .i { width: 22px; height: 22px; }
+@media (max-width: 599px) {
+  #keyrow .row1 { flex-basis: calc(100% - 56px); }
+  #keyrow .done { order: 2; }
+  #keyrow .row2 { order: 3; flex-basis: 100%; }
+  #keyrow button { max-width: none; height: 42px; }
+}
+
+/* Tap feedback: a ring that grows and fades where a click lands. */
+.tap-ripple {
+  position: fixed; z-index: 16; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / .9); box-shadow: 0 0 0 1px rgb(0 0 0 / .25); pointer-events: none;
+  animation: tap-ripple 320ms ease-out forwards;
+}
+@keyframes tap-ripple { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
 
 /* ---------- First-run tour ---------- */
 #tour { position: fixed; inset: 0; z-index: 35; }
@@ -390,6 +406,9 @@ textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
 /* Edit toolbar: a switch per tool, and up/down buttons to reorder what's in the bar. */
 .edit-row { display: flex; align-items: stretch; gap: 4px; }
 .edit-row .menu-item { flex: 1; min-width: 0; }
+.drag-handle { flex: none; width: 28px; display: grid; place-items: center; color: var(--text-muted); cursor: grab; touch-action: none; }
+.drag-handle .i { width: 18px; height: 18px; }
+.edit-row.dragging { position: relative; z-index: 2; background: var(--surface-raised); border-radius: var(--r-control); box-shadow: var(--shadow); cursor: grabbing; }
 .reorder {
   flex: none; width: 44px; border: 0; border-radius: var(--r-control); background: var(--fill); color: var(--text); cursor: pointer;
   display: grid; place-items: center;
@@ -521,6 +540,12 @@ body[data-dock^="top"] #banner, body[data-dock^="top"] #toast { top: auto; botto
   border-radius: 50%; border: 2px solid var(--surface); box-shadow: var(--shadow);
 }
 #loupe[hidden] { display: none; }
+/* Menu-bar magnifier: a wide strip under the top edge while the pointer is in the Mac's menu bar. */
+#menubar-zoom {
+  position: fixed; z-index: 21; left: 0; right: 0; margin-inline: auto; top: calc(8px + var(--safe-t));
+  height: 64px; border-radius: 14px; border: 2px solid rgb(255 255 255 / .9); box-shadow: var(--shadow); pointer-events: none;
+}
+#menubar-zoom[hidden] { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0ms !important; animation: none !important; }

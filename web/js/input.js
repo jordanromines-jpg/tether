@@ -1,5 +1,7 @@
 // Pointer + touch input. Mouse/trackpad pointers send absolute positions;
 // touch uses a virtual trackpad (default) or direct-touch mode.
+import { flingVelocity, momentumStep } from './gesture.js';
+
 export class Input {
   constructor({ stream, view, keyboard, surface }) {
     this.stream = stream;
@@ -8,6 +10,8 @@ export class Input {
     this.surface = surface;
     this.touchMode = 'trackpad';
     this.enabled = true;
+    this.momentum = true;
+    this.momentumRaf = null;
     this.pendingMove = null;
     this.rafQueued = false;
     this.bindPointer();
@@ -70,6 +74,7 @@ export class Input {
   bindWheel() {
     this.surface.addEventListener('wheel', (e) => {
       e.preventDefault();
+      this.stopMomentum();
       const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
       this.send({ t: 'scroll', dx: e.deltaX * k, dy: e.deltaY * k });
     }, { passive: false });
@@ -88,6 +93,7 @@ export class Input {
 
   touchStart(e) {
     e.preventDefault();
+    this.stopMomentum();   // a new touch catches the scroll, like on a trackpad
     const n = e.touches.length;
     const now = performance.now();
     if (n === 1) {
@@ -117,7 +123,7 @@ export class Input {
         kind: 'two', t0: now, moved: false, mode: null,
         cx: (a.clientX + b.clientX) / 2, cy: (a.clientY + b.clientY) / 2,
         dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
-        zoom0: this.view.zoom,
+        zoom0: this.view.zoom, samples: [],
       };
       this.g.dist0 = this.g.dist;
       this.g.cx0 = this.g.cx;
@@ -174,11 +180,23 @@ export class Input {
         return;
       }
       if (g.mode === 'zoom') {
-        this.view.zoomAt(g.zoom0 * (dist / g.dist0), cx, cy);
-        this.view.panBy(dx, dy);
+        // Apply once per frame: touch events can arrive faster than the screen redraws.
+        g.pan = { dx: (g.pan?.dx ?? 0) + dx, dy: (g.pan?.dy ?? 0) + dy };
+        g.zoomTo = { zoom: g.zoom0 * (dist / g.dist0), cx, cy };
+        if (!g.zoomQueued) {
+          g.zoomQueued = true;
+          requestAnimationFrame(() => {
+            g.zoomQueued = false;
+            this.view.zoomAt(g.zoomTo.zoom, g.zoomTo.cx, g.zoomTo.cy);
+            this.view.panBy(g.pan.dx, g.pan.dy);
+            g.pan = null;
+          });
+        }
       } else {
         // Natural scrolling: content follows the fingers.
         this.send({ t: 'scroll', dx: -dx * 2, dy: -dy * 2 });
+        g.samples.push({ t: performance.now(), dx: -dx * 2, dy: -dy * 2 });
+        if (g.samples.length > 30) g.samples.shift();
       }
     } else if (g.kind === 'three' && e.touches.length >= 3) {
       const cx = avgX(e.touches), cy = avgY(e.touches);
@@ -207,6 +225,7 @@ export class Input {
       this.g = null;
     } else if (g.kind === 'two' && e.touches.length < 2) {
       if (!g.moved && dt < 350) this.click(2);
+      if (g.mode === 'scroll') this.startMomentum(flingVelocity(g.samples, performance.now()));
       this.g = e.touches.length ? { kind: 'done' } : null;
     } else if (g.kind === 'three' && e.touches.length < 3) {
       const dx = g.cx - g.sx, dy = g.cy - g.sy;
@@ -235,6 +254,29 @@ export class Input {
     this.send({ t: 'btn', b: button, down: true });
     this.send({ t: 'btn', b: button, down: false });
     this.kb.consumeSticky();
+    this.onClick?.(button);
+  }
+
+  // After a two-finger fling the scroll keeps going and slows down (gesture.js has the maths).
+  startMomentum(v) {
+    if (!this.momentum || Math.hypot(v.vx, v.vy) < 0.2) return;
+    let last = performance.now();
+    let speed = v;
+    const tick = (now) => {
+      if (this.momentumRaf == null) return;
+      const step = momentumStep(speed, Math.min(48, now - last));
+      last = now;
+      if (!step) { this.momentumRaf = null; return; }
+      this.send({ t: 'scroll', dx: step.dx, dy: step.dy });
+      speed = step.v;
+      this.momentumRaf = requestAnimationFrame(tick);
+    };
+    this.momentumRaf = requestAnimationFrame(tick);
+  }
+
+  stopMomentum() {
+    if (this.momentumRaf != null) cancelAnimationFrame(this.momentumRaf);
+    this.momentumRaf = null;
   }
 }
 
