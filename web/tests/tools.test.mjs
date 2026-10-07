@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TOOLS, SECTIONS, tool, deviceClass, defaultLayout, normalizeLayout, visibleLayout, availableTools, isAvailable,
-  foldOrder, move, toggle, sections, keyRowTop } from '../js/tools.js';
+  foldOrder, move, toggle, sections, keyRowTop, shortMacName } from '../js/tools.js';
 
 const full = { control: true, desktop: true, pointerCapture: true, links: true };
 
@@ -79,4 +79,15 @@ test('the key row sits on top of the on-screen keyboard', () => {
   assert.equal(keyRowTop({ vvHeight: 476, vvOffsetTop: 120, rowHeight: 44 }), 552);
   // Hardware keyboard: no on-screen keyboard, the row sits at the bottom of the screen.
   assert.equal(keyRowTop({ vvHeight: 1180, vvOffsetTop: 0, rowHeight: 44 }), 1136);
+});
+
+test('the toolbar shows a short Mac name', () => {
+  assert.equal(shortMacName('Jordan’s Mac Studio'), 'Mac Studio');
+  assert.equal(shortMacName("Sam's MacBook Pro"), 'MacBook Pro');
+  assert.equal(shortMacName('Studio'), 'Studio');
+  assert.equal(shortMacName('Mac mini'), 'Mac mini');
+  assert.equal(shortMacName('Mac Studio Downstairs'), 'Studio Downstairs');
+  assert.equal(shortMacName('Jordan’s'), 'Jordan’s', 'a name that is only a possessive stays as it is');
+  assert.equal(shortMacName('  '), 'Mac');
+  assert.equal(shortMacName(undefined), 'Mac');
 });

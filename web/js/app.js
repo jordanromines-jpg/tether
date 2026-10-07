@@ -8,7 +8,7 @@ import { AudioPlayer } from './audio.js';
 import { passkeyStatus, registerPasskey, unlockWithPasskey } from './passkey.js';
 import { refreshTip, hideTip } from './tooltip.js';
 import { initToolbar, setDock, currentDock, foldedCount, fit } from './toolbar.js';
-import { tool, TOOLS, deviceClass, defaultLayout, normalizeLayout, visibleLayout, isAvailable, sections, move as moveTool, toggle as toggleTool, keyRowTop } from './tools.js';
+import { tool, TOOLS, deviceClass, defaultLayout, normalizeLayout, visibleLayout, isAvailable, sections, move as moveTool, toggle as toggleTool, keyRowTop, shortMacName } from './tools.js';
 import { startTour } from './tour.js';
 import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
@@ -400,7 +400,7 @@ function updateConnection() {
   for (const b of document.querySelectorAll('[data-action="status"]')) {
     b.querySelector('.dot').dataset.q = q;
     const lbl = b.querySelector('.lbl');
-    if (lbl) lbl.textContent = hello?.name || 'Mac';
+    if (lbl) lbl.textContent = b.closest('#toolbar') ? shortMacName(hello?.name) : (hello?.name || 'Mac');
     if (b.closest('#toolbar')) {
       b.dataset.tip = macName();
       b.dataset.hint = line;

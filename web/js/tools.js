@@ -114,3 +114,13 @@ export function sections(ctx) {
 export function keyRowTop({ vvHeight, vvOffsetTop, rowHeight }) {
   return Math.round(vvOffsetTop + vvHeight - rowHeight);
 }
+
+// The Mac's name for the toolbar, where there's room for about 14 characters: "Jordan's Mac Studio"
+// becomes "Mac Studio". The full name stays in the tooltip and at the top of More.
+export function shortMacName(name) {
+  let n = String(name ?? '').trim().replace(/\s+/g, ' ');
+  const rest = n.replace(/^\S+['’]s /, '');
+  if (rest && rest !== n) n = rest;
+  if (n.length > 14 && /^Mac /.test(n) && n.length > 4) n = n.slice(4);
+  return n || 'Mac';
+}
