@@ -32,7 +32,7 @@ enum WindowList {
     static func json(_ list: [Info]) -> [[String: Any]] {
         list.map { i in
             ["id": i.id, "title": i.title, "app": i.app, "bundle": i.bundleID, "icon": icon(pid: i.pid, bundle: i.bundleID),
-             "w": Int(i.frame.width), "h": Int(i.frame.height)]
+             "x": Int(i.frame.minX), "y": Int(i.frame.minY), "w": Int(i.frame.width), "h": Int(i.frame.height)]
         }
     }
 

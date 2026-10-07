@@ -199,6 +199,7 @@ stream.addEventListener('hello', (e) => {
   currentDisplay = hello.display;
   document.title = `${hello.name} · Tether`;
   $('.conn-name').textContent = hello.name;
+  requestAnimationFrame(fit);   // the Mac's name can be long; refit so nothing spills off screen
   curtainOn = !!hello.curtain;
   updateConnection();
   const missing = [];
