@@ -1,7 +1,7 @@
 // node --test web/tests/*.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nearestDock, foldOrder, normalizeDock, isVertical, DOCKS } from '../js/dock.js';
+import { nearestDock, normalizeDock, isVertical, DOCKS } from '../js/dock.js';
 
 test('drops snap to the nearest dock on a phone in portrait', () => {
   const [w, h] = [390, 844];
@@ -30,10 +30,4 @@ test('unknown docks fall back to bottom centre; sides are vertical', () => {
   assert.equal(normalizeDock('left'), 'left');
   assert.ok(isVertical('left') && isVertical('right'));
   assert.ok(!DOCKS.filter((d) => d !== 'left' && d !== 'right').some(isVertical));
-});
-
-test('fold order: highest priority number first, priority 0 never folds', () => {
-  const item = (id, prio) => ({ id, dataset: { prio: String(prio) } });
-  const items = [item('grip', 0), item('keyboard', 1), item('mods', 2), item('files', 6), item('hide', 11), item('more', 0)];
-  assert.deepEqual(foldOrder(items).map((i) => i.id), ['hide', 'files', 'mods', 'keyboard']);
 });

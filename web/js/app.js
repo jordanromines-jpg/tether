@@ -7,7 +7,9 @@ import { RemoteCursor } from './cursor.js';
 import { AudioPlayer } from './audio.js';
 import { passkeyStatus, registerPasskey, unlockWithPasskey } from './passkey.js';
 import { refreshTip, hideTip } from './tooltip.js';
-import { initToolbar, setDock, currentDock, foldedItems, fit } from './toolbar.js';
+import { initToolbar, setDock, currentDock, foldedCount, fit } from './toolbar.js';
+import { tool, TOOLS, deviceClass, defaultLayout, normalizeLayout, visibleLayout, isAvailable, sections, move as moveTool, toggle as toggleTool, keyRowTop } from './tools.js';
+import { startTour } from './tour.js';
 import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
@@ -21,6 +23,9 @@ const canvas = $('#screen');
 const viewport = $('#viewport');
 const isTouch = navigator.maxTouchPoints > 0;
 document.body.classList.toggle('desktop', !isTouch);
+// Phone, tablet or desktop: picks the default toolbar, and each keeps its own layout.
+const DEVICE = deviceClass({ touch: isTouch, shortSide: Math.min(screen.width, screen.height) });
+document.body.classList.toggle('compact', pref('toolbarLabels', true) === false);
 
 const view = new View(canvas, viewport);
 const stream = new Stream(canvas, view);
@@ -187,7 +192,7 @@ stream.addEventListener('open', () => {
 stream.addEventListener('firstframe', () => {
   hideStatus();
   preloadMotion();
-  setTimeout(() => showTips({ touch: isTouch, closed: () => { input.enabled = !sheetOpen(); } }) && (input.enabled = false), 600);
+  setTimeout(() => runTips(false), 600);
 });
 stream.addEventListener('close', () => {
   stream.hasVideo = false;
@@ -210,10 +215,8 @@ stream.addEventListener('hello', (e) => {
   checkVersion(hello.version);
   currentDisplay = hello.display;
   document.title = `${hello.name} · Tether`;
-  $('.conn-name').textContent = hello.name;
-  requestAnimationFrame(fit);   // the Mac's name can be long; refit so nothing spills off screen
   curtainOn = !!hello.curtain;
-  updateConnection();
+  renderToolbar();   // help links and the Mac's name arrive with hello
   const missing = [];
   if (!hello.perms?.screen) missing.push('Screen Recording');
   if (!hello.perms?.input) missing.push('Accessibility');
@@ -230,6 +233,7 @@ stream.addEventListener('target', (e) => {
 });
 stream.addEventListener('curtain', (e) => {
   curtainOn = !!e.detail.on;
+  syncToolState();
   toast(curtainOn ? 'Curtain on. The Mac\'s own screen is black.' : 'Curtain off');
 });
 stream.addEventListener('state', (e) => showMacState(e.detail));
@@ -352,9 +356,9 @@ function setViewOnly(on) {
   stream.observe = on;
   stream.send({ t: 'observe', on });
   document.body.classList.toggle('view-only', on);
-  $('[data-action="viewonly"]').hidden = !on;
+  $('[data-chip="viewonly"]').hidden = !on;
   if (on && document.activeElement === sink) sink.blur();
-  fit();
+  renderToolbar();   // typing tools step aside in view only
   toast(on ? 'View only. Your taps and typing won\'t reach the Mac.' : 'You can control the Mac again');
 }
 function setCurtain(on) {
@@ -373,16 +377,33 @@ function quality() {
   const rtt = stream.stats.rtt;
   return rtt < 70 ? 'good' : rtt < 160 ? 'fair' : 'poor';
 }
-const QUALITY_WORD = { good: 'Good connection', fair: 'Slower connection', poor: 'Poor connection', '': 'Not connected' };
-function updateConnection() {
-  const chip = $('[data-action="macs"]');
+const QUALITY_WORD = { good: 'Good connection', fair: 'Slower connection', poor: 'Poor connection' };
+// One line about the connection, from live state (shared by the toolbar item and More).
+function connectionLine() {
   const q = quality();
-  chip.querySelector('.dot').dataset.q = q;
   const s = stream.stats;
-  chip.dataset.tip = hello?.name || 'Connection';
-  chip.dataset.hint = q ? `${QUALITY_WORD[q]}: ${Math.round(s.rtt)} ms, ${s.fps} fps. This session: ${formatBytes(stream.sessionBytes)}` : QUALITY_WORD[''];
-  chip.setAttribute('aria-label', `${macName()}. ${chip.dataset.hint}`);
-  refreshTip(chip);
+  if (q) return `${QUALITY_WORD[q]}: ${Math.round(s.rtt)} ms, ${s.fps} fps. This session: ${formatBytes(stream.sessionBytes)}`;
+  if (pausedReason) return 'Paused';
+  if (stream.connected) return 'Connected, waiting for the picture';
+  return 'Connecting';
+}
+function updateConnection() {
+  const q = quality();
+  const line = connectionLine();
+  for (const b of document.querySelectorAll('[data-action="status"]')) {
+    b.querySelector('.dot').dataset.q = q;
+    const lbl = b.querySelector('.lbl');
+    if (lbl) lbl.textContent = hello?.name || 'Mac';
+    if (b.closest('#toolbar')) {
+      b.dataset.tip = macName();
+      b.dataset.hint = line;
+      b.setAttribute('aria-label', `${macName()}. ${line}`);
+      refreshTip(b);
+    } else {
+      const detail = b.querySelector('small');
+      if (detail) detail.textContent = line;
+    }
+  }
 }
 setInterval(updateConnection, 2000);
 
@@ -467,12 +488,18 @@ sink.addEventListener('input', () => {
   else if (v.startsWith(SENTINEL)) kb.text(v.slice(SENTINEL.length));
   sink.value = SENTINEL;
 });
-sink.addEventListener('blur', () => setPressed('[data-action="keyboard"]', false));
 
 // ---------- Toolbar ----------
+// Drawn from web/js/tools.js: the person's tools in their order (Edit toolbar), each an icon with a
+// short label (unless Compact is on), then More. Pinned shortcuts follow the tools.
 let sticky = new Map();
 const toolbar = $('#toolbar');
 const pill = $('#toolbar-show');
+const toolsBox = toolbar.querySelector('.tools');
+const layoutKey = `toolbar:${DEVICE}`;
+const layout = () => normalizeLayout(pref(layoutKey, null), DEVICE);
+const toolCtx = () => ({ control: !viewOnly, desktop: !isTouch, pointerCapture: pointerCaptureAvailable(), links: !!hello?.links });
+
 function setToolbarHidden(h) {
   hideTip();
   toolbar.hidden = h;
@@ -480,12 +507,68 @@ function setToolbarHidden(h) {
   setPref('toolbarHidden', h);
   if (!h) fit();
 }
-initToolbar({ onFold: () => syncSticky() });
+
+function toolButton(t) {
+  const b = el('button', { className: `tool${t.status ? ' status' : ''}`, 'aria-label': t.label },
+    icon(t.icon), el('span', { className: 'lbl', textContent: t.short }));
+  b.dataset.action = t.id;
+  b.dataset.tip = t.label;
+  b.dataset.hint = t.hint;
+  if (t.toggle) b.setAttribute('aria-pressed', 'false');
+  if (t.status) b.append(el('span', { className: 'dot', 'aria-hidden': 'true' }));
+  return b;
+}
+
+function pinButton(p) {
+  const b = el('button', { className: 'tool pin', 'aria-label': p.label },
+    el('span', { className: 'combo', textContent: comboLabel(p.combo) }), el('span', { className: 'lbl', textContent: p.label }));
+  b.dataset.tip = p.label;
+  b.dataset.hint = `Sends ${comboLabel(p.combo)} to the Mac`;
+  b.addEventListener('click', (e) => { e.stopPropagation(); kb.combo(p.combo); });
+  return b;
+}
+
+function renderToolbar() {
+  const ctx = toolCtx();
+  const ids = visibleLayout(layout(), ctx);
+  const pins = ctx.control ? parsePinned(pref('pinned', [])) : [];
+  const before = ids.filter((id) => id !== 'status');
+  toolsBox.replaceChildren(...before.map((id) => toolButton(tool(id))), ...pins.map(pinButton),
+    ...(ids.includes('status') ? [toolButton(tool('status'))] : []));
+  syncToolState();
+  updateConnection();
+  fit();
+}
+const renderPinned = renderToolbar;
+
+// On/off state and live icons, for every copy of a tool on screen (toolbar and More).
+const toolOn = {
+  keyboard: () => document.activeElement === sink,
+  sound: () => audio.on,
+  viewonly: () => viewOnly,
+  curtain: () => curtainOn,
+};
+function syncToolState() {
+  for (const [id, on] of Object.entries(toolOn)) {
+    for (const b of document.querySelectorAll(`[data-action="${id}"]:not(.chip)`)) {
+      b.setAttribute('aria-pressed', String(on()));
+      const st = b.querySelector('.state');
+      if (st) { st.textContent = on() ? 'On' : 'Off'; st.classList.toggle('on', on()); }
+    }
+  }
+  for (const u of document.querySelectorAll('[data-action="sound"] use')) u.setAttribute('href', `icons.svg#${audio.on ? 'speaker-high' : 'speaker-slash'}`);
+  for (const u of document.querySelectorAll('[data-action="fullscreen"] use')) u.setAttribute('href', `icons.svg#${document.fullscreenElement ? 'arrows-in' : 'arrows-out'}`);
+}
+
+initToolbar({ onFold: () => {} });
+renderToolbar();
 setToolbarHidden(pref('toolbarHidden', false));
 pill.addEventListener('click', () => setToolbarHidden(false));
 
-function setPressed(sel, on) {
-  for (const b of document.querySelectorAll(sel)) b.setAttribute('aria-pressed', String(on));
+function setLabels(on) {
+  setPref('toolbarLabels', on);
+  document.body.classList.toggle('compact', !on);
+  fit();
 }
 
 function syncSticky() {
@@ -497,42 +580,107 @@ function syncSticky() {
 }
 kb.onStickyChange = (s) => { sticky = s; syncSticky(); };
 
+// ---------- Key row (above the on-screen keyboard) ----------
+// While someone types on a phone or iPad, ⌘ ⌥ ⌃ ⇧, Esc, Tab and the arrows sit right on top of the
+// keyboard, and the toolbar steps aside. The buttons act on press and never take focus, so the
+// keyboard stays up.
+const keyrow = $('#keyrow');
+function placeKeyRow() {
+  if (keyrow.hidden) return;
+  const vv = window.visualViewport;
+  const top = keyRowTop({ vvHeight: vv?.height ?? innerHeight, vvOffsetTop: vv?.offsetTop ?? 0, rowHeight: keyrow.offsetHeight });
+  keyrow.style.transform = `translateY(${top}px)`;
+}
+function setTyping(on) {
+  if (!isTouch) return;
+  keyrow.hidden = !on;
+  document.body.classList.toggle('typing', on);
+  if (on) { syncSticky(); placeKeyRow(); }
+  hideTip();
+}
+function stopTyping() {
+  sink.blur();
+  setTyping(false);
+  syncToolState();
+}
+window.visualViewport?.addEventListener('resize', placeKeyRow);
+window.visualViewport?.addEventListener('scroll', placeKeyRow);
+let repeatTimer = 0;
+keyrow.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('button');
+  e.preventDefault();   // keep focus (and the keyboard) on the sink
+  e.stopPropagation();
+  if (!b) return;
+  if (b.dataset.mod) { kb.toggleSticky(b.dataset.mod); return; }
+  if (b.dataset.keyAction === 'done') { stopTyping(); return; }
+  if (!b.dataset.key) return;
+  kb.tap(b.dataset.key);
+  // Hold an arrow to repeat it.
+  if (b.hasAttribute('data-repeat')) {
+    clearInterval(repeatTimer);
+    const start = Date.now();
+    repeatTimer = setInterval(() => { if (Date.now() - start > 350) kb.tap(b.dataset.key); }, 60);
+  }
+});
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) keyrow.addEventListener(ev, () => clearInterval(repeatTimer));
+keyrow.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+sink.addEventListener('focus', () => { setTyping(true); syncToolState(); });
+sink.addEventListener('blur', () => { setTyping(false); clearInterval(repeatTimer); syncToolState(); });
+
 const actions = {
   keyboard: () => {
-    if (document.activeElement === sink) { sink.blur(); return; }
+    if (document.activeElement === sink) { stopTyping(); return; }
     sink.value = SENTINEL;
     sink.focus();
-    setPressed('[data-action="keyboard"]', true);
+    // Some browsers skip the focus event when the window itself isn't focused.
+    if (document.activeElement === sink) { setTyping(true); syncToolState(); }
   },
-  keys: openQuickSheet,
+  compose: openComposeSheet,
+  keys: openKeysSheet,
+  actions: openQuickSheet,
+  windows: openWindowsSheet,
+  macs: openMacsSheet,
+  capture: () => canvas.requestPointerLock?.(),
   clipboard: openClipboardSheet,
   files: () => openFilesSheet('downloads', ''),
-  compose: openComposeSheet,
-  macs: openConnectionSheet,
   sound: async () => {
-    const btn = $('[data-action="sound"]');
-    const setIcon = (on) => btn.querySelector('use').setAttribute('href', `icons.svg#${on ? 'speaker-high' : 'speaker-slash'}`);
-    if (audio.on) { audio.stop(); setPressed('[data-action="sound"]', false); setIcon(false); return; }
+    if (audio.on) { audio.stop(); syncToolState(); return; }
     try {
       await audio.start();
-      setPressed('[data-action="sound"]', true);
-      setIcon(true);
       toast(audio.format === 'aac' ? 'Sound on' : 'Sound on (compatibility mode)');
     } catch (err) { toast(`Couldn't start sound: ${err.message}`); }
+    syncToolState();
   },
   settings: openSettingsSheet,
   fullscreen: () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.()),
-  hide: () => setToolbarHidden(true),
-  more: openMoreSheet,
-  viewonly: () => setViewOnly(false),
-  windows: openWindowsSheet,
-  wholescreen: () => stream.send({ t: 'captureWindow' }),
-  capture: () => canvas.requestPointerLock?.(),
+  viewonly: () => setViewOnly(!viewOnly),
+  curtain: () => setCurtain(!curtainOn),
+  status: openConnectionSheet,
   move: openDockSheet,
-  tips: () => { closeSheet(); input.enabled = false; showTips({ touch: isTouch, force: true, closed: () => { input.enabled = !sheetOpen(); } }); },
+  edit: openEditToolbarSheet,
+  hide: () => setToolbarHidden(true),
+  tips: () => { closeSheet(); runTips(true); },
+  help: () => openLink('help'),
+  issues: () => openLink('issues'),
+  more: openMoreSheet,
+  wholescreen: () => stream.send({ t: 'captureWindow' }),
 };
+// First run (or More → Tips): the gesture cards, then the tour of the real toolbar.
+function runTips(force) {
+  input.enabled = false;
+  const done = () => { input.enabled = !sheetOpen(); };
+  const tour = () => {
+    if (toolbar.hidden) setToolbarHidden(false);
+    if (!startTour({ force, done })) done();
+  };
+  if (!showTips({ touch: isTouch, force, closed: tour })) tour();
+}
+
+// Tools that open a sheet of their own (from More, they replace it instead of closing it first).
+const OPENS_SHEET = new Set(['compose', 'keys', 'actions', 'windows', 'macs', 'clipboard', 'files', 'settings', 'status', 'move', 'edit']);
+
 document.addEventListener('fullscreenchange', () => {
-  $('[data-action="fullscreen"] use').setAttribute('href', `icons.svg#${document.fullscreenElement ? 'arrows-in' : 'arrows-out'}`);
+  syncToolState();
   // In full screen, Chrome and Edge can hand ⌘W, ⌘Q and friends to the Mac instead of closing the tab.
   if (document.fullscreenElement) navigator.keyboard?.lock?.().catch(() => {});
   else navigator.keyboard?.unlock?.();
@@ -540,8 +688,7 @@ document.addEventListener('fullscreenchange', () => {
 
 toolbar.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
-  if (!btn) return;
-  if (btn.dataset.mod) { kb.toggleSticky(btn.dataset.mod); return; }
+  if (!btn || btn.classList.contains('pin')) return;
   opener = btn;
   actions[btn.dataset.action]?.();
 });
@@ -628,72 +775,112 @@ for (const ev of ['pointerdown', 'touchstart']) sheet.addEventListener(ev, (e) =
   }
 }
 
-// ---------- More menu ----------
+// ---------- More ----------
+// Every tool, whether or not it's in the toolbar: the connection on top, then labeled tiles by
+// section. Toggles show On or Off.
+function moreTile(t) {
+  const b = el('button', { className: 'tile', 'aria-label': t.label }, icon(t.icon), el('span', { textContent: t.label }));
+  b.dataset.action = t.id;
+  b.dataset.tip = t.label;
+  b.dataset.hint = t.hint;
+  if (t.toggle) {
+    b.setAttribute('aria-pressed', 'false');
+    b.append(el('small', { className: 'state' }));
+  }
+  b.addEventListener('click', () => runFromMore(t.id));
+  return b;
+}
+function runFromMore(id) {
+  if (OPENS_SHEET.has(id)) { actions[id](); return; }
+  closeSheet().then(() => actions[id]?.());
+}
 function openMoreSheet() {
   openSheet('More', (body) => {
-    const menu = el('div', { className: 'menu', role: 'menu' });
-    const folded = foldedItems();
-    for (const item of folded) {
-      if (item.classList.contains('mods')) {
-        menu.append(el('div', { className: 'mods-row', role: 'group', 'aria-label': 'Modifier keys' },
-          ...[...item.querySelectorAll('[data-mod]')].map((m) => {
-            const b = el('button', { className: 'choice', textContent: m.textContent, 'aria-label': m.getAttribute('aria-label'),
-              onclick: () => kb.toggleSticky(m.dataset.mod) });
-            b.dataset.mod = m.dataset.mod;
-            b.setAttribute('aria-pressed', m.getAttribute('aria-pressed'));
-            return b;
-          })));
-        continue;
+    const ctx = toolCtx();
+    const status = el('button', { className: 'more-status', 'aria-label': `${macName()}, connection details` },
+      el('span', { className: 'glyph' }, icon('desktop'), el('span', { className: 'dot', 'aria-hidden': 'true' })),
+      el('span', { className: 'text' }, el('span', { className: 'lbl', textContent: macName() }), el('small', { textContent: connectionLine() })),
+      icon('caret-down', 'i chevron'));
+    status.dataset.action = 'status';
+    status.addEventListener('click', () => runFromMore('status'));
+    body.append(status);
+    for (const [id, title, list] of sections(ctx)) {
+      const tiles = list.map(moreTile);
+      if (id === 'type') {
+        for (const p of parsePinned(pref('pinned', []))) {
+          if (!ctx.control) break;
+          tiles.push(el('button', { className: 'tile', onclick: () => { closeSheet(); kb.combo(p.combo); } },
+            el('span', { className: 'combo', textContent: comboLabel(p.combo) }), el('span', { textContent: p.label })));
+        }
       }
-      if (item.classList.contains('pin')) {
-        menu.append(el('button', { className: 'menu-item', role: 'menuitem', onclick: () => { closeSheet(); kb.combo(parsePinned(pref('pinned', [])).find((p) => p.label === item.dataset.tip)?.combo ?? []); } },
-          icon('push-pin'), el('span', { textContent: item.dataset.tip }), el('small', { textContent: item.textContent })));
-        continue;
-      }
-      const glyph = item.querySelector('use')?.getAttribute('href')?.split('#')[1] || 'desktop';
-      const label = item.dataset.action === 'macs' ? (hello?.name || 'Connection') : item.dataset.tip;
-      const extra = item.dataset.action === 'macs' ? el('small', { className: 'stats', textContent: item.dataset.hint }) : '';
-      menu.append(el('button', { className: 'menu-item', role: 'menuitem', onclick: () => { closeSheetThen(actions[item.dataset.action]); } },
-        icon(glyph), el('span', { textContent: label }), extra));
+      body.append(el('h3', { textContent: title }), el('div', { className: 'tiles more-tiles' }, ...tiles));
     }
-    if (folded.length) menu.append(el('hr'));
-    menu.append(
-      el('button', { className: 'menu-item', role: 'menuitem', onclick: () => openDockSheet() },
-        icon('arrows-out-cardinal'), el('span', { textContent: 'Move toolbar' }), el('small', { textContent: DOCK_LABELS[currentDock()] })),
-      toggleRow('eye', 'View only', viewOnly, () => { setViewOnly(!viewOnly); closeSheet(); }),
-      ...(viewOnly ? [] : [toggleRow('eye-slash', 'Curtain', curtainOn, () => { setCurtain(!curtainOn); closeSheet(); },
-        'Blacks out the Mac\'s own screen')]),
-      el('button', { className: 'menu-item', role: 'menuitem', onclick: openMacsSheet }, icon('desktop'), el('span', { textContent: 'Your Macs' })),
-      ...(pointerCaptureAvailable() ? [el('button', { className: 'menu-item', role: 'menuitem', onclick: () => closeSheet().then(actions.capture) },
-        icon('cursor'), el('span', {}, 'Capture pointer', el('small', { className: 'hint', textContent: 'Your trackpad moves the Mac\'s pointer. Esc to release.' })))] : []),
-      el('hr'),
-      el('button', { className: 'menu-item', role: 'menuitem', onclick: actions.tips }, icon('lightbulb'), el('span', { textContent: 'Tips' })));
-    if (hello?.links) {
-      menu.append(
-        el('button', { className: 'menu-item', role: 'menuitem', onclick: () => openLink('help') }, icon('question'), el('span', { textContent: 'Help and docs' })),
-        el('button', { className: 'menu-item', role: 'menuitem', onclick: () => openLink('issues') }, icon('bug'), el('span', { textContent: 'Report a problem' })));
-    }
-    if (!folded.some((f) => f.dataset.action === 'hide')) {
-      menu.append(el('button', { className: 'menu-item', role: 'menuitem', onclick: () => { closeSheetThen(actions.hide); } },
-        icon('caret-down'), el('span', { textContent: 'Hide toolbar' })));
-    }
-    body.append(menu);
+    syncToolState();
+    updateConnection();
   });
-  syncSticky();
 }
+
+// ---------- Edit toolbar ----------
+// Pick which tools sit in the toolbar, and their order. Saved per kind of device.
+function openEditToolbarSheet() {
+  openSheet('Edit toolbar', (body) => {
+    const note = el('p', { className: 'muted' });
+    const list = el('div', { className: 'menu edit-list' });
+    const draw = () => {
+      const current = layout();
+      const ctx = toolCtx();
+      const others = TOOLS.filter((t) => !current.includes(t.id) && isAvailable(t, ctx) && !['edit'].includes(t.id));
+      const row = (t, inBar, i) => {
+        const sw = el('button', { className: 'menu-item', role: 'switch', 'aria-label': `${t.label} in the toolbar` },
+          icon(t.icon), el('span', { textContent: t.label }),
+          el('small', { className: `state${inBar ? ' on' : ''}`, textContent: inBar ? 'On' : 'Off' }));
+        sw.dataset.tip = t.label;
+        sw.dataset.hint = t.hint;
+        sw.setAttribute('aria-checked', String(inBar));
+        sw.addEventListener('click', () => save(toggleTool(current, t.id)));
+        if (!inBar) return sw;
+        const up = el('button', { className: 'reorder', 'aria-label': `Move ${t.label} earlier`, disabled: i === 0 }, icon('arrow-up'));
+        const down = el('button', { className: 'reorder', 'aria-label': `Move ${t.label} later`, disabled: i === current.length - 1 }, icon('arrow-down'));
+        up.addEventListener('click', () => save(moveTool(current, t.id, -1), `[aria-label="Move ${t.label} earlier"]`));
+        down.addEventListener('click', () => save(moveTool(current, t.id, 1), `[aria-label="Move ${t.label} later"]`));
+        return el('div', { className: 'edit-row' }, sw, up, down);
+      };
+      list.replaceChildren(
+        el('h3', { textContent: 'In the toolbar' }),
+        ...(current.length ? current.map((id, i) => row(tool(id), true, i)) : [el('p', { className: 'muted', textContent: 'Nothing yet: only More. Add tools below.' })]),
+        el('h3', { textContent: 'Not in the toolbar' }),
+        ...others.map((t) => row(t, false)));
+      const folded = foldedCount();
+      note.textContent = !folded ? 'Everything in the toolbar fits on this screen.'
+        : `${folded === 1 ? '1 tool doesn\'t' : `${folded} tools don't`} fit on this screen, so the last ${folded === 1 ? 'one is' : 'ones are'} hidden. Everything is still in More.`;
+    };
+    const save = (next, focusSel) => {
+      setPref(layoutKey, next);
+      renderToolbar();
+      draw();
+      if (focusSel) list.querySelector(focusSel)?.focus();
+    };
+    const labels = toggleRow('sliders-horizontal', 'Labels under icons', pref('toolbarLabels', true), (e) => {
+      const on = !pref('toolbarLabels', true);
+      setLabels(on);
+      const b = e.currentTarget;
+      b.setAttribute('aria-checked', String(on));
+      const st = b.querySelector('.state'); st.textContent = on ? 'On' : 'Off'; st.classList.toggle('on', on);
+      draw();
+    }, 'Turn off for a smaller, icons-only toolbar');
+    body.append(note, el('div', { className: 'menu' }, labels), list,
+      el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Reset to default', onclick: () => save(defaultLayout(DEVICE)) })),
+      el('p', { className: 'muted', textContent: 'More always lists every tool. Pinned shortcuts (from Keys) sit after these.' }));
+    draw();
+  });
+}
+
 // A menu row that switches something on or off.
 function toggleRow(glyph, label, on, run, hint = '') {
   const b = el('button', { className: 'menu-item', role: 'menuitemcheckbox', onclick: run },
     icon(glyph), el('span', {}, label, hint ? el('small', { className: 'hint', textContent: hint }) : ''), el('small', { className: `state${on ? ' on' : ''}`, textContent: on ? 'On' : 'Off' }));
   b.setAttribute('aria-checked', String(on));
   return b;
-}
-
-// Run a toolbar action from the More menu: actions that open their own sheet replace this one.
-function closeSheetThen(fn) {
-  const opensSheet = [actions.keys, actions.clipboard, actions.files, actions.compose, actions.macs, actions.settings, actions.windows].includes(fn);
-  if (opensSheet) { fn(); return; }
-  closeSheet().then(() => fn?.());
 }
 
 // Single-pointer alternative to dragging the toolbar.
@@ -737,7 +924,7 @@ function openQuickSheet() {
       tile('camera', 'Screenshot', () => { closeSheet(); takeScreenshot(); }),
       tile('link', 'Open a link', openLinkSheet),
       tile('magnifying-glass', 'Open an app', openAppsSheet),
-      tile('keyboard', 'Keys and shortcuts', openKeysSheet),
+      tile('command', 'Keys and shortcuts', openKeysSheet),
       tile('warning-circle', 'Force Quit', () => { stream.send({ t: 'action', name: 'forceQuit' }); closeSheet(); })));
   });
 }
@@ -849,26 +1036,11 @@ function openMacsSheet() {
 }
 
 // ---------- Pointer capture ----------
-const pointerCaptureAvailable = () => 'requestPointerLock' in canvas && (!isTouch || matchMedia('(any-pointer: fine)').matches);
+function pointerCaptureAvailable() { return 'requestPointerLock' in canvas && (!isTouch || matchMedia('(any-pointer: fine)').matches); }
 document.addEventListener('pointerlockchange', () => {
   toast(document.pointerLockElement ? 'Pointer captured. Press Esc to release it.' : 'Pointer released');
 });
 
-// ---------- Pinned shortcuts (toolbar) ----------
-function renderPinned() {
-  const group = $('#toolbar .group.pinned');
-  const pinned = parsePinned(pref('pinned', []));
-  group.replaceChildren(...pinned.map((p) => {
-    const b = el('button', { className: 'pin', 'aria-label': p.label, textContent: comboLabel(p.combo) });
-    b.dataset.prio = '5';
-    b.dataset.tip = p.label;
-    b.dataset.hint = `Sends ${comboLabel(p.combo)} to the Mac`;
-    b.addEventListener('click', (e) => { e.stopPropagation(); kb.combo(p.combo); });
-    return b;
-  }));
-  fit();
-}
-renderPinned();
 
 // ---------- Keys and shortcuts ----------
 const KEYS = [
@@ -887,6 +1059,15 @@ const SHORTCUTS = [
 
 function openKeysSheet() {
   openSheet('Keys and shortcuts', (body) => {
+    // Sticky modifiers: tap one, then a key or a click on the screen (⌘-click). Double-tap keeps it on.
+    body.append(el('h3', { textContent: 'Modifier keys' }),
+      el('div', { className: 'mods-row', role: 'group', 'aria-label': 'Modifier keys' }, ...[['MetaLeft', '⌘', 'Command'], ['AltLeft', '⌥', 'Option'], ['ControlLeft', '⌃', 'Control'], ['ShiftLeft', '⇧', 'Shift']].map(([code, sym, name]) => {
+        const b = el('button', { className: 'choice', textContent: sym, 'aria-label': name, onclick: () => kb.toggleSticky(code) });
+        b.dataset.mod = code;
+        return b;
+      })),
+      el('p', { className: 'muted', textContent: 'Tap one, then a key or a click on the screen. Double-tap to keep it on.' }));
+    syncSticky();
     body.append(el('h3', { textContent: 'Keys' }),
       el('div', { className: 'grid' }, ...KEYS.map(([label, code]) =>
         el('button', { className: 'key-btn', textContent: label, onclick: () => kb.tap(code) }))));
@@ -1075,6 +1256,10 @@ function openSettingsSheet() {
         const st = b.querySelector('.state'); st.textContent = loupe.enabled ? 'On' : 'Off'; st.classList.toggle('on', loupe.enabled);
       }, 'A zoomed view above your finger when dragging')));
     }
+    body.append(el('h3', { textContent: 'Toolbar' }), segmented(
+      [[true, 'Labels', 'icon and name'], [false, 'Compact', 'icons only']], pref('toolbarLabels', true),
+      (v) => setLabels(v), 'Toolbar'),
+      el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Edit toolbar', onclick: openEditToolbarSheet })));
     body.append(el('h3', { textContent: 'Data' }), segmented(
       [[0, 'No warning'], [250, '250 MB'], [500, '500 MB'], [1000, '1 GB']], pref('usageWarn', 0),
       (v) => { setPref('usageWarn', v); usageWarned = false; }, 'Warn me after'),

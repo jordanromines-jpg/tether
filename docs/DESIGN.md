@@ -62,9 +62,10 @@ Inputs are at least 16px so iOS does not zoom when they get focus.
 |---|---|
 | 10 | Remote cursor |
 | 20 | Toolbar, collapsed toolbar pill |
+| 22 | Key row above the on-screen keyboard |
 | 25 | Mac state banner |
 | 30 | Status screen (connecting, paused, locked) |
-| 35 | First-run tips |
+| 35 | First-run tips and the toolbar tour |
 | 40 | Sheets and the More menu |
 | 50 | Toasts |
 | 60 | Tooltips |
@@ -81,18 +82,26 @@ Ask how often something happens before animating it.
 |---|---|---|
 | Toolbar button press | hundreds a day | `scale(.96)`, 100ms. Nothing else. |
 | Keyboard input | constant | None, ever |
-| Tooltip | often | 120ms fade. 500ms delay for the first one, then instant for neighbours. |
+| Tooltip | often | 120ms fade. 300ms delay for the first one, then instant for neighbours. |
 | Sheets and the More menu | daily | Enter: spring, about 240ms, 16px rise and fade. Exit: 160ms ease-out, faster than enter. |
 | Toolbar snap after a drag | occasional | Spring from the drop point to the dock (bounce 0.18) |
 | Connecting spinner | while waiting | `svg-spinners` ring, 0.75s per turn |
 | First-run tips | once | Cross-fade between cards |
+| Tour ring moving to the next button | once | 200ms ease on position and size |
 
 Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, everything is instant and the spinner is replaced by a static ring. Springs come from [Anime.js](https://animejs.com) (`web/vendor/anime.esm.min.js`), which is loaded only when first needed.
 
 ## Components
 
-- **Toolbar.** A grip, then three groups (input: keyboard, modifiers, compose, keys · transfer: clipboard, files · session: connection, sound, display, full screen), then More and Hide. It docks to the top, bottom or a side; sides make it vertical. Buttons that do not fit fold into More instead of scrolling.
-- **Tooltip.** The button's name plus how to use it. Shown on hover with a mouse and on touch-and-hold on touch screens; a touch-and-hold never fires the button.
+- **Toolbar.** A slim grip, then the person's tools, then More. Every tool is an icon over a short label (11px, 500), 56px wide and 54px tall; **Compact** (Display and quality, or Edit toolbar) drops the labels for 44px icon buttons. All tools are defined once in `web/js/tools.js`, which the toolbar, More and Edit toolbar all read.
+  - Defaults: phone Keyboard · Actions · Windows · Clipboard; iPad adds Files, Sound, Display and the connection; desktop is Actions · Windows · Clipboard · Files · Sound · Display · Full screen · connection. The device class comes from the screen's short side, so rotating keeps it.
+  - The connection is the Mac icon with a quality dot, labelled with the Mac's name.
+  - It docks to the top, bottom or a side; sides make it vertical (64px wide, still labelled). Tools that don't fit fold away from the end, pinned shortcuts first. Nothing scrolls, and More still lists everything.
+- **Key row.** On touch screens, while typing: ⌘ ⌥ ⌃ ⇧ (sticky, double-tap to lock), esc, tab and the four arrows, sharing the width evenly, plus a hide-keyboard button. It sits on the keyboard's top edge (`visualViewport`), acts on press without taking focus, repeats held arrows, and the toolbar steps aside while it's up.
+- **More.** Every tool, whether or not it's in the bar. A connection card on top (name, quality dot, live line; opens Connection), then sections (Type, Control, Transfer, View, Toolbar, Help) of labelled tiles, four across on phones. Toggles show an On or Off pill; pinned shortcuts show their keys.
+- **Edit toolbar.** A switch per tool ("On" puts it in the bar), up and down buttons to reorder, a note when some don't fit this screen, Labels on or off, and Reset to default. Saved per device class.
+- **Tour.** After the gesture tips, once: a ring around one real toolbar button at a time (Keyboard, Actions, Windows, More, the grip) with a card beside it, placed by the dock. Steps for buttons that aren't showing are skipped. More → Tips runs it again.
+- **Tooltip.** The tool's full name plus one line on what it does. Shown on hover with a mouse and on touch-and-hold on touch screens; a touch-and-hold never fires the button. Tether adds no keyboard shortcuts of its own, since nearly every key goes to the Mac.
 - **Status screen.** One card: icon, title, one line of explanation, one primary action. Used for connecting, paused, locked, passkey, idle (the whole card is tappable to resume), error and unsupported browser.
 - **Toggle rows.** Menu rows that switch something on or off (View only, Curtain) show an On/Off pill on the right; On uses the accent.
 - **Sheet.** A bottom sheet on phones (with a drag handle), a centred panel on larger screens. Focus is trapped inside; Esc closes it; focus returns to the button that opened it.

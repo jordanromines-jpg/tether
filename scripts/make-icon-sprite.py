@@ -25,6 +25,8 @@ ICONS = [
     "eye", "eye-slash", "moon-stars", "question", "bug", "camera", "link", "app-window", "squares-four",
     "speaker-low", "speaker-x", "play-pause", "skip-forward", "skip-back", "lock-key", "magnifying-glass",
     "push-pin", "image", "chart-bar", "arrow-circle-up", "cursor", "monitor-play", "rocket-launch",
+    # v5: toolbar 2.0 (Keys, Your Macs, Edit toolbar, reorder)
+    "command", "swap", "wrench", "arrow-up", "arrow-down",
 ]
 
 pkg = Path(sys.argv[1] if len(sys.argv) > 1 else "package")

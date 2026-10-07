@@ -40,70 +40,59 @@
 <input id="kbd-sink" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" aria-label="Keyboard input">
 <input id="file-input" type="file" multiple hidden>
 
-<!-- data-prio: lower numbers stay in the toolbar longest; the rest fold into More. -->
+<!-- The tools are drawn from web/js/tools.js (what's in the bar is the person's choice, see Edit toolbar).
+     Whatever doesn't fit folds away from the end; More always lists every tool. -->
 <nav id="toolbar" aria-label="Controls" data-dock="bottom-center">
-  <button class="grip" data-action="move" data-prio="0" aria-label="Move toolbar" data-tip="Move toolbar" data-hint="Drag to move it anywhere. Tap to pick a spot.">
+  <button class="grip" data-action="move" aria-label="Move toolbar" data-tip="Move toolbar" data-hint="Drag to put it on any edge. Tap to pick a spot.">
     <svg class="i"><use href="icons.svg#dots-six-vertical"/></svg>
   </button>
-  <button data-action="wholescreen" class="chip" data-prio="0" hidden aria-label="Showing one window. Tap for the whole screen." data-tip="Whole screen" data-hint="You're seeing one window. Tap to see the whole screen again.">
+  <button data-action="wholescreen" class="chip" hidden aria-label="Showing one window. Tap for the whole screen." data-tip="Whole screen" data-hint="You're seeing one window. Tap to see the whole screen again.">
     <svg class="i"><use href="icons.svg#desktop"/></svg><span>Whole screen</span>
   </button>
-  <button data-action="viewonly" class="chip" data-prio="0" hidden aria-label="View only. Tap to control again." data-tip="View only" data-hint="Your taps and typing don't reach the Mac. Tap to control it again.">
+  <button data-action="viewonly" data-chip="viewonly" class="chip" hidden aria-label="View only. Tap to control again." data-tip="View only" data-hint="Your taps and typing don't reach the Mac. Tap to control it again.">
     <svg class="i"><use href="icons.svg#eye"/></svg><span>View only</span>
   </button>
-  <div class="group" role="group" aria-label="Typing">
-    <button data-action="keyboard" data-prio="1" aria-pressed="false" aria-label="Keyboard" data-tip="Keyboard" data-hint="Type on the Mac.">
-      <svg class="i"><use href="icons.svg#keyboard"/></svg>
-    </button>
-    <div class="mods" role="group" aria-label="Modifier keys" data-prio="2">
-      <button data-mod="MetaLeft" aria-pressed="false" aria-label="Command" data-tip="Command" data-hint="Tap: applies to the next key. Double-tap: stays on.">⌘</button>
-      <button data-mod="AltLeft" aria-pressed="false" aria-label="Option" data-tip="Option" data-hint="Tap: applies to the next key. Double-tap: stays on.">⌥</button>
-      <button data-mod="ControlLeft" aria-pressed="false" aria-label="Control" data-tip="Control" data-hint="Tap: applies to the next key. Double-tap: stays on.">⌃</button>
-      <button data-mod="ShiftLeft" aria-pressed="false" aria-label="Shift" data-tip="Shift" data-hint="Tap: applies to the next key. Double-tap: stays on.">⇧</button>
-    </div>
-    <button data-action="compose" data-prio="4" aria-label="Compose" data-tip="Compose" data-hint="Write with autocorrect or dictation, then send it.">
-      <svg class="i"><use href="icons.svg#pencil-simple-line"/></svg>
-    </button>
-    <button data-action="keys" data-prio="3" aria-label="Quick actions" data-tip="Quick actions" data-hint="Volume, media, screenshot, open a link or an app, keys and shortcuts.">
-      <svg class="i"><use href="icons.svg#lightning"/></svg>
-    </button>
-  </div>
-  <div class="group pinned" role="group" aria-label="Pinned shortcuts"></div>
-  <div class="group" role="group" aria-label="Transfer">
-    <button data-action="clipboard" data-prio="5" aria-label="Clipboard" data-tip="Clipboard" data-hint="Copy and paste between this device and the Mac.">
-      <svg class="i"><use href="icons.svg#clipboard-text"/></svg>
-    </button>
-    <button data-action="files" data-prio="6" aria-label="Files" data-tip="Files" data-hint="Download from or upload to the Mac.">
-      <svg class="i"><use href="icons.svg#folder-simple"/></svg>
-    </button>
-  </div>
-  <div class="group" role="group" aria-label="Session">
-    <button data-action="windows" data-prio="5" aria-label="Windows" data-tip="Windows" data-hint="Bring a window to the front, or show just that one window.">
-      <svg class="i"><use href="icons.svg#app-window"/></svg>
-    </button>
-    <button data-action="macs" class="conn" data-prio="9" aria-label="Connection" data-tip="Connection" data-hint="Connecting">
-      <span class="dot" aria-hidden="true"></span><span class="conn-name">Mac</span>
-    </button>
-    <button data-action="sound" data-prio="8" aria-pressed="false" aria-label="Sound" data-tip="Sound" data-hint="Play the Mac's sound here.">
-      <svg class="i"><use href="icons.svg#speaker-slash"/></svg>
-    </button>
-    <button data-action="settings" data-prio="7" aria-label="Display and quality" data-tip="Display and quality" data-hint="Screen, sharpness, touch mode and your other Macs.">
-      <svg class="i"><use href="icons.svg#sliders-horizontal"/></svg>
-    </button>
-    <button data-action="fullscreen" data-prio="10" class="desktop-only" aria-label="Full screen" data-tip="Full screen">
-      <svg class="i"><use href="icons.svg#arrows-out"/></svg>
-    </button>
-  </div>
-  <button data-action="more" data-prio="0" aria-label="More" aria-haspopup="menu" aria-expanded="false" data-tip="More" data-hint="Everything that doesn't fit, plus tips.">
-    <svg class="i"><use href="icons.svg#dots-three"/></svg>
-  </button>
-  <button data-action="hide" data-prio="11" aria-label="Hide toolbar" data-tip="Hide toolbar" data-hint="Shrinks it to a small button.">
-    <svg class="i"><use href="icons.svg#caret-down"/></svg>
+  <div class="tools" role="group" aria-label="Tools"></div>
+  <button data-action="more" aria-label="More" aria-haspopup="dialog" data-tip="More" data-hint="Every tool, plus Edit toolbar, help and tips.">
+    <svg class="i"><use href="icons.svg#dots-three"/></svg><span class="lbl">More</span>
   </button>
 </nav>
 <button id="toolbar-show" hidden aria-label="Show toolbar" data-tip="Show toolbar" data-hint="Drag to move it.">
   <svg class="i"><use href="icons.svg#caret-up"/></svg>
 </button>
+
+<!-- Keys above the on-screen keyboard, while typing on a phone or iPad. Buttons keep the keyboard up. -->
+<div id="keyrow" role="toolbar" aria-label="Keys" hidden>
+  <div class="keys">
+    <button data-mod="MetaLeft" aria-pressed="false" aria-label="Command">⌘</button>
+    <button data-mod="AltLeft" aria-pressed="false" aria-label="Option">⌥</button>
+    <button data-mod="ControlLeft" aria-pressed="false" aria-label="Control">⌃</button>
+    <button data-mod="ShiftLeft" aria-pressed="false" aria-label="Shift">⇧</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button data-key="Escape" aria-label="Escape">esc</button>
+    <button data-key="Tab" aria-label="Tab">tab</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button data-key="ArrowLeft" data-repeat aria-label="Left arrow">←</button>
+    <button data-key="ArrowUp" data-repeat aria-label="Up arrow">↑</button>
+    <button data-key="ArrowDown" data-repeat aria-label="Down arrow">↓</button>
+    <button data-key="ArrowRight" data-repeat aria-label="Right arrow">→</button>
+  </div>
+  <button class="done" data-key-action="done" aria-label="Hide the keyboard"><svg class="i"><use href="icons.svg#caret-down"/></svg></button>
+</div>
+
+<!-- First-run tour: a ring around one real toolbar button and a card that explains it. -->
+<div id="tour" hidden role="dialog" aria-modal="true" aria-labelledby="tour-title">
+  <div class="tour-ring" aria-hidden="true"></div>
+  <div class="tour-card">
+    <h2 id="tour-title"></h2>
+    <p id="tour-text"></p>
+    <div class="row">
+      <span class="tour-count" aria-hidden="true"></span>
+      <button class="secondary" data-tour-action="skip">Skip</button>
+      <button class="primary" data-tour-action="next">Next</button>
+    </div>
+  </div>
+</div>
 
 <div id="tips" hidden role="dialog" aria-modal="true" aria-labelledby="tip-title">
   <div class="tip-card">

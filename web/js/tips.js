@@ -1,5 +1,5 @@
-// First-run tips: four short cards, shown once per device after the screen first appears.
-// Reopen any time from More → Tips.
+// First-run tips: three short cards about gestures, shown once per device after the screen first
+// appears; the toolbar tour (tour.js) follows. Reopen any time from More → Tips.
 import { pref, setPref } from './store.js';
 import { fadeIn } from './motion.js';
 
@@ -7,13 +7,11 @@ const TOUCH = [
   ['hand-tap', 'Tap to click', 'Slide one finger to move the pointer. Tap with two fingers to right-click. Touch and hold, then move, to drag.'],
   ['mouse-scroll', 'Scroll and zoom', 'Scroll with two fingers. Pinch to zoom in, and drag with three fingers to look around while zoomed.'],
   ['hand-swipe-left', 'Swipe between Spaces', 'Swipe left or right with three fingers to switch desktops. Swipe up for Mission Control.'],
-  ['dots-six-vertical', 'Your toolbar', 'Touch and hold any button to see what it does. Drag the grip to move the toolbar to any edge.'],
 ];
 const DESKTOP = [
   ['cursor-click', 'Use it like your own Mac', 'Your mouse, trackpad and keyboard control the Mac. Most shortcuts pass straight through.'],
-  ['keyboard', 'Shortcuts your browser keeps', 'A few shortcuts (like ⌘W or ⌘Q) belong to your browser. Send them from Keys and shortcuts in the toolbar.'],
+  ['keyboard', 'Shortcuts your browser keeps', 'A few shortcuts (like ⌘W or ⌘Q) belong to your browser. Send them from Keys, or use Full screen in Chrome.'],
   ['upload-simple', 'Drop files to send them', 'Drag files onto this window to put them in the Mac\'s Downloads folder. Get files back from Files.'],
-  ['dots-six-vertical', 'Your toolbar', 'Hover over a button to see what it does. Drag the grip to move the toolbar to any edge.'],
 ];
 
 const root = document.getElementById('tips');

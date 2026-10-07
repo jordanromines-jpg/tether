@@ -1,7 +1,7 @@
 // Tooltips for any element with data-tip (title) and optional data-hint (one line of how-to).
-// Mouse: hover for 500ms, then neighbours show instantly. Touch: touch and hold for 450ms; letting
+// Mouse: hover for 300ms, then neighbours show instantly. Touch: touch and hold for 450ms; letting
 // go afterwards does not press the button. Keyboard: shown while the control has visible focus.
-const HOVER_DELAY = 500;
+const HOVER_DELAY = 300;
 const HOLD_DELAY = 450;
 const WARM_MS = 400;
 

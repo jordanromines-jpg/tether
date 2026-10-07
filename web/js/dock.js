@@ -33,8 +33,3 @@ export function nearestDock(x, y, w, h) {
   }
   return best;
 }
-
-// The order buttons fold into More when space runs out: highest data-prio first; 0 never folds.
-export function foldOrder(items) {
-  return items.filter((el) => Number(el.dataset.prio) > 0).sort((a, b) => Number(b.dataset.prio) - Number(a.dataset.prio));
-}

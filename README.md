@@ -60,16 +60,17 @@ Steps:
 | Click / right-click | Tap / two-finger tap | Click / right-click |
 | Drag | Touch and hold, then drag | Click and drag |
 | Scroll | Two fingers | Wheel or trackpad |
-| Spaces / Mission Control | Three-finger swipe left/right, or up/down | Use the shortcuts menu (**…**) |
+| Spaces / Mission Control | Three-finger swipe left/right, or up/down | **Actions** or **Keys** |
 | Zoom the view | Pinch. The view follows the cursor; three fingers pan while zoomed | n/a |
-| Type | ⌨︎ for keys and shortcuts, or **Compose** for autocorrect and dictation | Just type; ⌘ shortcuts pass through |
+| Type | **Keyboard**; ⌘ ⌥ ⌃ ⇧, esc, tab and the arrows sit above the on-screen keyboard. Or **Compose** for autocorrect and dictation | Just type; ⌘ shortcuts pass through |
 
-The toolbar also has:
-- **Quick actions** (the lightning bolt): volume, mute, play/pause, next and previous track, Mission Control, sleep the Mac's display, lock the Mac (tap twice), take a **screenshot** to your device, **open a link** on the Mac, **open an app** by name, Force Quit, and the full **keys and shortcuts** list.
-- **Names for everything:** hover over a button, or touch and hold it on a phone or iPad, to see what it does.
+The toolbar shows each tool's name under its icon. A short tour points them out the first time (**More → Tips** shows it again).
+- **More** lists every tool, in sections, including the ones that aren't in the toolbar. **More → Edit toolbar** chooses which tools sit in the toolbar and in what order (a phone, an iPad and a computer each keep their own). Prefer icons only? Turn labels off there or in **Display and quality**.
+- **Actions** (the lightning bolt): volume, mute, play/pause, next and previous track, Mission Control, sleep the Mac's display, lock the Mac (tap twice), take a **screenshot** to your device, **open a link** on the Mac, **open an app** by name, Force Quit, and the full **keys and shortcuts** list.
+- **More about a button:** hover over it, or touch and hold it on a phone or iPad, for a line on what it does.
 - **Put it anywhere:** drag the toolbar by its grip (the dots on the end) to any edge or corner. On the sides it stands upright. Or choose **More → Move toolbar**.
-- **More:** buttons that don't fit on a small screen move into **More** instead of scrolling off the edge. **Tips** are there too.
-- **Sticky ⌘ ⌥ ⌃ ⇧:** tap for the next key only, double-tap to lock.
+- **Small screens:** tools that don't fit fold away from the end instead of scrolling off the edge; they're always in **More**.
+- **Sticky ⌘ ⌥ ⌃ ⇧** (above the on-screen keyboard, or in **Keys**): tap for the next key or click only (⌘-click works), double-tap to lock.
 - **Keys and shortcuts** for Esc, arrows, F-keys and common shortcuts.
 - **Clipboard** sync in both directions, including formatted text and **images** (copy an image on the Mac and tap Copy on your phone; or **Paste image** to send one from your phone).
 - **Windows:** a list of the Mac's open windows with their app icons. Tap one to bring it to the front, or **Show only** to stream just that window, which is far easier to use on a phone than a whole 5K desktop. **Fit to this device** reshapes the window to your screen while you use it and puts it back afterwards. Tap **Whole screen** in the toolbar to go back.
@@ -358,7 +359,7 @@ Tailscale admin → DNS`"]):::action
 
 ```bash
 swift run --package-path agent SelfTest   # core logic tests
-node --test web/tests/*.test.mjs          # client logic tests (toolbar docking and folding)
+node --test web/tests/*.test.mjs          # client logic tests (tools and layouts, docking, key row)
 swift run --package-path agent Snapshots snaps/   # render the Mac UI to PNGs (light and dark) for review
 scripts/dev.sh                            # run the agent on this Mac at http://localhost:7400 (dev mode)
 scripts/build-app.sh                      # build/Tether.app, signed with a stable local identity

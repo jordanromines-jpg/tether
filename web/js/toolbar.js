@@ -1,5 +1,6 @@
 // The toolbar's position (docks), dragging, and folding buttons into More when space runs out.
-import { DOCKS, normalizeDock, nearestDock, isVertical, foldOrder } from './dock.js';
+import { DOCKS, normalizeDock, nearestDock, isVertical } from './dock.js';
+import { foldOrder } from './tools.js';
 import { pref, setPref } from './store.js';
 import { settleFrom } from './motion.js';
 import { hideTip } from './tooltip.js';
@@ -25,17 +26,17 @@ export function setDock(dock, { animateFrom } = {}) {
   }
 }
 
-// ---------- Folding (priority+) ----------
-const foldables = () => [...toolbar.querySelectorAll('[data-prio]')]
-  .filter((el) => Number(el.dataset.prio) > 0 && !(el.classList.contains('desktop-only') && !document.body.classList.contains('desktop')));
+// ---------- Folding ----------
+// The bar shows the person's tools in their order. When they don't fit, tools fold away from the
+// end (pinned shortcuts first); More always lists everything, so nothing is lost.
+const toolsBox = toolbar.querySelector('.tools');
 let onFoldChange = () => {};
 
 export function fit() {
   if (toolbar.hidden) return;
   const vertical = isVertical(toolbar.dataset.dock);
-  const items = foldables();
-  const groups = [...toolbar.querySelectorAll('.group')];
-  for (const el of [...items, ...groups]) el.classList.remove('folded');
+  const items = [...toolsBox.children];
+  for (const el of items) el.classList.remove('folded');
   const cs = getComputedStyle(document.documentElement);
   const inset = (v) => parseFloat(cs.getPropertyValue(v)) || 0;
   const edge = 12;
@@ -43,21 +44,18 @@ export function fit() {
     ? innerHeight - 2 * edge - inset('--safe-t') - inset('--safe-b')
     : innerWidth - 2 * edge - inset('--safe-l') - inset('--safe-r');
   const length = () => (vertical ? toolbar.offsetHeight : toolbar.offsetWidth);
-  const hiddenOnThisDevice = (c) => c.classList.contains('desktop-only') && !document.body.classList.contains('desktop');
-  // Fold the highest priority numbers first, measuring the real toolbar after each step
-  // (folding a whole group also removes its separator, which an estimate would miss).
-  for (const el of foldOrder(items)) {
+  const pins = items.filter((el) => el.classList.contains('pin'));
+  // Measure the real bar after each step (labels and the Mac's name vary in width).
+  for (const el of foldOrder(items.filter((i) => !pins.includes(i)), pins)) {
     if (length() <= available) break;
     el.classList.add('folded');
-    for (const g of groups) g.classList.toggle('folded', [...g.children].every((c) => c.classList.contains('folded') || hiddenOnThisDevice(c)));
   }
+  toolbar.classList.toggle('empty', items.every((el) => el.classList.contains('folded')));
   onFoldChange();
 }
 
-// Buttons currently folded into More, in toolbar order.
-export function foldedItems() {
-  return foldables().filter((el) => el.classList.contains('folded'));
-}
+// How many tools didn't fit (Edit toolbar mentions it).
+export const foldedCount = () => toolsBox.querySelectorAll('.folded').length;
 
 // ---------- Dragging ----------
 // Drag starts from the grip (or anywhere on the collapsed pill). A press without movement is a
