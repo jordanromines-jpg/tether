@@ -22,6 +22,13 @@ if SingleInstance.otherInstanceRunning() {
 let config = AppConfig.load()
 let policy = AuthPolicy(allowedLoginsList: config.allowedLogins, devMode: config.devMode)
 
+// Dev mode only: TETHER_DEV_PASSKEY=1 turns the passkey lock on and opens enrollment, so the
+// Face ID flow can be tested end to end without the menu bar.
+if config.devMode && ProcessInfo.processInfo.environment["TETHER_DEV_PASSKEY"] == "1" {
+    PasskeyStore.shared.setRequired(true)
+    PasskeyStore.shared.openEnrollment()
+}
+
 if policy.allowedLogins.isEmpty && !config.devMode {
     NSLog("Tether: no allowed logins configured (run scripts/setup.sh); every request will be refused.")
 }
