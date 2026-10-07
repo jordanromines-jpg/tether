@@ -80,7 +80,9 @@ addEventListener('resize', () => {
 });
 const codecs = Stream.support() ? ['h264'] : await Stream.detectCodecs();
 
-stream.helloExtra = () => ({ quality: pref('quality', 'auto'), display: currentDisplay ?? undefined, codecs });
+// The screen goes along so the Mac doesn't send a phone more pixels than it can show.
+stream.helloExtra = () => ({ quality: pref('quality', 'auto'), display: currentDisplay ?? undefined, codecs,
+  screen: { w: screen.width, h: screen.height, dpr: devicePixelRatio || 1 } });
 
 function el(tag, props = {}, ...children) {
   const n = document.createElement(tag);

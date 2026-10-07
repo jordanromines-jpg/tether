@@ -71,6 +71,8 @@ do {
     let hevc5k = Sizing.encodeSize(nativeWidth: 5120, nativeHeight: 2880, maxWidth: 6144, maxPixels: Sizing.maxPixels(for: .hevc))
     expect(hevc5k.width == 5120 && hevc5k.height == 2880, "HEVC streams 5K natively")
     expect(ClientMessage.parse(#"{"t":"hello","codecs":["hevc","h264"]}"#) == .hello(quality: nil, displayID: nil, codecs: [.hevc, .h264]), "hello codecs")
+    expect(ClientMessage.parse(#"{"t":"hello","screen":{"w":393,"h":852,"dpr":3}}"#) == .hello(quality: nil, displayID: nil, codecs: [.h264], screen: ScreenInfo(w: 393, h: 852, dpr: 3)), "hello carries the device's screen")
+    expect(ClientMessage.parse(#"{"t":"hello","screen":{"w":0}}"#) == .hello(quality: nil, displayID: nil, codecs: [.h264]), "a broken screen size is ignored")
     expect(ClientMessage.parse(#"{"t":"stats","rtt":42,"queue":1}"#) == .stats(rttMs: 42, decodeQueue: 1), "stats message")
 }
 
@@ -342,6 +344,39 @@ do {
     var noCerts = net; noCerts.httpsEnabled = false
     expect(!SetupPolicy.isComplete(screenAllowed: true, inputAllowed: true, tailnet: noCerts, deviceConnected: true), "setup: waits for HTTPS")
     expect(!SetupPolicy.isComplete(screenAllowed: true, inputAllowed: true, tailnet: nil, deviceConnected: true), "setup: unknown network is not complete")
+}
+
+// Resolution that fits the device
+do {
+    let mac = 16.0 / 10.0
+    let phone = Sizing.deviceCap(w: 393, h: 852, dpr: 3, macAspect: mac)       // iPhone 15 Pro
+    let ipad = Sizing.deviceCap(w: 1376, h: 1032, dpr: 2, macAspect: mac)      // iPad Pro 13"
+    let laptop = Sizing.deviceCap(w: 1512, h: 982, dpr: 2, macAspect: mac)
+    expect(AdaptiveController.widths[AdaptiveController.level(fitting: phone)] == 1920, "cap: a phone gets at most 1920 wide (\(phone))")
+    expect(AdaptiveController.widths[AdaptiveController.level(fitting: ipad)] == 2560, "cap: an iPad Pro gets 2560 (\(ipad))")
+    expect(AdaptiveController.widths[AdaptiveController.level(fitting: laptop)] == 2560, "cap: a Retina laptop gets 2560 (\(laptop))")
+    expect(AdaptiveController.level(fitting: 800) == 0, "cap: never below the first rung")
+    expect(AdaptiveController.level(fitting: Int.max) == AdaptiveController.widths.count - 1, "cap: no screen size, no cap")
+    expect(Sizing.deviceCap(w: 0, h: 0, dpr: 2, macAspect: mac) == Int.max, "cap: unknown screen is no cap")
+
+    var c = AdaptiveController(startLevel: 3)
+    expect(c.setMaxLevel(2) && c.level == 2, "cap: lowering the cap lowers the resolution")
+    expect(!c.setMaxLevel(4) && c.level == 2, "cap: raising it doesn't jump up by itself")
+    var d = AdaptiveController(startLevel: 2)
+    d.setMaxLevel(2)
+    let good = LinkStats(rttMs: 40, decodeQueue: 0, droppedFrames: 0)
+    for _ in 0..<120 { _ = d.update(good) }
+    expect(d.level == 2, "cap: a clear link doesn't climb past the cap")
+}
+
+// Sharp when still
+do {
+    // Sizes seen on this Mac, streaming a 1.16 MP window.
+    let window = 1_164_800
+    expect(!StillPolicy.isMotion(frameBytes: 220, pixels: window), "still: an unchanged picture isn't movement")
+    expect(!StillPolicy.isMotion(frameBytes: 625, pixels: window), "still: a blinking caret isn't movement")
+    expect(StillPolicy.isMotion(frameBytes: 2_812, pixels: window), "still: a scrolled list is movement")
+    expect(!StillPolicy.isMotion(frameBytes: 5_000, pixels: 3840 * 2160), "still: the bar rises with the picture size")
 }
 
 print("\(checks - failures)/\(checks) checks passed")

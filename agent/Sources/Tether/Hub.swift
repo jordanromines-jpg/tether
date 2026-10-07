@@ -22,6 +22,7 @@ final class ClientConnection {
     var codecs: Set<VideoCodec> = [.h264]
     var lastStats = LinkStats(rttMs: 0, decodeQueue: 0, droppedFrames: 0)
     var audioFormat: AudioFormat?   // nil = sound off
+    var screen: ScreenInfo?         // the device's screen, for the resolution cap
     var observe = false             // view only: control messages are ignored
     var lastInput = Date()          // for "idle 12 min" in the menu-bar panel
     private let lock = NSLock()
@@ -261,11 +262,23 @@ final class Hub {
         if let preset {
             return .init(displayID: displayID, codec: codec, maxWidth: preset.maxWidth, fps: preset.fps,
                          bitrate: codec == .hevc ? preset.bitrate * 7 / 10 : preset.bitrate, audio: wantsAudio,
-                         excludedWindowIDs: curtainWindowIDs, windowID: windowTarget?.info.id)
+                         excludedWindowIDs: curtainWindowIDs, windowID: windowTarget?.info.id,
+                         refineWhenStill: preset != .saver)
         }
         return .init(displayID: displayID, codec: codec, maxWidth: adaptive.maxWidth, fps: adaptive.fps,
                      bitrate: adaptive.bitrate, audio: wantsAudio, excludedWindowIDs: curtainWindowIDs,
                      windowID: windowTarget?.info.id)
+    }
+
+    /// Caps Auto quality at the largest connected device's screen. A device that didn't say lifts the cap.
+    /// Returns true when the current resolution went down.
+    private func applyDeviceCap() -> Bool {
+        let macAspect = Double(CGDisplayPixelsWide(displayID)) / Double(max(1, CGDisplayPixelsHigh(displayID)))
+        let caps = clients.values.map { c in
+            c.screen.map { Sizing.deviceCap(w: $0.w, h: $0.h, dpr: $0.dpr, macAspect: macAspect) } ?? Int.max
+        }
+        guard let widest = caps.max() else { return false }
+        return adaptive.setMaxLevel(AdaptiveController.level(fitting: widest)) && preset == nil
     }
 
     private var wantsAudio: Bool { clients.values.contains { $0.audioFormat != nil } }
@@ -334,6 +347,7 @@ final class Hub {
         guard wanted != codec else { return }
         codec = wanted
         adaptive = AdaptiveController(startLevel: adaptive.level, bitsPerPixel: wanted == .hevc ? 0.045 : 0.07)
+        _ = applyDeviceCap()
         restartCapture()
     }
 
@@ -409,6 +423,7 @@ final class Hub {
             if score > worstScore { worst = stats }
         }
         guard preset == nil, let worst else { return }
+        if applyDeviceCap() { restartCapture() }
         let decision = adaptive.update(worst)
         if decision.resolutionChanged {
             restartCapture()
@@ -493,9 +508,10 @@ final class Hub {
         // View only is enforced here, not just in the browser.
         if client.observe && InputPolicy.isControl(message) { return }
         switch message {
-        case let .hello(quality, display, codecs):
+        case let .hello(quality, display, codecs, screen):
             client.codecs = Set(codecs.isEmpty ? [.h264] : codecs)
-            var changed = false
+            client.screen = screen
+            var changed = applyDeviceCap()
             let newPreset = quality.flatMap(QualityPreset.init(rawValue:))
             if newPreset != preset { preset = newPreset; changed = true }
             if let d = display, d != displayID, CGDisplayIsActive(d) != 0 { displayID = d; changed = true }

@@ -16,12 +16,14 @@ final class VideoEncoder {
 
     private var session: VTCompressionSession?
     private let onOutput: (Output) -> Void
+    private var bitrate: Int
 
     let codec: VideoCodec
 
     init?(codec: VideoCodec, width: Int, height: Int, fps: Int, bitrate: Int, onOutput: @escaping (Output) -> Void) {
         self.onOutput = onOutput
         self.codec = codec
+        self.bitrate = bitrate
         let codecType = codec == .hevc ? kCMVideoCodecType_HEVC : kCMVideoCodecType_H264
         let lowLatency = [kVTVideoEncoderSpecification_EnableLowLatencyRateControl: kCFBooleanTrue] as CFDictionary
         var s: VTCompressionSession?
@@ -56,7 +58,30 @@ final class VideoEncoder {
 
     /// Changes the target bitrate on the fly (no new keyframe needed).
     func setBitrate(_ bitrate: Int) {
+        self.bitrate = bitrate
         guard let session else { return }
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: bitrate as CFNumber)
+    }
+
+    /// A still screen deserves a sharp picture: one keyframe with a bigger bit budget and a cap on the
+    /// quantizer, then back to normal. Text that arrived soft while things moved turns crisp.
+    func encodeRefined(_ pixelBuffer: CVPixelBuffer) {
+        oneFrame(pixelBuffer, bitrate: bitrate * 6, qp: (kVTCompressionPropertyKey_MaxAllowedFrameQP, 22))
+    }
+
+    /// A light first frame, so the picture shows quickly on a slow link (the sharp one follows once the
+    /// screen is still).
+    func encodeQuick(_ pixelBuffer: CVPixelBuffer) {
+        oneFrame(pixelBuffer, bitrate: bitrate, qp: (kVTCompressionPropertyKey_MinAllowedFrameQP, 34))
+    }
+
+    private func oneFrame(_ pixelBuffer: CVPixelBuffer, bitrate frameBitrate: Int, qp: (CFString, Int)) {
+        guard let session else { return }
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: frameBitrate as CFNumber)
+        VTSessionSetProperty(session, key: qp.0, value: qp.1 as CFNumber)
+        encode(pixelBuffer, forceKeyframe: true)
+        VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
+        VTSessionSetProperty(session, key: qp.0, value: (qp.0 == kVTCompressionPropertyKey_MaxAllowedFrameQP ? 51 : 0) as CFNumber)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: bitrate as CFNumber)
     }
 

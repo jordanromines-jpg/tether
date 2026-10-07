@@ -33,6 +33,8 @@ public struct AdaptiveController: Sendable {
 
     public private(set) var level: Int
     public private(set) var bitrate: Int
+    /// The highest rung worth climbing to: no point sending a phone more pixels than it can show.
+    public private(set) var maxLevel = AdaptiveController.widths.count - 1
     public let fps: Int
     public let bitsPerPixel: Double
     private var clearSeconds = 0
@@ -50,6 +52,22 @@ public struct AdaptiveController: Sendable {
     }
 
     public var maxWidth: Int { Self.widths[level] }
+
+    /// The largest rung no wider than `width` (never below the first). `Int.max` = no limit.
+    public static func level(fitting width: Int) -> Int {
+        widths.lastIndex { $0 <= width } ?? 0
+    }
+
+    /// Limits the ladder to what the connected devices can show. Returns true when that lowered the
+    /// current resolution (capture must restart).
+    @discardableResult
+    public mutating func setMaxLevel(_ newMax: Int) -> Bool {
+        maxLevel = max(0, min(newMax, Self.widths.count - 1))
+        guard level > maxLevel else { return false }
+        level = maxLevel
+        bitrate = min(bitrate, maxBitrate(level))
+        return true
+    }
 
     public func maxBitrate(_ level: Int) -> Int {
         let w = Double(Self.widths[level]), h = w * 9 / 16
@@ -85,7 +103,7 @@ public struct AdaptiveController: Sendable {
             if clearSeconds >= 5, bitrate < maxBitrate(level) {
                 bitrate = min(maxBitrate(level), Int(Double(bitrate) * 1.15))
                 clearSeconds = 0
-            } else if clearSeconds >= 10, bitrate >= maxBitrate(level), level < Self.widths.count - 1 {
+            } else if clearSeconds >= 10, bitrate >= maxBitrate(level), level < maxLevel {
                 level += 1
                 bitrate = maxBitrate(level) / 2
                 clearSeconds = 0

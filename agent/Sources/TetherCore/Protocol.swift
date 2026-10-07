@@ -85,7 +85,8 @@ public enum HEVC {
 
 /// Messages a client sends as JSON text frames. Field `t` selects the type.
 public enum ClientMessage: Equatable, Sendable {
-    case hello(quality: String?, displayID: UInt32?, codecs: [VideoCodec])
+    /// `screen`: the device's screen (CSS px and pixel ratio), so the Mac doesn't send more than it can show.
+    case hello(quality: String?, displayID: UInt32?, codecs: [VideoCodec], screen: ScreenInfo? = nil)
     case quality(String)
     case display(UInt32)
     case keyframe
@@ -122,7 +123,12 @@ public enum ClientMessage: Equatable, Sendable {
         switch t {
         case "hello":
             let codecs = (obj["codecs"] as? [String] ?? ["h264"]).compactMap(VideoCodec.init(rawValue:))
-            return .hello(quality: str("quality"), displayID: num("display").map { UInt32($0) }, codecs: codecs)
+            var screen: ScreenInfo?
+            if let s = obj["screen"] as? [String: Any], let w = (s["w"] as? NSNumber)?.doubleValue,
+               let h = (s["h"] as? NSNumber)?.doubleValue, w > 0, h > 0 {
+                screen = ScreenInfo(w: w, h: h, dpr: (s["dpr"] as? NSNumber)?.doubleValue ?? 1)
+            }
+            return .hello(quality: str("quality"), displayID: num("display").map { UInt32($0) }, codecs: codecs, screen: screen)
         case "quality":
             return str("preset").map { .quality($0) }
         case "display":
@@ -187,4 +193,10 @@ public func jsonMessage(_ type: String, _ fields: [String: Any] = [:]) -> String
     obj["t"] = type
     guard let data = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]) else { return "{}" }
     return String(decoding: data, as: UTF8.self)
+}
+
+/// A viewing device's screen, from `hello`.
+public struct ScreenInfo: Sendable, Equatable {
+    public var w: Double, h: Double, dpr: Double
+    public init(w: Double, h: Double, dpr: Double) { self.w = w; self.h = h; self.dpr = dpr }
 }

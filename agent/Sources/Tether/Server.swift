@@ -71,7 +71,7 @@ enum Server {
         let router = Router(context: BasicWebSocketRequestContext.self)
         let tailnetSuffix = Peers.tailnetSuffix(publicURL: publicURL)
         /// CORS for pages on this tailnet's other Macs (https://<machine>.<tailnet>.ts.net), no credentials.
-        func allowTailnetOrigin(_ request: Request, _ response: inout Response) {
+        @Sendable func allowTailnetOrigin(_ request: Request, _ response: inout Response) {
             if let origin = request.headers[.origin], let suffix = tailnetSuffix,
                let host = URL(string: origin)?.host, origin.hasPrefix("https://"), host.hasSuffix("." + suffix) {
                 response.headers[.accessControlAllowOrigin] = origin
