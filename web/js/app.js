@@ -162,6 +162,13 @@ async function passkeyGate() {
     pausePoll = setTimeout(async () => { if (await passkeyGate()) resume(); }, 5000);
     return false;
   }
+  if (st.unreachable) {
+    // Keep trying quietly; the page carries on as soon as Tether answers again.
+    status('connecting', 'Reconnecting', `${macName()} isn't answering yet. Trying again.`);
+    clearTimeout(pausePoll);
+    pausePoll = setTimeout(async () => { if (await passkeyGate()) resume(); }, 3000);
+    return false;
+  }
   if (st.enrolled) {
     status('locked', 'Locked', 'Unlock with Face ID or Touch ID to see your Mac.',
       [{ label: 'Unlock', run: async () => { await unlockWithPasskey(); resume(); } }]);

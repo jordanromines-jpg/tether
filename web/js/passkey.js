@@ -14,8 +14,11 @@ async function post(path, body) {
 export async function passkeyStatus() {
   try {
     const r = await fetch('auth/status', { cache: 'no-store' });
-    const data = await r.json().catch(() => ({}));
-    if (r.status === 503 && data.paused) return { ok: false, paused: true, msg: data.msg };
+    const data = await r.json().catch(() => null);
+    if (r.status === 503 && data?.paused) return { ok: false, paused: true, msg: data.msg };
+    // Tether restarting (an update, a crash) or the Mac waking up: Tailscale answers with an error
+    // page, not Tether's JSON. That's "not answering yet", never "passkey required".
+    if (!r.ok || !data || typeof data.ok !== 'boolean') return { ok: false, unreachable: true };
     return data;
   } catch { return { ok: true }; }
 }
