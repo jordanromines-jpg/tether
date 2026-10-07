@@ -63,6 +63,22 @@ curtained.sessions = [
 render(StatusPanelView(model: curtained).background(.background), "panel-curtain-viewing")
 render(CurtainView().frame(width: 960, height: 600), "curtain")
 
+// v4 batch 2: update banner, recent activity, each device's passkey.
+let busy = PanelModel()
+busy.url = sampleURL
+busy.updateAvailable = true
+busy.passkeyRequired = true
+busy.passkeys = [PasskeyRow(id: "a", device: "Jordan's iPhone", created: Date().addingTimeInterval(-86400 * 12)),
+                 PasskeyRow(id: "b", device: "iPad", created: Date().addingTimeInterval(-86400 * 3))]
+busy.activity = [
+    ActivityEntry(id: UUID(), login: "owner@example.com", device: "Jordan's iPhone", start: Date().addingTimeInterval(-600)),
+    ActivityEntry(id: UUID(), login: "owner@example.com", device: "iPad", start: Date().addingTimeInterval(-7200),
+                  end: Date().addingTimeInterval(-7200 + 47 * 60), viewOnly: true),
+    ActivityEntry(id: UUID(), login: "owner@example.com", device: "Mac", start: Date().addingTimeInterval(-86400),
+                  end: Date().addingTimeInterval(-86400 + 20)),
+]
+render(StatusPanelView(model: busy).background(.background), "panel-activity-passkeys-update")
+
 let paused = PanelModel()
 paused.paused = true
 paused.url = sampleURL

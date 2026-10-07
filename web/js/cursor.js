@@ -13,6 +13,7 @@ export class RemoteCursor {
     this.shape = null;
     this.pos = null;            // normalized position currently drawn
     this.lastLocal = 0;         // time of last locally predicted move
+    this.scale = 1;             // "Bigger pointer" on touch screens
     view.onChange = () => this.render();
   }
 
@@ -56,8 +57,8 @@ export class RemoteCursor {
   render() {
     if (!this.touch || !this.shape || !this.pos || !this.view.videoW) { this.el.hidden = true; return; }
     const { nw, nh, w, h, hx, hy } = this.shape;
-    const width = Math.max(14, nw * this.view.displayedWidth);
-    const height = Math.max(14 * (h / w), nh * this.view.displayedHeight);
+    const width = Math.max(14, nw * this.view.displayedWidth) * this.scale;
+    const height = Math.max(14 * (h / w), nh * this.view.displayedHeight) * this.scale;
     const p = this.view.toClient(this.pos.x, this.pos.y);
     const st = this.el.style;
     st.width = `${width}px`;

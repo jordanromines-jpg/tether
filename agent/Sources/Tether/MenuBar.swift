@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let menu = NSMenu()
     private var setupRequested = CommandLine.arguments.contains("--setup")
     private var panelTimer: Timer?
+    private var activityWindow: NSWindow?
 
     init(port: Int, publicURL: String?) {
         self.port = port
@@ -49,6 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.refreshPanel()
         }
         Notifier.requestPermission()
+        ActivityStore.shared.onChange = { [weak self] in self?.refreshPanel() }
+        Updates.shared.onChange = { [weak self] in self?.refreshPanel() }
+        Updates.shared.start()
 
         let open = SetupPolicy.shouldOpenAssistant(onboarded: AppState.shared.onboarded, requested: setupRequested,
                                                    screenAllowed: Permissions.screenRecording, inputAllowed: Permissions.accessibility)
@@ -107,6 +111,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .map { SessionRow(id: $0.id, device: $0.device, login: $0.login, since: $0.connectedAt,
                               viewOnly: $0.observe, lastInput: $0.lastInput) }
         panel.curtainOn = Curtain.shared.isOn
+        panel.activity = Array(ActivityStore.shared.recent.prefix(3))
+        panel.passkeys = store.credentials.map { PasskeyRow(id: $0.id, device: $0.device, created: $0.created) }
+        panel.updateAvailable = Updates.shared.available
+        panel.checkUpdates = AppState.shared.checkUpdates
         panel.screenAllowed = Permissions.screenRecording
         panel.inputAllowed = Permissions.accessibility
         panel.passkeyRequired = store.required
@@ -135,7 +143,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         a.setCurtain = { on in Curtain.shared.set(on) }
         a.openHelp = { [weak self] in self?.popover.performClose(nil); Self.open("help") }
         a.reportProblem = { [weak self] in self?.popover.performClose(nil); Self.open("issues") }
+        a.removePasskey = { [weak self] id in
+            PasskeyStore.shared.remove(id: id)
+            Hub.shared.disconnectAll()   // everyone unlocks again; the removed device can't
+            self?.refreshPanel()
+        }
+        a.showAllActivity = { [weak self] in self?.popover.performClose(nil); self?.showActivity() }
+        a.setCheckUpdates = { on in AppState.shared.setCheckUpdates(on); Updates.shared.start() }
+        a.openUpdateHelp = { [weak self] in self?.popover.performClose(nil); Self.open("updating") }
         return a
+    }
+
+    private func showActivity() {
+        if activityWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 420), styleMask: [.titled, .closable, .resizable],
+                             backing: .buffered, defer: false)
+            w.title = "Tether activity"
+            w.isReleasedWhenClosed = false
+            w.center()
+            activityWindow = w
+        }
+        activityWindow?.contentView = NSHostingView(rootView: ActivityListView(entries: ActivityStore.shared.recent))
+        NSApp.activate(ignoringOtherApps: true)
+        activityWindow?.makeKeyAndOrderFront(nil)
     }
 
     // MARK: Setup Assistant

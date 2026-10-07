@@ -17,6 +17,7 @@ export class Stream extends EventTarget {
     this.retry = 0;
     this.helloExtra = () => ({});
     this.stats = { frames: 0, bytes: 0, fps: 0, kbps: 0, rtt: 0, codec: '' };
+    this.sessionBytes = 0;   // everything received since this page opened (for the data meter)
     this.pings = new Map();
     setInterval(() => {
       this.stats.fps = this.stats.frames;
@@ -69,6 +70,7 @@ export class Stream extends EventTarget {
       this.emit('open');
     };
     ws.onmessage = (e) => {
+      this.sessionBytes += typeof e.data === 'string' ? e.data.length : e.data.byteLength;
       if (typeof e.data === 'string') this.onControl(JSON.parse(e.data));
       else this.onVideo(e.data);
     };

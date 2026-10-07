@@ -2,10 +2,11 @@ import Foundation
 
 /// Streaming quality presets the client can pick.
 public enum QualityPreset: String, Sendable, CaseIterable {
-    case fast, balanced, sharp
+    case saver, fast, balanced, sharp
 
     public var maxWidth: Int {
         switch self {
+        case .saver: 960
         case .fast: 1280
         case .balanced: 1920
         case .sharp: 6144
@@ -14,7 +15,7 @@ public enum QualityPreset: String, Sendable, CaseIterable {
 
     public var fps: Int {
         switch self {
-        case .fast: 30
+        case .saver, .fast: 30
         case .balanced, .sharp: 60
         }
     }
@@ -22,6 +23,7 @@ public enum QualityPreset: String, Sendable, CaseIterable {
     /// Average bitrate in bits per second.
     public var bitrate: Int {
         switch self {
+        case .saver: 1_200_000
         case .fast: 2_500_000
         case .balanced: 8_000_000
         case .sharp: 20_000_000

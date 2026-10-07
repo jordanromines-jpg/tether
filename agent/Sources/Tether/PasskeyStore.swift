@@ -23,7 +23,8 @@ final class PasskeyStore {
     private(set) var credentials: [Credential] = []
     private var challenges: [String: (data: Data, expires: Date)] = [:]
     private(set) var enrollUntil: Date?
-    let tokens: SessionToken
+    private var tokensValue: SessionToken
+    private var tokens: SessionToken { lock.withLock { tokensValue } }
 
     static let cookieName = "tether_session"
     static let sessionLength: TimeInterval = 12 * 3600
@@ -36,7 +37,7 @@ final class PasskeyStore {
             secret = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
             FileManager.default.createFile(atPath: secretURL.path, contents: secret, attributes: [.posixPermissions: 0o600])
         }
-        tokens = SessionToken(secret: secret)
+        tokensValue = SessionToken(secret: secret)
         if let d = try? Data(contentsOf: dir.appendingPathComponent("settings.json")),
            let s = try? JSONDecoder().decode(Settings.self, from: d) { settings = s }
         if let d = try? Data(contentsOf: dir.appendingPathComponent("passkeys.json")),
@@ -57,6 +58,20 @@ final class PasskeyStore {
     func openEnrollment(minutes: Double = 10) { lock.withLock { enrollUntil = Date().addingTimeInterval(minutes * 60) } }
 
     func removeAll() { lock.withLock { credentials.removeAll(); save() } }
+
+    /// Removes one device's passkey and signs every browser out (a new session secret), so a
+    /// removed device can't carry on with its unlock. The others unlock again with Face ID.
+    func remove(id: String) {
+        lock.withLock {
+            credentials.removeAll { $0.id == id }
+            let secret = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
+            FileManager.default.createFile(atPath: dir.appendingPathComponent("session-secret").path, contents: secret,
+                                           attributes: [.posixPermissions: 0o600])
+            tokensValue = SessionToken(secret: secret)
+            if credentials.isEmpty && settings.required { enrollUntil = Date().addingTimeInterval(600) }
+            save()
+        }
+    }
 
     func credentials(for login: String) -> [Credential] {
         lock.withLock { credentials.filter { $0.login == login.lowercased() } }

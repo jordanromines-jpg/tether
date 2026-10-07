@@ -41,17 +41,22 @@ final class AppState {
     private let lock = NSLock()
     private var pausedValue = false
     private var onboardedValue = false
+    private var checkUpdatesValue = true
     private var url: URL { AppPaths.supportDirectory.appendingPathComponent("state.json") }
 
     private init() {
         if let d = try? Data(contentsOf: url), let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] {
             pausedValue = (o["paused"] as? Bool) ?? false
             onboardedValue = (o["onboarded"] as? Bool) ?? false
+            checkUpdatesValue = (o["checkUpdates"] as? Bool) ?? true
         }
     }
 
     var paused: Bool { lock.withLock { pausedValue } }
     var onboarded: Bool { lock.withLock { onboardedValue } }
+    var checkUpdates: Bool { lock.withLock { checkUpdatesValue } }
+
+    func setCheckUpdates(_ on: Bool) { lock.withLock { checkUpdatesValue = on; save() } }
 
     func setPaused(_ on: Bool) {
         lock.withLock { pausedValue = on; save() }
@@ -62,7 +67,8 @@ final class AppState {
 
     /// Call with the lock held.
     private func save() {
-        if let d = try? JSONSerialization.data(withJSONObject: ["paused": pausedValue, "onboarded": onboardedValue]) {
+        if let d = try? JSONSerialization.data(withJSONObject: ["paused": pausedValue, "onboarded": onboardedValue,
+                                                                    "checkUpdates": checkUpdatesValue]) {
             try? d.write(to: url)
         }
     }

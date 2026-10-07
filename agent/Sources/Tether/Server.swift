@@ -26,7 +26,7 @@ struct TailscaleAuthMiddleware<Context: RequestContext>: RouterMiddleware {
 struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
     func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
         let path = request.uri.path
-        let api = path == "/ws" || path == "/upload" || path == "/files" || path == "/download"
+        let api = path == "/ws" || path == "/upload" || path == "/files" || path == "/download" || path == "/apps"
             || path == "/peers" || path.hasPrefix("/auth/")
         if AppState.shared.paused, api {
             let body = #"{"paused":true,"msg":"Remote access is paused on the Mac. Resume it from the Tether menu-bar icon."}"#
@@ -39,7 +39,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
 
 /// When the passkey lock is on, the screen, input and file endpoints also need a valid session cookie.
 struct PasskeyGateMiddleware<Context: RequestContext>: RouterMiddleware {
-    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download"] }
+    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download", "/apps"] }
 
     func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
         if PasskeyStore.shared.required, Self.protectedPaths.contains(request.uri.path),
@@ -171,7 +171,8 @@ enum Server {
             return response
         }
 
-        let sandbox = FileSandbox(roots: ["downloads": Permissions.downloadsURL, "desktop": Permissions.desktopURL])
+        let sandbox = FileSandbox(roots: ["downloads": Permissions.downloadsURL, "desktop": Permissions.desktopURL,
+                                          "documents": Permissions.documentsURL])
         let fileIO = FileIO()
 
         router.get("files") { request, _ -> Response in
@@ -217,9 +218,25 @@ enum Server {
             ], body: body)
         }
 
+        router.get("apps") { _, _ -> Response in json(["apps": AppCatalog.list()]) }
+
         router.post("upload") { request, _ -> Response in
-            let name = request.uri.queryParameters.get("name") ?? "upload"
-            let url = Uploads.destination(for: name)
+            let q = request.uri.queryParameters
+            let name = q.get("name") ?? "upload"
+            if Hub.shared.onlyObserving(login: login(request)) {
+                return json(["error": "View only is on, so uploads are off. Turn off View only to send files."], status: .forbidden)
+            }
+            // Into the folder being browsed (inside Downloads, Desktop or Documents), else Downloads.
+            var folder = Uploads.directory
+            if let root = q.get("root") {
+                var isDir: ObjCBool = false
+                guard Permissions.folderAllowed(root) == true,
+                      let dir = sandbox.resolve(root: root, relativePath: q.get("path") ?? ""),
+                      FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue
+                else { return json(["error": "Can't save into that folder."], status: .forbidden) }
+                folder = dir
+            }
+            let url = Uploads.destination(for: name, in: folder)
             guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
                 return Response(status: .internalServerError)
             }
@@ -235,7 +252,7 @@ enum Server {
                 throw error
             }
             NSLog("Tether: saved upload \(url.path)")
-            return json(["saved": url.lastPathComponent])
+            return json(["saved": url.lastPathComponent, "folder": folder.lastPathComponent])
         }
 
         router.ws("ws") { request, _ in
@@ -296,7 +313,7 @@ enum Uploads {
     static var directory: URL { Permissions.downloadsURL }
 
     /// A safe, non-clobbering path in ~/Downloads for an uploaded file name.
-    static func destination(for rawName: String) -> URL {
+    static func destination(for rawName: String, in directory: URL = Uploads.directory) -> URL {
         var name = (rawName as NSString).lastPathComponent
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)

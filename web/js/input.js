@@ -90,6 +90,8 @@ export class Input {
         const p = this.view.toNormalized(t.clientX, t.clientY);
         if (!this.stream.observe) this.cursor?.predictAt(p.x, p.y);
         this.flushMove(p);
+        // A finger that stays down shows the magnifier (quick taps don't).
+        this.g.loupe = setTimeout(() => { if (this.g?.kind === 'one') this.onFinger?.('start', this.g.x, this.g.y); }, 200);
       } else {
         // Touch-and-hold starts a drag (like a trackpad click-and-hold).
         this.g.hold = setTimeout(() => {
@@ -97,6 +99,7 @@ export class Input {
             this.g.dragging = true;
             this.send({ t: 'btn', b: 0, down: true });
             navigator.vibrate?.(10);
+            this.onFinger?.('start', this.g.x, this.g.y);
           }
         }, 380);
       }
@@ -136,6 +139,7 @@ export class Input {
         }
       }
       if (!g.moved) return;
+      this.onFinger?.('move', t.clientX, t.clientY);
       if (this.touchMode === 'direct') {
         const p = this.view.toNormalized(t.clientX, t.clientY);
         if (!this.stream.observe) this.cursor?.predictAt(p.x, p.y);
@@ -185,6 +189,8 @@ export class Input {
     const dt = performance.now() - g.t0;
     if (g.kind === 'one' && e.touches.length === 0) {
       clearTimeout(g.hold);
+      clearTimeout(g.loupe);
+      this.onFinger?.('end');
       if (g.dragging) {
         if (this.touchMode === 'direct') this.flushMove(this.view.toNormalized(g.x, g.y));
         this.send({ t: 'btn', b: 0, down: false });
@@ -213,6 +219,8 @@ export class Input {
   cancelOne() {
     if (this.g?.kind !== 'one') return;
     clearTimeout(this.g.hold);
+    clearTimeout(this.g.loupe);
+    this.onFinger?.('end');
     if (this.g.dragging) this.send({ t: 'btn', b: 0, down: false });
   }
 

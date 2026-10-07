@@ -21,6 +21,11 @@ Tether gives full control of a Mac, so it is built to be reachable **only by you
 - **Curtain mode is for privacy, not access control.** It blacks out the Mac's own screen so people in the room can't see what you're doing. The Mac's keyboard and mouse keep working, and pressing ⌃⌥⌘ Return on that keyboard lifts the curtain. Keys sent remotely can't lift it: Tether marks every event it injects and the escape check ignores marked keys.
 - **Idle and background pauses end the session.** When a device pauses (no interaction for the chosen time, or the page goes out of sight), it disconnects. If the passkey lock is on, it also discards its unlock, so resuming asks for Face ID or Touch ID again.
 
+- **Removing one passkey signs every device out.** Sessions are signed with a secret that changes when a passkey is removed, so the removed device can't keep using its unlock; the others unlock again with Face ID.
+- **Quick actions are limited.** "Open a link" only opens `http`/`https` links. "Open an app" only opens apps from the standard Applications folders that the Mac itself listed. Uploads can go into Downloads, Desktop or Documents (the folder you're browsing) and nowhere else.
+- **Activity log.** The Mac keeps the last 500 sessions (login, device name, start, end) in `~/Library/Application Support/Tether/activity.json`. `scripts/uninstall.sh --all` deletes it.
+- **Update check.** Once a day the Mac asks `api.github.com` for the newest commit of the repo it was built from. It sends nothing about you or your Mac beyond the request itself. Untick **Check for updates** in the panel to stop it.
+
 ## Reporting a problem
 
 Please open a GitHub issue. Don't include secrets, and for anything sensitive, contact the maintainer privately first.

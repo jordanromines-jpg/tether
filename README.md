@@ -63,20 +63,21 @@ Steps:
 | Type | ⌨︎ for keys and shortcuts, or **Compose** for autocorrect and dictation | Just type; ⌘ shortcuts pass through |
 
 The toolbar also has:
+- **Quick actions** (the lightning bolt): volume, mute, play/pause, next and previous track, Mission Control, sleep the Mac's display, lock the Mac (tap twice), take a **screenshot** to your device, **open a link** on the Mac, **open an app** by name, Force Quit, and the full **keys and shortcuts** list.
 - **Names for everything:** hover over a button, or touch and hold it on a phone or iPad, to see what it does.
 - **Put it anywhere:** drag the toolbar by its grip (the dots on the end) to any edge or corner. On the sides it stands upright. Or choose **More → Move toolbar**.
 - **More:** buttons that don't fit on a small screen move into **More** instead of scrolling off the edge. **Tips** are there too.
 - **Sticky ⌘ ⌥ ⌃ ⇧:** tap for the next key only, double-tap to lock.
 - **Keys and shortcuts** for Esc, arrows, F-keys and common shortcuts.
 - **Clipboard** sync in both directions.
-- **Files:** send files to the Mac's Downloads folder, or download from its Downloads and Desktop.
+- **Files:** browse the Mac's Downloads, Desktop and Documents; download anything, or **Upload here** to put files in the folder you're looking at. (Files dropped onto the window go to Downloads.)
 - **Sound** on or off.
-- **Display and quality:** pick a monitor, choose Auto, Fast, Balanced or Sharp, or fit the screen to your device.
-- **Connection:** your Mac's name with a live quality dot. Tap it for details, or to switch to another of your Macs running Tether.
+- **Display and quality:** pick a monitor; choose Auto, **Saver** (battery and cellular), Fast, Balanced or Sharp; fit the screen to your device; pause when idle; pointer size and the **magnifier** (a zoomed view above your finger while dragging) on touch screens; a **data warning** after 250 MB, 500 MB or 1 GB; and **this device's name** as the Mac shows it.
+- **Connection:** your Mac's name with a live quality dot and how much data this session and today have used. Tap it for details, or to switch to another of your Macs running Tether.
 
 ## Turning it on and off
 
-Tether lives in your Mac's menu bar. Setup makes it start automatically when you log in. Click its icon for the status panel: who's connected (with a **Disconnect** button for each), your link and QR code, the passkey lock, **Setup Assistant…** and **Add a shortcut…**. Right-click the icon for the classic menu.
+Tether lives in your Mac's menu bar. Setup makes it start automatically when you log in. Click its icon for the status panel: who's connected (with a **Disconnect** button for each, and whether they're viewing only or idle), **Recent activity** (who connected, from which device, when and for how long), your link and QR code, the passkey lock with each device's passkey (remove one and every device unlocks again), **Setup Assistant…** and **Add a shortcut…**. Right-click the icon for the classic menu.
 
 - **Pause remote access:** the switch at the top of the panel, or **Pause** in the right-click menu (⌘P). Everyone is disconnected and nobody can connect until you choose **Resume**. Your phone shows "Paused on the Mac" and reconnects by itself when you resume. Pausing survives restarts.
 - **Quit Tether:** Tether stops completely and stays off. To start it again, open the **Tether** shortcut in Applications, or find Tether in Spotlight.
@@ -87,6 +88,15 @@ Tether lives in your Mac's menu bar. Setup makes it start automatically when you
 - **Help:** **More → Help and docs** (or **Help and docs** in the Mac's panel) opens this page; **Report a problem** opens a GitHub issue.
 - **While nobody is connected,** Tether isn't recording the screen or watching the clipboard. It just waits for a connection. If it ever crashes, it restarts by itself.
 - **To remove it completely,** run `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac you set up). It also removes the shortcuts Tether made. Add `--all` to also delete its settings and passkeys.
+
+## Updating
+
+The Tether panel on the Mac shows **Update available** when a newer version is on GitHub (it checks once a day; untick **Check for updates** to stop). To update:
+
+- **This Mac:** in the Tether folder, run `git pull` and then `scripts/setup.sh`. Or ask Claude: *"update Tether on this Mac"*.
+- **Another Mac you set up:** `git pull`, then `scripts/deploy.sh <name>`.
+
+Your settings, passkeys and macOS permissions are kept.
 
 ## How it stays private
 

@@ -96,6 +96,8 @@ Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, e
 - **Status screen.** One card: icon, title, one line of explanation, one primary action. Used for connecting, paused, locked, passkey, idle (the whole card is tappable to resume), error and unsupported browser.
 - **Toggle rows.** Menu rows that switch something on or off (View only, Curtain) show an On/Off pill on the right; On uses the accent.
 - **Sheet.** A bottom sheet on phones (with a drag handle), a centred panel on larger screens. Focus is trapped inside; Esc closes it; focus returns to the button that opened it.
+- **Tiles.** Quick actions are a 3-column grid of icon tiles (24px accent icon, 13px label, 76px tall). Actions with consequences (Lock screen) ask for a second tap.
+- **Magnifier.** A 120px circle, 2.5x, drawn 96px above the finger with a thin crosshair; only while a finger stays down.
 - **Banner.** The Mac's state while video is live (display asleep, locked), with one action.
 - **Toast.** Short confirmations at the top, auto-dismissed; at most one action.
 

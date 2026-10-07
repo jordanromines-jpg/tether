@@ -304,6 +304,25 @@ textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
 .empty .i { width: 28px; height: 28px; }
 #compose-area { min-height: 120px; -webkit-user-select: text; user-select: text; }
 
+/* Quick actions: icon tiles. */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile {
+  display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 76px; padding: 10px 6px;
+  border: 1px solid var(--line); border-radius: var(--r-control); background: var(--fill); cursor: pointer;
+  font-size: 13px; text-align: center; line-height: 1.25;
+  transition: background-color var(--t-fade) ease, transform var(--t-press) ease-out;
+}
+.tile:hover { background: var(--fill-strong); }
+.tile:active { transform: scale(.96); }
+.tile .i { width: 24px; height: 24px; color: var(--accent-text); }
+.field {
+  display: block; width: 100%; min-height: 44px; padding: 10px 12px; font: inherit; font-size: 16px; color: var(--text);
+  background: var(--fill); border: 1px solid var(--line); border-radius: var(--r-control);
+}
+.field::placeholder { color: var(--text-muted); }
+.field:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
+.segmented .choice small { font-size: 12px; }
+
 /* More menu: rows with an icon and a visible label. */
 .menu { display: grid; gap: 2px; }
 .menu-item {
@@ -376,6 +395,14 @@ body[data-dock^="top"] #banner, body[data-dock^="top"] #toast { top: auto; botto
 #toolbar[data-dock^="top"] [data-action="hide"] .i { transform: rotate(180deg); }
 #toolbar[data-dock="left"] [data-action="hide"] .i { transform: rotate(90deg); }
 #toolbar[data-dock="right"] [data-action="hide"] .i { transform: rotate(-90deg); }
+
+
+/* Magnifier above the finger (touch). */
+#loupe {
+  position: fixed; left: 0; top: 0; z-index: 15; width: 120px; height: 120px; pointer-events: none;
+  border-radius: 50%; border: 2px solid var(--surface); box-shadow: var(--shadow);
+}
+#loupe[hidden] { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0ms !important; animation: none !important; }

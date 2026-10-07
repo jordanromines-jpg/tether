@@ -8,6 +8,7 @@ enum Permissions {
 
     static var downloadsURL: URL { FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0] }
     static var desktopURL: URL { FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0] }
+    static var documentsURL: URL { FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] }
 
     /// Listing a protected folder asks macOS for access the first time (a one-time "Allow" prompt
     /// on the Mac). Until someone answers, that call BLOCKS — so it only ever runs on a background
@@ -25,6 +26,7 @@ enum Permissions {
             let result = [
                 "downloads": (try? FileManager.default.contentsOfDirectory(atPath: downloadsURL.path)) != nil,
                 "desktop": (try? FileManager.default.contentsOfDirectory(atPath: desktopURL.path)) != nil,
+                "documents": (try? FileManager.default.contentsOfDirectory(atPath: documentsURL.path)) != nil,
             ]
             folderLock.lock(); folderAccess = result; checking = false; folderLock.unlock()
         }
@@ -40,7 +42,7 @@ enum Permissions {
         folderLock.lock(); let folders = folderAccess; folderLock.unlock()
         if folders.values.contains(false) || folders.isEmpty { refreshFolderAccess() }
         var out: [String: Any] = ["screen": screenRecording, "input": accessibility]
-        for key in ["downloads", "desktop"] { out[key] = folders[key].map { $0 as Any } ?? "pending" }
+        for key in ["downloads", "desktop", "documents"] { out[key] = folders[key].map { $0 as Any } ?? "pending" }
         return out
     }
 

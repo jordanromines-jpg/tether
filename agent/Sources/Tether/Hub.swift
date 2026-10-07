@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import Hummingbird
@@ -101,6 +102,8 @@ final class Hub {
     private let fit = FitDisplay()
     /// Curtain windows to leave out of the stream (set from the main thread via Curtain.onChange).
     private var curtainWindowIDs: [CGWindowID] = []
+    /// Failed capture starts in a row (e.g. while the display sleeps); retried every 2 seconds.
+    private var captureFailures = 0
     var keepAwake: Bool { queue.sync { power.held } }
     private var displayBeforeFit: CGDirectDisplayID?
 
@@ -147,6 +150,7 @@ final class Hub {
             if clients.count == 1 { startSession() }
             notifyClientsChanged()
         }
+        ActivityStore.shared.started(client)
         Task { await self.sendHello(to: client) }
         return client
     }
@@ -159,10 +163,19 @@ final class Hub {
             if clients.isEmpty { endSession() } else { chooseCodec(); updateAudio() }
             notifyClientsChanged()
         }
+        ActivityStore.shared.ended(client)
     }
 
     func disconnectAll() {
         queue.async { for c in self.clients.values { c.continuation.finish() } }
+    }
+
+    /// True when every open session for this login is view only (so uploads are refused too).
+    func onlyObserving(login: String) -> Bool {
+        queue.sync {
+            let mine = clients.values.filter { $0.login.lowercased() == login.lowercased() }
+            return !mine.isEmpty && mine.allSatisfy(\.observe)
+        }
     }
 
     /// Ends one viewer's session (the menu-bar panel's Disconnect button).
@@ -192,6 +205,8 @@ final class Hub {
         queue.async {
             client.markNeedsKeyframe()
             self.streamer.requestKeyframe()
+            // Where the pointer is right now, so the device can draw it before it next moves.
+            if let p = self.input.normalizedCursor { client.send(text: jsonMessage("cursor", ["x": p.x, "y": p.y])) }
         }
     }
 
@@ -270,12 +285,21 @@ final class Hub {
             guard self.queue.sync(execute: { !self.clients.isEmpty }) else { return }
             do {
                 try await self.streamer.start(settings)
+                self.queue.async { self.captureFailures = 0 }
             } catch {
                 NSLog("Tether: capture failed: \(error)")
                 let msg = Permissions.screenRecording
                     ? "Couldn't start screen capture: \(error.localizedDescription)"
                     : "Screen Recording permission is off for Tether on this Mac."
-                self.queue.async { self.broadcastText(jsonMessage("error", ["msg": msg])) }
+                self.queue.async {
+                    // Say it once, then keep trying quietly: a sleeping display comes back by itself.
+                    if self.captureFailures == 0 { self.broadcastText(jsonMessage("error", ["msg": msg])) }
+                    self.captureFailures += 1
+                    guard Permissions.screenRecording, self.captureFailures <= 150 else { return }
+                    self.queue.asyncAfter(deadline: .now() + 2) {
+                        if !self.clients.isEmpty && self.captureFailures > 0 { self.restartCapture() }
+                    }
+                }
             }
         }
     }
@@ -349,6 +373,8 @@ final class Hub {
     private func adaptTick() {
         let state = Self.readMacState()
         if state != macState {
+            // The display woke up: capture may have stopped while it slept, so start it fresh.
+            if macState["asleep"] == true && state["asleep"] == false { restartCapture() }
             macState = state
             broadcastText(jsonMessage("state", state))
         }
@@ -440,8 +466,22 @@ final class Hub {
             DispatchQueue.main.async { Curtain.shared.set(on) }
         case .activity:
             break
-        case .action, .openURL, .openApp, .windows, .focusWindow, .captureWindow:
-            break   // Quick actions and windows arrive in the next batches.
+        case let .action(a):
+            if let key = a.mediaKey { DispatchQueue.main.async { QuickActions.media(key) } }
+            else if let combo = a.combo {
+                for code in combo { input.key(code: code, down: true) }
+                for code in combo.reversed() { input.key(code: code, down: false) }
+            } else if a == .sleepDisplay { QuickActions.sleepDisplay() }
+        case let .openURL(s):
+            if let url = SafeURL.validate(s) { DispatchQueue.main.async { NSWorkspace.shared.open(url) } }
+            else { client.send(text: jsonMessage("error", ["msg": "Only web links (http or https) can be opened on the Mac."])) }
+        case let .openApp(path):
+            guard AppCatalog.contains(path) else { return }
+            DispatchQueue.main.async {
+                NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: .init())
+            }
+        case .windows, .focusWindow, .captureWindow:
+            break   // Windows arrive in the next batch.
         }
     }
 }

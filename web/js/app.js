@@ -11,6 +11,8 @@ import { initToolbar, setDock, currentDock, foldedItems, fit } from './toolbar.j
 import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
+import { Loupe } from './loupe.js';
+import { formatBytes, addToDay, crossedLimit, localDay } from './usage.js';
 import { idleMinutes, shouldIdlePause, shouldHiddenPause, HIDDEN_PAUSE_MS, DEFAULT_IDLE_MINUTES } from './idle.js';
 
 const $ = (s) => document.querySelector(s);
@@ -28,6 +30,14 @@ input.cursor = cursor;
 const audio = new AudioPlayer(stream);
 stream.onAudio = (bytes) => audio.onFrame(bytes);
 input.touchMode = pref('touchMode', 'trackpad');
+cursor.scale = pref('pointerScale', 1);
+const loupe = new Loupe(canvas, view, cursor);
+loupe.enabled = pref('loupe', true);
+input.onFinger = (state, x, y) => {
+  if (state === 'start') loupe.show(x, y);
+  else if (state === 'move') loupe.move(x, y);
+  else loupe.hide();
+};
 
 let hello = null;
 let currentDisplay = pref('display', null);
@@ -127,7 +137,7 @@ function deviceName() {
   if (/Macintosh/.test(ua)) return 'Mac';
   return 'A device';
 }
-stream.deviceName = deviceName();
+stream.deviceName = pref('deviceName', '') || deviceName();
 
 // ---------- Passkey lock and pause ----------
 let pausePoll;
@@ -329,11 +339,30 @@ function updateConnection() {
   chip.querySelector('.dot').dataset.q = q;
   const s = stream.stats;
   chip.dataset.tip = hello?.name || 'Connection';
-  chip.dataset.hint = q ? `${QUALITY_WORD[q]}: ${Math.round(s.rtt)} ms, ${s.fps} fps` : QUALITY_WORD[''];
+  chip.dataset.hint = q ? `${QUALITY_WORD[q]}: ${Math.round(s.rtt)} ms, ${s.fps} fps. This session: ${formatBytes(stream.sessionBytes)}` : QUALITY_WORD[''];
   chip.setAttribute('aria-label', `${macName()}. ${chip.dataset.hint}`);
   refreshTip(chip);
 }
 setInterval(updateConnection, 2000);
+
+// ---------- Data meter ----------
+let countedBytes = 0;
+let usageWarned = false;
+function usage() {
+  return { session: stream.sessionBytes, today: (pref('usage', null)?.day === localDay() ? pref('usage', null).bytes : 0) };
+}
+setInterval(() => {
+  const now = stream.sessionBytes;
+  const delta = now - countedBytes;
+  if (delta <= 0) return;
+  setPref('usage', addToDay(pref('usage', null), delta, localDay()));
+  if (!usageWarned && crossedLimit(countedBytes, now, pref('usageWarn', 0))) {
+    usageWarned = true;
+    toast(`You've used ${formatBytes(now)} this session.`, pref('quality', 'auto') === 'saver' ? null
+      : { label: 'Battery saver', run: () => { setPref('quality', 'saver'); stream.send({ t: 'quality', preset: 'saver' }); } }, 10000);
+  }
+  countedBytes = now;
+}, 5000);
 
 // ---------- Mac state banner (asleep / locked) ----------
 function showMacState(state) {
@@ -434,7 +463,7 @@ const actions = {
     sink.focus();
     setPressed('[data-action="keyboard"]', true);
   },
-  keys: openKeysSheet,
+  keys: openQuickSheet,
   clipboard: openClipboardSheet,
   files: () => openFilesSheet('downloads', ''),
   compose: openComposeSheet,
@@ -460,6 +489,9 @@ const actions = {
 };
 document.addEventListener('fullscreenchange', () => {
   $('[data-action="fullscreen"] use').setAttribute('href', `icons.svg#${document.fullscreenElement ? 'arrows-in' : 'arrows-out'}`);
+  // In full screen, Chrome and Edge can hand ⌘W, ⌘Q and friends to the Mac instead of closing the tab.
+  if (document.fullscreenElement) navigator.keyboard?.lock?.().catch(() => {});
+  else navigator.keyboard?.unlock?.();
 });
 
 toolbar.addEventListener('click', (e) => {
@@ -627,6 +659,100 @@ function openDockSheet() {
   });
 }
 
+// ---------- Quick actions ----------
+const QUICK = [
+  ['speaker-low', 'Volume down', 'volumeDown'], ['speaker-high', 'Volume up', 'volumeUp'], ['speaker-x', 'Mute', 'mute'],
+  ['skip-back', 'Previous', 'previous'], ['play-pause', 'Play or pause', 'playPause'], ['skip-forward', 'Next', 'next'],
+  ['squares-four', 'Mission Control', 'missionControl'], ['moon', 'Sleep display', 'sleepDisplay'], ['lock-key', 'Lock screen', 'lockScreen'],
+];
+function tile(glyph, label, run) {
+  return el('button', { className: 'tile', onclick: run }, icon(glyph), el('span', { textContent: label }));
+}
+function openQuickSheet() {
+  openSheet('Quick actions', (body) => {
+    let lockArmed = 0;
+    body.append(el('div', { className: 'tiles' }, ...QUICK.map(([glyph, label, name]) => tile(glyph, label, (e) => {
+      if (name === 'lockScreen' && Date.now() - lockArmed > 3000) {
+        // Unlocking needs the Mac's password, so ask for a second tap.
+        lockArmed = Date.now();
+        e.currentTarget.querySelector('span').textContent = 'Tap again to lock';
+        return;
+      }
+      stream.send({ t: 'action', name });
+      if (name === 'sleepDisplay' || name === 'lockScreen' || name === 'missionControl') closeSheet();
+    }))));
+    body.append(el('h3', { textContent: 'More' }), el('div', { className: 'tiles' },
+      tile('camera', 'Screenshot', () => { closeSheet(); takeScreenshot(); }),
+      tile('link', 'Open a link', openLinkSheet),
+      tile('magnifying-glass', 'Open an app', openAppsSheet),
+      tile('keyboard', 'Keys and shortcuts', openKeysSheet),
+      tile('warning-circle', 'Force Quit', () => { stream.send({ t: 'action', name: 'forceQuit' }); closeSheet(); })));
+  });
+}
+
+// Saves what's on screen to this device: the share sheet (Photos) on phones, a download elsewhere.
+// The image is made synchronously so Safari still counts the tap as the share's user gesture.
+function takeScreenshot() {
+  if (!stream.hasVideo) { toast('Nothing on screen yet'); return; }
+  const url = canvas.toDataURL('image/png');
+  const bytes = Uint8Array.from(atob(url.split(',')[1]), (c) => c.charCodeAt(0));
+  const stamp = new Date().toISOString().slice(0, 19).replace('T', ' at ').replace(/:/g, '.');
+  const name = `${(hello?.name || 'Mac').replace(/[^\w ]+/g, '')} ${stamp}.png`;
+  const file = new File([bytes], name, { type: 'image/png' });
+  if (navigator.canShare?.({ files: [file] })) {
+    navigator.share({ files: [file] }).then(() => toast('Screenshot shared')).catch((err) => {
+      if (err.name !== 'AbortError') toast(`Couldn't share the screenshot: ${err.message}`);
+    });
+    return;
+  }
+  const a = el('a', { href: URL.createObjectURL(file), download: name });
+  document.body.append(a); a.click(); a.remove();
+  toast('Screenshot saved');
+}
+
+function openLinkSheet() {
+  openSheet('Open a link on the Mac', (body) => {
+    const field = el('input', { type: 'url', placeholder: 'https://', className: 'field', 'aria-label': 'Link to open on the Mac',
+      autocapitalize: 'off', autocorrect: 'off', inputMode: 'url', enterKeyHint: 'go' });
+    const go = () => {
+      let v = field.value.trim();
+      if (v && !/^https?:\/\//i.test(v)) v = `https://${v}`;
+      try { const u = new URL(v); if (!/^https?:$/.test(u.protocol)) throw new Error(); } catch { toast('That doesn\'t look like a web link'); return; }
+      stream.send({ t: 'openURL', url: v });
+      toast('Opening on the Mac');
+      closeSheet();
+    };
+    field.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    body.append(field, el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Open on the Mac', onclick: go })),
+      el('p', { className: 'muted', textContent: 'It opens in the Mac\'s default browser.' }));
+    setTimeout(() => field.focus(), 50);
+  });
+}
+
+async function openAppsSheet() {
+  openSheet('Open an app', (body) => {
+    const field = el('input', { type: 'search', placeholder: 'Search apps', className: 'field', 'aria-label': 'Search apps',
+      autocapitalize: 'off', autocorrect: 'off', enterKeyHint: 'go' });
+    const list = el('div', { className: 'list' }, el('p', { className: 'muted', textContent: 'Loading the Mac\'s apps.' }));
+    body.append(field, el('div', { style: 'height:8px' }), list);
+    let apps = [];
+    const render = () => {
+      const q = field.value.trim().toLowerCase();
+      const shown = apps.filter((a) => a.name.toLowerCase().includes(q)).slice(0, 60);
+      list.replaceChildren(...(shown.length ? shown.map((a) => el('button', { className: 'choice', textContent: a.name, onclick: () => {
+        stream.send({ t: 'openApp', path: a.path });
+        toast(`Opening ${a.name}`);
+        closeSheet();
+      } })) : [el('div', { className: 'empty' }, icon('magnifying-glass'), el('span', { textContent: 'No app by that name.' }))]));
+    };
+    field.addEventListener('input', render);
+    field.addEventListener('keydown', (e) => { if (e.key === 'Enter') list.querySelector('button')?.click(); });
+    fetch('apps').then((r) => r.json()).then((d) => { apps = d.apps || []; render(); })
+      .catch(() => list.replaceChildren(el('p', { className: 'muted', textContent: 'Couldn\'t load the Mac\'s apps.' })));
+    if (!isTouch) setTimeout(() => field.focus(), 50);
+  });
+}
+
 // ---------- Keys and shortcuts ----------
 const KEYS = [
   ['esc', 'Escape'], ['tab', 'Tab'], ['⌫', 'Backspace'], ['⌦', 'Delete'], ['return', 'Enter'], ['space', 'Space'],
@@ -731,7 +857,7 @@ function openSettingsSheet() {
         el('p', { className: 'muted', textContent: 'Fit screen resizes the Mac\'s desktop to this device\'s shape while you\'re connected, and switches back when you disconnect. It uses an undocumented macOS feature.' }));
     }
     body.append(el('h3', { textContent: 'Quality' }), segmented(
-      [['auto', 'Auto', 'adapts'], ['fast', 'Fast', 'cellular'], ['balanced', 'Balanced', '1080p'], ['sharp', 'Sharp', 'full res']],
+      [['auto', 'Auto', 'adapts'], ['saver', 'Saver', 'battery'], ['fast', 'Fast', 'cellular'], ['balanced', 'Balanced', '1080p'], ['sharp', 'Sharp', 'full res']],
       pref('quality', 'auto'),
       (q) => { setPref('quality', q); stream.send({ t: 'quality', preset: q }); }, 'Quality'));
     body.append(el('h3', { textContent: 'Pause when idle' }), segmented(
@@ -745,7 +871,29 @@ function openSettingsSheet() {
         input.touchMode,
         (m) => { input.touchMode = m; setPref('touchMode', m); }, 'Touch'),
         el('p', { className: 'muted' }, 'Gestures are in ', el('button', { className: 'link', textContent: 'Tips', onclick: actions.tips }), '.'));
+      body.append(el('h3', { textContent: 'Pointer size' }), segmented(
+        [[1, 'Normal'], [1.5, 'Large'], [2, 'Larger']], pref('pointerScale', 1),
+        (v) => { setPref('pointerScale', v); cursor.scale = v; cursor.render(); }, 'Pointer size'));
+      body.append(el('div', { className: 'menu' }, toggleRow('magnifying-glass', 'Magnifier', loupe.enabled, (e) => {
+        loupe.enabled = !loupe.enabled;
+        setPref('loupe', loupe.enabled);
+        const b = e.currentTarget;
+        b.setAttribute('aria-checked', String(loupe.enabled));
+        const st = b.querySelector('.state'); st.textContent = loupe.enabled ? 'On' : 'Off'; st.classList.toggle('on', loupe.enabled);
+      }, 'A zoomed view above your finger when dragging')));
     }
+    body.append(el('h3', { textContent: 'Data' }), segmented(
+      [[0, 'No warning'], [250, '250 MB'], [500, '500 MB'], [1000, '1 GB']], pref('usageWarn', 0),
+      (v) => { setPref('usageWarn', v); usageWarned = false; }, 'Warn me after'),
+      el('p', { className: 'muted', textContent: 'Shows a reminder once a session uses this much, handy on cellular.' }));
+    const nameField = el('input', { className: 'field', value: pref('deviceName', '') , placeholder: deviceName(), 'aria-label': 'This device\'s name', maxLength: 40 });
+    body.append(el('h3', { textContent: 'This device\'s name' }), nameField,
+      el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Save name', onclick: () => {
+        setPref('deviceName', nameField.value.trim());
+        stream.deviceName = nameField.value.trim() || deviceName();
+        toast('Saved. The Mac shows it from your next connection.');
+      } })),
+      el('p', { className: 'muted', textContent: 'Shown in the Mac\'s Tether panel, its activity list and your passkeys.' }));
   });
 }
 
@@ -760,6 +908,7 @@ function openConnectionSheet() {
       el('p', { className: 'muted stats', textContent: stream.hasVideo
         ? `${view.videoW} × ${view.videoH}, ${s.codec}, ${s.fps} fps, ${(s.kbps / 1000).toFixed(1)} Mbps, ${Math.round(s.rtt)} ms${pref('quality', 'auto') === 'auto' ? ', Auto quality' : ''}`
         : 'Waiting for video.' }),
+      el('p', { className: 'muted stats', textContent: `Data: ${formatBytes(usage().session)} this session, ${formatBytes(usage().today)} today on this device.` }),
       el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Reconnect', onclick: () => { stream.reconnect(); closeSheet(); } })));
     body.append(el('div', { className: 'menu' },
       toggleRow('eye', 'View only', viewOnly, () => { setViewOnly(!viewOnly); closeSheet(); }, 'Watch without controlling'),
@@ -821,7 +970,8 @@ function openComposeSheet() {
 }
 
 // ---------- Files (browse and download, upload) ----------
-const ROOTS = [['downloads', 'Downloads'], ['desktop', 'Desktop']];
+const ROOTS = [['downloads', 'Downloads'], ['desktop', 'Desktop'], ['documents', 'Documents']];
+let uploadTarget = { root: 'downloads', path: '', label: 'Downloads' };
 const fmtSize = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : n < 1073741824 ? `${(n / 1048576).toFixed(1)} MB` : `${(n / 1073741824).toFixed(2)} GB`);
 
 function openFilesSheet(root, path) {
@@ -833,8 +983,10 @@ function openFilesSheet(root, path) {
         b.setAttribute('aria-checked', String(id === root));
         return b;
       })),
-      el('div', { className: 'row' }, el('button', { className: 'primary', onclick: () => $('#file-input').click() },
-        'Upload to the Mac\'s Downloads')));
+      el('div', { className: 'row' }, el('button', { className: 'primary', onclick: () => {
+        uploadTarget = { root, path, label: path ? path.split('/').pop() : ROOTS.find(([id]) => id === root)[1] };
+        $('#file-input').click();
+      } }, `Upload here (${path ? path.split('/').pop() : ROOTS.find(([id]) => id === root)[1]})`)));
     const parts = path ? path.split('/') : [];
     const crumbs = el('nav', { className: 'crumbs', 'aria-label': 'Folder' },
       el('button', { className: 'link', textContent: ROOTS.find(([id]) => id === root)[1], onclick: () => openFilesSheet(root, '') }));
@@ -875,27 +1027,30 @@ function toast(text, action = null, ms = 2500) {
 }
 
 // ---------- File upload ----------
-function uploadFiles(files) {
+// Dropped files go to Downloads; "Upload here" sends them to the folder being browsed.
+function uploadFiles(files, target = { root: 'downloads', path: '', label: 'Downloads' }) {
   for (const file of files) {
     const xhr = new XMLHttpRequest();
     const bar = el('progress', { max: 1, value: 0 });
-    const t = toast(`Sending ${file.name}`, null, 0);
+    const t = toast(`Sending ${file.name} to ${target.label}`, null, 0);
     t.append(bar);
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.value = e.loaded / e.total; };
     xhr.onload = () => {
       if (xhr.status === 200) {
         const saved = JSON.parse(xhr.responseText).saved;
-        toast(`Saved to Downloads: ${saved}`, null, 4000);
+        toast(`Saved to ${target.label}: ${saved}`, null, 4000);
       } else {
-        toast(`Upload failed (${xhr.status})`, null, 5000);
+        let msg = `Upload failed (${xhr.status})`;
+        try { msg = JSON.parse(xhr.responseText).error || msg; } catch { /* not JSON */ }
+        toast(msg, null, 6000);
       }
     };
     xhr.onerror = () => toast('Upload failed. The connection dropped.', null, 5000);
-    xhr.open('POST', `upload?name=${encodeURIComponent(file.name)}`);
+    xhr.open('POST', `upload?name=${encodeURIComponent(file.name)}&root=${target.root}&path=${encodeURIComponent(target.path)}`);
     xhr.send(file);
   }
 }
-$('#file-input').addEventListener('change', (e) => { uploadFiles(e.target.files); e.target.value = ''; });
+$('#file-input').addEventListener('change', (e) => { uploadFiles(e.target.files, uploadTarget); e.target.value = ''; });
 
 let dragDepth = 0;
 addEventListener('dragenter', (e) => { if (e.dataTransfer?.types.includes('Files')) { dragDepth++; $('#drop-hint').hidden = false; e.preventDefault(); } });

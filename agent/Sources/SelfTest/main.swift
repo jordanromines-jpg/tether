@@ -236,5 +236,42 @@ do {
     expect(!TetherMarker.isRemote(eventUserData: 0), "physical events have no marker")
 }
 
+// v4 batch 2: battery saver, activity log, update check
+do {
+    let saver = QualityPreset.saver
+    expect(saver.maxWidth == 960 && saver.fps == 30 && saver.bitrate == 1_200_000, "battery saver preset")
+    expect(QualityPreset(rawValue: "saver") == .saver, "saver parses from the client")
+    expect(saver.bitrate < QualityPreset.fast.bitrate, "saver uses less than fast")
+
+    let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+    var log = ActivityLog(limit: 3)
+    let ids = (0..<4).map { _ in UUID() }
+    for (i, id) in ids.enumerated() {
+        log.started(ActivityEntry(id: id, login: "owner@example.com", device: "Device \(i)", start: t0.addingTimeInterval(Double(i) * 60)))
+    }
+    expect(log.entries.count == 3 && log.entries.first?.device == "Device 3", "log keeps the newest, newest first")
+    log.ended(id: ids[3], at: t0.addingTimeInterval(180 + 65 * 60), viewOnly: true)
+    expect(log.entries[0].durationText() == "1 h 5 min" && log.entries[0].viewOnly, "ended session duration and view-only flag")
+    expect(log.entries[1].durationText() == "now", "open session reads now")
+    log.closeDangling(at: t0.addingTimeInterval(200))
+    expect(log.entries.allSatisfy { $0.end != nil }, "dangling sessions closed after a restart")
+    let round = ActivityLog(json: log.json, limit: 3)
+    expect(round == log, "activity log round-trips through JSON")
+    expect(ActivityLog(json: Data("garbage".utf8)).entries.isEmpty, "bad activity file is empty, not a crash")
+    var short = ActivityEntry(id: UUID(), login: "a", device: "b", start: t0)
+    short.end = t0.addingTimeInterval(20)
+    expect(short.durationText() == "under a minute", "short session wording")
+
+    let gh = Data(#"{"sha":"abc","commit":{"committer":{"date":"2026-10-06T18:00:00Z"}}}"#.utf8)
+    let remote = UpdateCheck.latestCommitDate(gh)
+    expect(remote != nil, "GitHub commit date parsed")
+    let build = ISO8601DateFormatter().date(from: "2026-10-01T09:00:00Z")
+    expect(UpdateCheck.isNewer(remote: remote, build: build), "newer commit means an update")
+    expect(!UpdateCheck.isNewer(remote: build, build: remote), "older remote is not an update")
+    expect(!UpdateCheck.isNewer(remote: remote, build: remote), "same commit is not an update")
+    expect(!UpdateCheck.isNewer(remote: remote, build: nil), "unknown build date never nags")
+    expect(UpdateCheck.latestCommitDate(Data("{}".utf8)) == nil, "unexpected GitHub reply ignored")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

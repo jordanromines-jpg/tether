@@ -1,6 +1,15 @@
 import SwiftUI
+import TetherCore
 
 /// One connected viewer, as shown in the panel.
+/// One enrolled passkey, as listed in the panel.
+public struct PasskeyRow: Identifiable, Equatable {
+    public let id: String
+    public let device: String
+    public let created: Date
+    public init(id: String, device: String, created: Date) { self.id = id; self.device = device; self.created = created }
+}
+
 public struct SessionRow: Identifiable, Equatable {
     public let id: UUID
     public let device: String
@@ -44,6 +53,10 @@ public struct PanelActions {
     public var setCurtain: (Bool) -> Void = { _ in }
     public var openHelp: () -> Void = {}
     public var reportProblem: () -> Void = {}
+    public var removePasskey: (String) -> Void = { _ in }
+    public var showAllActivity: () -> Void = {}
+    public var setCheckUpdates: (Bool) -> Void = { _ in }
+    public var openUpdateHelp: () -> Void = {}
     public init() {}
 }
 
@@ -60,6 +73,10 @@ public final class PanelModel: ObservableObject {
     @Published public var startAtLogin = false
     @Published public var linkCopied = false
     @Published public var curtainOn = false
+    @Published public var activity: [ActivityEntry] = []
+    @Published public var passkeys: [PasskeyRow] = []
+    @Published public var updateAvailable = false
+    @Published public var checkUpdates = true
     public var actions = PanelActions()
     public init() {}
 
@@ -93,10 +110,12 @@ public struct StatusPanelView: View {
             header
             Divider()
             VStack(alignment: .leading, spacing: 14) {
+                if model.updateAvailable { update }
                 if model.curtainOn { curtain }
                 if !model.screenAllowed || !model.inputAllowed { permissions }
                 if let url = model.url, !model.paused { link(url) }
                 devices
+                if !model.activity.isEmpty { activity }
                 passkeys
             }
             .padding(14)
@@ -231,6 +250,21 @@ public struct StatusPanelView: View {
                 Spacer(minLength: 0)
                 Toggle("Require Face ID or Touch ID", isOn: passkey).toggleStyle(.switch).controlSize(.small).labelsHidden()
             }
+            if model.passkeyRequired && !model.passkeys.isEmpty {
+                ForEach(model.passkeys) { k in
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.badge.key").foregroundStyle(.secondary).frame(width: 20)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(k.device).font(.callout)
+                            Text("Added \(k.created.formatted(date: .abbreviated, time: .omitted))").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Remove") { model.actions.removePasskey(k.id) }
+                            .buttonStyle(.borderless).font(.caption)
+                            .help("Removes this passkey and signs every device out; the others unlock again with Face ID")
+                    }
+                }
+            }
             if model.passkeyRequired {
                 HStack {
                     Button(model.enrolling ? "Waiting for a device…" : "Add a passkey", action: model.actions.openEnrollment)
@@ -241,6 +275,33 @@ public struct StatusPanelView: View {
                     }
                 }
                 .controlSize(.small)
+            }
+        }
+    }
+
+    private var update: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Update available").font(.subheadline.weight(.semibold))
+                Text("A newer Tether is on GitHub.").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("How to update", action: model.actions.openUpdateHelp).controlSize(.small)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.1)))
+    }
+
+    private var activity: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Recent activity").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Button("Show all", action: model.actions.showAllActivity).buttonStyle(.borderless).font(.caption)
+            }
+            ForEach(model.activity.prefix(3), id: \.id) { e in
+                ActivityRowView(entry: e)
             }
         }
     }
@@ -264,6 +325,10 @@ public struct StatusPanelView: View {
             if model.loginItemInstalled {
                 Toggle("Start Tether at login", isOn: login).toggleStyle(.checkbox).padding(.horizontal, 14).padding(.vertical, 6)
             }
+            Toggle("Check for updates", isOn: Binding(get: { model.checkUpdates },
+                                                       set: { model.checkUpdates = $0; model.actions.setCheckUpdates($0) }))
+                .toggleStyle(.checkbox).padding(.horizontal, 14).padding(.bottom, 4)
+                .help("Once a day, asks GitHub whether a newer Tether exists")
             FooterButton(title: "Setup Assistant…", symbol: "wand.and.stars", action: model.actions.openSetup)
             FooterButton(title: "Add a shortcut…", symbol: "plus.app", action: model.actions.addShortcut)
             FooterButton(title: "Help and docs", symbol: "questionmark.circle", action: model.actions.openHelp)
@@ -301,3 +366,38 @@ struct FooterButton: View {
 }
 
 final class Hover: ObservableObject { @Published var on = false }
+
+/// One line of the activity list: device, when, how long.
+public struct ActivityRowView: View {
+    let entry: ActivityEntry
+    public init(entry: ActivityEntry) { self.entry = entry }
+    public var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(entry.device + (entry.viewOnly ? " (viewing)" : "")).font(.callout)
+                Text(entry.login).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(entry.start.formatted(.relative(presentation: .named))).font(.caption)
+                Text(entry.durationText()).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// "Show all" activity window.
+public struct ActivityListView: View {
+    let entries: [ActivityEntry]
+    public init(entries: [ActivityEntry]) { self.entries = entries }
+    public var body: some View {
+        Group {
+            if entries.isEmpty {
+                Text("No one has connected yet.").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(entries, id: \.id) { ActivityRowView(entry: $0).padding(.vertical, 2) }
+            }
+        }
+        .frame(minWidth: 420, minHeight: 360)
+    }
+}
