@@ -12,6 +12,7 @@ import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
 import { Loupe } from './loupe.js';
+import { comboLabel, buildCombo, parsePinned, togglePinned, isPinned, MAX_PINNED } from './shortcuts.js';
 import { formatBytes, addToDay, crossedLimit, localDay } from './usage.js';
 import { idleMinutes, shouldIdlePause, shouldHiddenPause, HIDDEN_PAUSE_MS, DEFAULT_IDLE_MINUTES } from './idle.js';
 
@@ -124,7 +125,8 @@ function showConnectHelp() {
     item('Is Tether running?', 'Look for the Tether icon in the Mac\'s menu bar. If it\'s paused, resume it there.'));
   $('#status-help').hidden = false;
   if (!$('#status-actions').children.length) {
-    $('#status-actions').append(el('button', { className: 'secondary', textContent: 'Try again', onclick: () => stream.reconnect() }));
+    $('#status-actions').append(el('button', { className: 'secondary', textContent: 'Try again', onclick: () => stream.reconnect() }),
+      el('button', { className: 'secondary', textContent: 'Your other Macs', onclick: openMacsSheet }));
   }
 }
 
@@ -206,6 +208,13 @@ stream.addEventListener('hello', (e) => {
   if (missing.length) toast(`On the Mac, allow Tether in Privacy & Security: ${missing.join(' and ')}.`, null, 9000);
 });
 stream.addEventListener('display', (e) => { currentDisplay = e.detail.id; });
+stream.addEventListener('windows', (e) => windowsReply?.(e.detail.list || []));
+stream.addEventListener('target', (e) => {
+  const one = e.detail.window != null;
+  $('[data-action="wholescreen"]').hidden = !one;
+  if (one) toast(`Showing only ${e.detail.app}: ${e.detail.title}`);
+  fit();
+});
 stream.addEventListener('curtain', (e) => {
   curtainOn = !!e.detail.on;
   toast(curtainOn ? 'Curtain on. The Mac\'s own screen is black.' : 'Curtain off');
@@ -223,11 +232,30 @@ stream.addEventListener('error', (e) => {
   if (stream.hasVideo) toast(e.detail.msg, null, 6000);
   else status('error', 'Can\'t show the screen', e.detail.msg, [{ label: 'Try again', run: () => stream.reconnect() }]);
 });
+let lastMacHTML = null;
+let lastMacImage = null;   // { id, w, h }
 stream.addEventListener('clip', (e) => {
+  if (e.detail.kind === 'image') {
+    lastMacImage = { id: e.detail.id, w: e.detail.w, h: e.detail.h };
+    toast(`Mac copied an image (${e.detail.w} × ${e.detail.h})`, { label: 'Copy', run: () => copyMacImage(lastMacImage.id) }, 8000);
+    return;
+  }
   lastMacClip = e.detail.s;
+  lastMacHTML = e.detail.html || null;
   const preview = lastMacClip.replace(/\s+/g, ' ').slice(0, 60);
-  toast(`Mac copied: "${preview}"`, { label: 'Copy', run: () => copyLocal(lastMacClip) }, 6000);
+  toast(`Mac copied: "${preview}"`, { label: 'Copy', run: () => copyLocal(lastMacClip, lastMacHTML) }, 6000);
 });
+
+// Copies the Mac's image to this device. The fetch promise goes straight into the ClipboardItem,
+// so Safari still counts the tap as the user gesture it needs.
+function copyMacImage(id) {
+  try {
+    const blob = fetch(`clipboard/image?id=${id}`).then((r) => { if (!r.ok) throw new Error('gone'); return r.blob(); });
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      .then(() => toast('Image copied to this device'))
+      .catch(() => toast('Couldn\'t copy the image. Open Clipboard to save it instead.'));
+  } catch { toast('This browser can\'t copy images. Open Clipboard to save it instead.'); }
+}
 
 // ---------- Saving power: idle and background pauses ----------
 // After a stretch with no interaction, or when the page goes out of sight, stop streaming so the
@@ -484,6 +512,9 @@ const actions = {
   hide: () => setToolbarHidden(true),
   more: openMoreSheet,
   viewonly: () => setViewOnly(false),
+  windows: openWindowsSheet,
+  wholescreen: () => stream.send({ t: 'captureWindow' }),
+  capture: () => canvas.requestPointerLock?.(),
   move: openDockSheet,
   tips: () => { closeSheet(); input.enabled = false; showTips({ touch: isTouch, force: true, closed: () => { input.enabled = !sheetOpen(); } }); },
 };
@@ -601,6 +632,11 @@ function openMoreSheet() {
           })));
         continue;
       }
+      if (item.classList.contains('pin')) {
+        menu.append(el('button', { className: 'menu-item', role: 'menuitem', onclick: () => { closeSheet(); kb.combo(parsePinned(pref('pinned', [])).find((p) => p.label === item.dataset.tip)?.combo ?? []); } },
+          icon('push-pin'), el('span', { textContent: item.dataset.tip }), el('small', { textContent: item.textContent })));
+        continue;
+      }
       const glyph = item.querySelector('use')?.getAttribute('href')?.split('#')[1] || 'desktop';
       const label = item.dataset.action === 'macs' ? (hello?.name || 'Connection') : item.dataset.tip;
       const extra = item.dataset.action === 'macs' ? el('small', { className: 'stats', textContent: item.dataset.hint }) : '';
@@ -614,6 +650,9 @@ function openMoreSheet() {
       toggleRow('eye', 'View only', viewOnly, () => { setViewOnly(!viewOnly); closeSheet(); }),
       ...(viewOnly ? [] : [toggleRow('eye-slash', 'Curtain', curtainOn, () => { setCurtain(!curtainOn); closeSheet(); },
         'Blacks out the Mac\'s own screen')]),
+      el('button', { className: 'menu-item', role: 'menuitem', onclick: openMacsSheet }, icon('desktop'), el('span', { textContent: 'Your Macs' })),
+      ...(pointerCaptureAvailable() ? [el('button', { className: 'menu-item', role: 'menuitem', onclick: () => closeSheet().then(actions.capture) },
+        icon('cursor'), el('span', {}, 'Capture pointer', el('small', { className: 'hint', textContent: 'Your trackpad moves the Mac\'s pointer. Esc to release.' })))] : []),
       el('hr'),
       el('button', { className: 'menu-item', role: 'menuitem', onclick: actions.tips }, icon('lightbulb'), el('span', { textContent: 'Tips' })));
     if (hello?.links) {
@@ -639,7 +678,7 @@ function toggleRow(glyph, label, on, run, hint = '') {
 
 // Run a toolbar action from the More menu: actions that open their own sheet replace this one.
 function closeSheetThen(fn) {
-  const opensSheet = [actions.keys, actions.clipboard, actions.files, actions.compose, actions.macs, actions.settings].includes(fn);
+  const opensSheet = [actions.keys, actions.clipboard, actions.files, actions.compose, actions.macs, actions.settings, actions.windows].includes(fn);
   if (opensSheet) { fn(); return; }
   closeSheet().then(() => fn?.());
 }
@@ -753,6 +792,71 @@ async function openAppsSheet() {
   });
 }
 
+// ---------- Windows (switcher and single-window mode) ----------
+let windowsReply = null;
+function openWindowsSheet() {
+  openSheet('Windows', (body) => {
+    const list = el('div', { className: 'list' }, el('p', { className: 'muted', textContent: 'Finding the Mac\'s windows.' }));
+    let fitOn = pref('windowFit', isTouch);
+    const fitRow = toggleRow('arrows-out', 'Fit to this device', fitOn, (e) => {
+      fitOn = !fitOn;
+      setPref('windowFit', fitOn);
+      const b = e.currentTarget;
+      b.setAttribute('aria-checked', String(fitOn));
+      const st = b.querySelector('.state'); st.textContent = fitOn ? 'On' : 'Off'; st.classList.toggle('on', fitOn);
+    }, 'Resizes the window to your screen\'s shape while you use it');
+    body.append(el('p', { className: 'muted', textContent: 'Tap a window to bring it to the front, or Show only to see just that window.' }),
+      el('div', { className: 'menu' }, fitRow), list);
+    windowsReply = (wins) => {
+      windowsReply = null;
+      list.replaceChildren();
+      if (!wins.length) { list.append(el('div', { className: 'empty' }, icon('app-window'), el('span', { textContent: 'No windows are open on the Mac.' }))); return; }
+      for (const w of wins) {
+        const img = w.icon ? el('img', { className: 'app-icon', src: `data:image/png;base64,${w.icon}`, alt: '' }) : icon('app-window');
+        list.append(el('div', { className: 'window-row' },
+          el('button', { className: 'choice window-main', onclick: () => { stream.send({ t: 'focusWindow', id: w.id }); toast(`${w.app} is in front`); closeSheet(); } },
+            img, el('span', { className: 'name' }, el('strong', { textContent: w.app }), el('small', { textContent: w.title }))),
+          el('button', { className: 'secondary', textContent: 'Show only', onclick: () => {
+            stream.send({ t: 'captureWindow', id: w.id, fit: fitOn, aspect: innerWidth / innerHeight });
+            closeSheet();
+          } })));
+      }
+    };
+    stream.send({ t: 'windows' });
+  });
+}
+
+// ---------- Your Macs ----------
+function openMacsSheet() {
+  openSheet('Your Macs', (body) => {
+    const grid = el('div', { className: 'macs' }, el('p', { className: 'muted', textContent: 'Looking for your Macs.' }));
+    body.append(grid);
+    loadMacs(grid, true);
+  });
+}
+
+// ---------- Pointer capture ----------
+const pointerCaptureAvailable = () => 'requestPointerLock' in canvas && (!isTouch || matchMedia('(any-pointer: fine)').matches);
+document.addEventListener('pointerlockchange', () => {
+  toast(document.pointerLockElement ? 'Pointer captured. Press Esc to release it.' : 'Pointer released');
+});
+
+// ---------- Pinned shortcuts (toolbar) ----------
+function renderPinned() {
+  const group = $('#toolbar .group.pinned');
+  const pinned = parsePinned(pref('pinned', []));
+  group.replaceChildren(...pinned.map((p) => {
+    const b = el('button', { className: 'pin', 'aria-label': p.label, textContent: comboLabel(p.combo) });
+    b.dataset.prio = '5';
+    b.dataset.tip = p.label;
+    b.dataset.hint = `Sends ${comboLabel(p.combo)} to the Mac`;
+    b.addEventListener('click', (e) => { e.stopPropagation(); kb.combo(p.combo); });
+    return b;
+  }));
+  fit();
+}
+renderPinned();
+
 // ---------- Keys and shortcuts ----------
 const KEYS = [
   ['esc', 'Escape'], ['tab', 'Tab'], ['⌫', 'Backspace'], ['⌦', 'Delete'], ['return', 'Enter'], ['space', 'Space'],
@@ -773,20 +877,79 @@ function openKeysSheet() {
     body.append(el('h3', { textContent: 'Keys' }),
       el('div', { className: 'grid' }, ...KEYS.map(([label, code]) =>
         el('button', { className: 'key-btn', textContent: label, onclick: () => kb.tap(code) }))));
-    body.append(el('h3', { textContent: 'Shortcuts' }),
-      el('div', { className: 'grid' }, ...SHORTCUTS.map(([label, combo]) =>
-        el('button', { className: 'key-btn', textContent: label, onclick: () => { kb.combo(combo); closeSheet(); } }))));
+    let editing = false;
+    const shortcutsGrid = el('div', { className: 'grid' });
+    const drawShortcuts = () => {
+      const pinned = parsePinned(pref('pinned', []));
+      shortcutsGrid.replaceChildren(...SHORTCUTS.map(([label, combo]) => {
+        const on = isPinned(pinned, combo);
+        const b = el('button', { className: `key-btn${editing && on ? ' pinned-on' : ''}`, textContent: editing ? `${on ? 'Unpin' : 'Pin'} ${label}` : label,
+          onclick: () => {
+            if (!editing) { kb.combo(combo); closeSheet(); return; }
+            const next = togglePinned(pinned, { label, combo });
+            if (next.length === pinned.length && !on) toast(`You can pin up to ${MAX_PINNED}`);
+            setPref('pinned', next); renderPinned(); drawShortcuts();
+          } });
+        return b;
+      }));
+    };
+    drawShortcuts();
+    const editBtn = el('button', { className: 'link', textContent: 'Pin to toolbar', onclick: () => {
+      editing = !editing; editBtn.textContent = editing ? 'Done' : 'Pin to toolbar'; builder.hidden = !editing; drawShortcuts();
+    } });
+    // Build your own: modifiers plus one key.
+    const mods = new Set(['MetaLeft']);
+    const modRow = el('div', { className: 'mods-row' }, ...[['ControlLeft', '⌃'], ['AltLeft', '⌥'], ['ShiftLeft', '⇧'], ['MetaLeft', '⌘']].map(([code, sym]) => {
+      const b = el('button', { className: 'choice', textContent: sym, 'aria-label': code.replace('Left', '') });
+      b.setAttribute('aria-pressed', String(mods.has(code)));
+      b.addEventListener('click', () => { mods.has(code) ? mods.delete(code) : mods.add(code); b.setAttribute('aria-pressed', String(mods.has(code))); });
+      return b;
+    }));
+    const keyField = el('input', { className: 'field', placeholder: 'Key, like K or 4', maxLength: 1, 'aria-label': 'Key', autocapitalize: 'characters' });
+    const nameField = el('input', { className: 'field', placeholder: 'Name, like Clear history', 'aria-label': 'Shortcut name', maxLength: 30 });
+    const builder = el('div', { className: 'builder', hidden: true },
+      el('h3', { textContent: 'Your own shortcut' }), modRow, el('div', { className: 'row' }, keyField, nameField),
+      el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Pin it', onclick: () => {
+        const ch = keyField.value.trim().toUpperCase();
+        const key = /^[A-Z]$/.test(ch) ? `Key${ch}` : /^[0-9]$/.test(ch) ? `Digit${ch}` : '';
+        const combo = buildCombo([...mods], key);
+        if (!combo) { toast('Type one letter or number for the key'); return; }
+        const pinned = parsePinned(pref('pinned', []));
+        if (pinned.length >= MAX_PINNED) { toast(`You can pin up to ${MAX_PINNED}`); return; }
+        setPref('pinned', togglePinned(pinned, { label: nameField.value.trim() || comboLabel(combo), combo }));
+        renderPinned(); keyField.value = ''; nameField.value = '';
+        toast(`Pinned ${comboLabel(combo)} to the toolbar`);
+      } })));
+    body.append(el('div', { className: 'section-head' }, el('h3', { textContent: 'Shortcuts' }), editBtn), shortcutsGrid, builder);
   });
 }
 
 // ---------- Clipboard ----------
-async function copyLocal(text) {
+async function copyLocal(text, html = null) {
   try {
-    await navigator.clipboard.writeText(text);
-    toast('Copied to this device');
+    if (html && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]);
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+    toast(html ? 'Copied with formatting' : 'Copied to this device');
   } catch {
     toast('Couldn\'t copy. Open Clipboard to select it by hand.');
   }
+}
+
+// Sends an image from this device's clipboard to the Mac's clipboard.
+async function pasteImageToMac() {
+  try {
+    const items = await navigator.clipboard.read();
+    const item = items.find((i) => i.types.some((t) => t.startsWith('image/')));
+    if (!item) { toast('There\'s no image on this device\'s clipboard'); return; }
+    const blob = await item.getType(item.types.find((t) => t.startsWith('image/')));
+    const r = await fetch('clipboard/image', { method: 'POST', body: blob });
+    const d = await r.json().catch(() => ({}));
+    toast(r.ok ? 'Image is on the Mac\'s clipboard. Press ⌘V there to paste it.' : (d.error || 'Couldn\'t send the image'));
+  } catch { toast('Clipboard access was blocked. Allow pasting when the browser asks.'); }
 }
 
 function sendClip(text, paste) {
@@ -805,6 +968,11 @@ function openClipboardSheet() {
         ? el('div', {}, el('textarea', { readOnly: true, value: lastMacClip, 'aria-label': 'Last text copied on the Mac' }),
             el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Copy to this device', onclick: () => copyLocal(lastMacClip) })))
         : el('div', { className: 'empty' }, icon('clipboard-text'), el('span', { textContent: 'Copy something on the Mac and it shows up here.' })),
+      ...(lastMacImage ? [el('h3', { textContent: 'Image from the Mac' }),
+        el('img', { className: 'clip-image', src: `clipboard/image?id=${lastMacImage.id}`, alt: 'Image copied on the Mac' }),
+        el('div', { className: 'row' },
+          el('button', { className: 'secondary', textContent: 'Copy image', onclick: () => copyMacImage(lastMacImage.id) }),
+          el('a', { className: 'secondary button-link', textContent: 'Save image', href: `clipboard/image?id=${lastMacImage.id}`, download: 'Mac clipboard.png' }))] : []),
       el('h3', { textContent: 'To the Mac' }),
       area,
       el('div', { className: 'row' },
@@ -812,6 +980,7 @@ function openClipboardSheet() {
           try { area.value = await navigator.clipboard.readText(); } catch { toast('Clipboard access was blocked. Paste into the box instead.'); }
         } }),
         el('button', { className: 'secondary', textContent: 'Send', onclick: () => { sendClip(area.value, false); closeSheet(); } }),
+        el('button', { className: 'secondary', textContent: 'Paste image', onclick: pasteImageToMac }),
         el('button', { className: 'primary', textContent: 'Send and paste', onclick: () => { sendClip(area.value, true); closeSheet(); } })),
     );
   });
@@ -837,8 +1006,19 @@ function openSettingsSheet() {
   openSheet('Display and quality', (body) => {
     const displays = hello?.displays ?? [];
     if (displays.length > 1) {
-      body.append(el('h3', { textContent: 'Screen' }), el('div', { className: 'list', role: 'radiogroup', 'aria-label': 'Screen' }, ...displays.map((d) => {
-        const b = el('button', { className: 'choice', role: 'radio' }, d.name, el('small', { className: 'stats', textContent: `${d.w} × ${d.h}` }));
+      // A live overview: each display's picture refreshes about once a second while this is open.
+      const thumbs = [];
+      const refresh = () => {
+        if (sheet.hidden || !thumbs[0]?.isConnected) return;
+        for (const t of thumbs) t.src = `thumbnail?display=${t.dataset.id}&w=320&t=${Date.now()}`;
+        setTimeout(refresh, 1200);
+      };
+      setTimeout(refresh, 50);
+      body.append(el('h3', { textContent: 'Screen' }), el('div', { className: 'list displays', role: 'radiogroup', 'aria-label': 'Screen' }, ...displays.map((d) => {
+        const thumb = el('img', { className: 'display-thumb', alt: d.name });
+        thumb.dataset.id = d.id;
+        thumbs.push(thumb);
+        const b = el('button', { className: 'choice', role: 'radio' }, thumb, d.name, el('small', { className: 'stats', textContent: `${d.w} × ${d.h}` }));
         b.setAttribute('aria-checked', String(d.id === currentDisplay));
         b.addEventListener('click', () => {
           currentDisplay = d.id;
@@ -920,32 +1100,53 @@ function openConnectionSheet() {
   });
 }
 
-async function loadMacs(container) {
+// Your Macs: this one, other Macs running Tether (with a picture), and ones that are offline.
+async function loadMacs(container, cards = false) {
   let peers = [];
   try { peers = (await (await fetch('peers')).json()).peers || []; } catch { /* offline */ }
   const probe = async (p) => {
-    if (p.self) return { ...p, up: true };
+    if (p.self) return { ...p, state: 'online' };
+    if (p.online === false) return { ...p, state: 'offline' };
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 3000);
     try {
       const r = await fetch(`${p.url}/healthz`, { mode: 'cors', signal: ctl.signal, credentials: 'omit' });
       const h = await r.json();
-      return { ...p, up: !!h.ok, label: h.name };
-    } catch { return { ...p, up: false }; } finally { clearTimeout(t); }
+      return { ...p, state: h.ok ? (h.paused ? 'paused' : 'online') : 'quiet', label: h.name };
+    } catch { return { ...p, state: 'quiet' }; } finally { clearTimeout(t); }
   };
-  const found = (await Promise.all(peers.map(probe))).filter((p) => p.up);
+  const all = await Promise.all(peers.map(probe));
   container.replaceChildren();
-  if (found.length <= 1) {
-    container.append(el('div', { className: 'empty' }, icon('desktop'),
-      el('span', { textContent: 'Only this Mac has Tether. Set it up on another Mac and it shows up here.' })));
+  if (!cards) {
+    const up = all.filter((p) => p.state === 'online');
+    if (up.length <= 1) {
+      container.append(el('div', { className: 'empty' }, icon('desktop'),
+        el('span', { textContent: 'Only this Mac has Tether. Set it up on another Mac and it shows up here.' })));
+    }
+    if (all.length > 1) container.append(el('button', { className: 'secondary', textContent: 'Show your Macs', onclick: openMacsSheet }));
     return;
   }
-  for (const p of found) {
-    const b = el('button', { className: 'choice', role: 'radio' }, p.label || p.name, el('small', { textContent: p.self ? 'This one' : new URL(p.url).host }));
-    b.setAttribute('aria-checked', String(!!p.self));
-    if (!p.self) b.addEventListener('click', () => { location.href = `${p.url}/`; });
-    container.append(b);
+  const STATUS = { online: 'Online', paused: 'Paused', quiet: 'Not answering', offline: 'Offline' };
+  const order = { online: 0, paused: 1, quiet: 2, offline: 3 };
+  all.sort((a, b) => (b.self - a.self) || (order[a.state] - order[b.state]));
+  for (const p of all) {
+    const seen = p.state === 'offline' && p.lastSeen ? `Offline since ${new Date(p.lastSeen).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : STATUS[p.state];
+    const pic = el('div', { className: 'mac-pic' });
+    if (p.state === 'online' || p.state === 'paused') {
+      const img = el('img', { alt: '', src: `${p.self ? '' : p.url + '/'}thumbnail?w=480`, loading: 'lazy' });
+      img.addEventListener('error', () => pic.replaceChildren(icon(p.self ? 'desktop' : 'lock-simple')));
+      pic.append(img);
+    } else {
+      pic.append(icon('moon'));
+    }
+    const card = el('button', { className: `mac-card ${p.state}`, disabled: p.state === 'offline' }, pic,
+      el('span', { className: 'mac-meta' }, el('strong', { textContent: p.label || p.name }),
+        el('small', {}, el('span', { className: 'dot', 'data-q': p.state === 'online' ? 'good' : p.state === 'offline' ? '' : 'fair' }), ` ${p.self ? 'This one' : seen}`)));
+    if (!p.self && p.state !== 'offline') card.addEventListener('click', () => { location.href = `${p.url}/`; });
+    else if (p.self) card.addEventListener('click', () => closeSheet());
+    container.append(card);
   }
+  if (all.length <= 1) container.append(el('p', { className: 'muted', textContent: 'Set up Tether on your other Macs and they show up here.' }));
 }
 
 // ---------- Compose (autocorrect, predictive text, dictation) ----------

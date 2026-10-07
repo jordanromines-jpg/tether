@@ -53,6 +53,7 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
         var bitrate: Int
         var audio: Bool
         var excludedWindowIDs: [CGWindowID] = []
+        var windowID: CGWindowID?    // single-window mode
     }
 
     var onFrame: ((VideoEncoder.Output) -> Void)?
@@ -81,7 +82,17 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
             throw NSError(domain: "Tether", code: 1, userInfo: [NSLocalizedDescriptionKey: "No display to capture"])
         }
         let mode = CGDisplayCopyDisplayMode(display.displayID)
-        let native = (mode?.pixelWidth ?? display.width * 2, mode?.pixelHeight ?? display.height * 2)
+        var native = (mode?.pixelWidth ?? display.width * 2, mode?.pixelHeight ?? display.height * 2)
+        // Single-window mode: capture just that window, at its own size (wherever it is).
+        var windowFilter: SCContentFilter?
+        if let wid = settings.windowID {
+            guard let w = content.windows.first(where: { $0.windowID == wid }) else {
+                throw NSError(domain: "Tether", code: 2, userInfo: [NSLocalizedDescriptionKey: "That window isn't on screen any more"])
+            }
+            windowFilter = SCContentFilter(desktopIndependentWindow: w)
+            let scale = Double(mode?.pixelWidth ?? display.width * 2) / Double(max(display.width, 1))
+            native = (max(64, Int(w.frame.width * scale)), max(64, Int(w.frame.height * scale)))
+        }
         let target = Sizing.encodeSize(nativeWidth: native.0, nativeHeight: native.1, maxWidth: settings.maxWidth,
                                        maxPixels: Sizing.maxPixels(for: settings.codec))
 
@@ -101,7 +112,7 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
 
         // Tether's own curtain windows are left out, so the person controlling sees the desktop.
         let excluded = content.windows.filter { settings.excludedWindowIDs.contains($0.windowID) }
-        let filter = SCContentFilter(display: display, excludingWindows: excluded)
+        let filter = windowFilter ?? SCContentFilter(display: display, excludingWindows: excluded)
         let s = SCStream(filter: filter, configuration: config, delegate: self)
         try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
         if settings.audio {

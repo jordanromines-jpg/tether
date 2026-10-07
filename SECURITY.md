@@ -26,6 +26,9 @@ Tether gives full control of a Mac, so it is built to be reachable **only by you
 - **Activity log.** The Mac keeps the last 500 sessions (login, device name, start, end) in `~/Library/Application Support/Tether/activity.json`. `scripts/uninstall.sh --all` deletes it.
 - **Update check.** Once a day the Mac asks `api.github.com` for the newest commit of the repo it was built from. It sends nothing about you or your Mac beyond the request itself. Untick **Check for updates** in the panel to stop it.
 
+- **Screen pictures and clipboard images use the same gates as the stream.** `/thumbnail` (used by the Macs picker on your other Macs' pages) and `/clipboard/image` need your Tailscale login, and the passkey unlock when the lock is on. A passkey-locked Mac doesn't show its picture on another Mac's page. Thumbnails are limited to two a second.
+- **Single-window mode** raises and, if you ask, resizes a window using Accessibility, then puts it back. It never closes or moves windows otherwise.
+
 ## Reporting a problem
 
 Please open a GitHub issue. Don't include secrets, and for anything sensitive, contact the maintainer privately first.

@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import CryptoKit
 import TetherCore
 
@@ -201,12 +202,12 @@ do {
     expect(ClientMessage.parse(#"{"t":"openApp","path":"/Applications/Calculator.app"}"#) == .openApp("/Applications/Calculator.app"), "openApp parses")
     expect(ClientMessage.parse(#"{"t":"windows"}"#) == .windows, "windows parses")
     expect(ClientMessage.parse(#"{"t":"focusWindow","id":42}"#) == .focusWindow(42), "focusWindow parses")
-    expect(ClientMessage.parse(#"{"t":"captureWindow","id":7,"fit":true}"#) == .captureWindow(7, fit: true), "captureWindow parses")
-    expect(ClientMessage.parse(#"{"t":"captureWindow"}"#) == .captureWindow(nil, fit: false), "captureWindow without id = whole screen")
+    expect(ClientMessage.parse(#"{"t":"captureWindow","id":7,"fit":true,"aspect":0.5}"#) == .captureWindow(7, fit: true, aspect: 0.5), "captureWindow parses")
+    expect(ClientMessage.parse(#"{"t":"captureWindow"}"#) == .captureWindow(nil, fit: false, aspect: 0), "captureWindow without id = whole screen")
     expect(ClientMessage.parse(#"{"t":"activity"}"#) == .activity, "activity parses")
 
     for m: ClientMessage in [.move(x: 0, y: 0), .key(code: "KeyA", down: true), .text("x"), .setClipboard("x"),
-                             .action(.mute), .openURL("https://a.b"), .curtain(true), .captureWindow(1, fit: false), .wake] {
+                             .action(.mute), .openURL("https://a.b"), .curtain(true), .captureWindow(1, fit: false, aspect: 0), .wake] {
         expect(InputPolicy.isControl(m), "\(m) is control (blocked when view only)")
     }
     for m: ClientMessage in [.quality("fast"), .display(1), .ping(id: 1), .stats(rttMs: 1, decodeQueue: 0), .windows,
@@ -271,6 +272,24 @@ do {
     expect(!UpdateCheck.isNewer(remote: remote, build: remote), "same commit is not an update")
     expect(!UpdateCheck.isNewer(remote: remote, build: nil), "unknown build date never nags")
     expect(UpdateCheck.latestCommitDate(Data("{}".utf8)) == nil, "unexpected GitHub reply ignored")
+}
+
+// v4 batch 3: window geometry
+do {
+    let win = CGRect(x: -1200, y: 100, width: 800, height: 600)   // on a display left of the main one
+    let g = WindowGeometry.toGlobal(x: 0.5, y: 0.5, in: win)
+    expect(g == CGPoint(x: -800, y: 400), "centre of a window on a left-hand display")
+    expect(WindowGeometry.toGlobal(x: 2, y: -1, in: win) == CGPoint(x: -400, y: 100), "clamped inside the window")
+    let n = WindowGeometry.toNormalized(CGPoint(x: -1000, y: 250), in: win)
+    expect(n.map { abs($0.x - 0.25) < 1e-9 && abs($0.y - 0.25) < 1e-9 } ?? false, "global to normalized")
+    expect(WindowGeometry.toNormalized(CGPoint(x: 10, y: 10), in: win) == nil, "pointer outside the window")
+    let m = WindowGeometry.moveBy(CGPoint(x: -500, y: 650), dx: 0.5, dy: 0.5, in: win)
+    expect(m == CGPoint(x: -401, y: 699), "relative move stays inside the window")
+    expect(!WindowGeometry.sizeChanged(win, win.offsetBy(dx: 300, dy: 0)), "moving isn't resizing")
+    expect(WindowGeometry.sizeChanged(win, CGRect(x: 0, y: 0, width: 820, height: 600)), "2.5% wider is a resize")
+    let fit = WindowGeometry.fitSize(window: CGSize(width: 1200, height: 800), aspect: 390.0 / 844.0, screen: CGSize(width: 3008, height: 1692))
+    expect(abs(fit.width / fit.height - 390.0 / 844.0) < 0.01, "fit takes the phone's shape")
+    expect(fit.height <= 1692, "fit stays on screen")
 }
 
 print("\(checks - failures)/\(checks) checks passed")

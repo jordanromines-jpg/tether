@@ -104,6 +104,11 @@ final class Hub {
     private var curtainWindowIDs: [CGWindowID] = []
     /// Failed capture starts in a row (e.g. while the display sleeps); retried every 2 seconds.
     private var captureFailures = 0
+    /// Single-window mode: the window, its current frame, and the frame to restore after "Fit".
+    private var windowTarget: (info: WindowList.Info, rect: CGRect, restore: CGRect?)?
+    private var windowTimer: DispatchSourceTimer?
+    /// What the stream shows, in global points (the display, or the window in window mode).
+    private var captureBounds: CGRect { windowTarget?.rect ?? CGDisplayBounds(displayID) }
     var keepAwake: Bool { queue.sync { power.held } }
     private var displayBeforeFit: CGDirectDisplayID?
 
@@ -115,8 +120,13 @@ final class Hub {
                 self?.restartCapture()
             }
         }
-        clipboard.onChange = { [weak self] text in
-            self?.queue.async { self?.broadcastText(jsonMessage("clip", ["s": text])) }
+        clipboard.onChange = { [weak self] text, html in
+            var fields: [String: Any] = ["s": text]
+            if let html { fields["html"] = html }
+            self?.queue.async { self?.broadcastText(jsonMessage("clip", fields)) }
+        }
+        clipboard.onImage = { [weak self] id, w, h in
+            self?.queue.async { self?.broadcastText(jsonMessage("clip", ["kind": "image", "id": id, "w": w, "h": h])) }
         }
         streamer.audioEncoder.onFrame = { [weak self] format, data in
             let frame = AudioFrameHeader.encode(format: format, timestampMicros: UInt64(Date().timeIntervalSince1970 * 1_000_000), payload: data)
@@ -136,7 +146,7 @@ final class Hub {
             }
         }
         cursor.onChange = { [weak self] shape in
-            self?.queue.async { self?.broadcastText(Self.cursorShapeMessage(shape, display: self?.displayID ?? 0)) }
+            self?.queue.async { guard let self else { return }; self.broadcastText(Self.cursorShapeMessage(shape, bounds: self.captureBounds)) }
         }
     }
 
@@ -178,6 +188,9 @@ final class Hub {
         }
     }
 
+    func clipboardImage(id: Int) -> Data? { clipboard.image(id: id) }
+    func setClipboardImage(_ png: Data) -> Bool { clipboard.set(image: png) }
+
     /// Ends one viewer's session (the menu-bar panel's Disconnect button).
     func disconnect(id: UUID) {
         queue.async { self.clients[id]?.continuation.finish() }
@@ -201,10 +214,12 @@ final class Hub {
             "curtain": Curtain.shared.isOnApprox,
             "links": BuildInfo.links,
         ]))
-        if let shape = cursor.current { client.send(text: Self.cursorShapeMessage(shape, display: current)) }
+        let bounds = queue.sync { captureBounds }
+        if let shape = cursor.current { client.send(text: Self.cursorShapeMessage(shape, bounds: bounds)) }
         queue.async {
             client.markNeedsKeyframe()
             self.streamer.requestKeyframe()
+            if self.windowTarget != nil { self.broadcastTarget() }
             // Where the pointer is right now, so the device can draw it before it next moves.
             if let p = self.input.normalizedCursor { client.send(text: jsonMessage("cursor", ["x": p.x, "y": p.y])) }
         }
@@ -222,6 +237,7 @@ final class Hub {
     }
 
     private func endSession() {
+        exitWindowMode()
         stopFit()
         DispatchQueue.main.async { Curtain.shared.set(false) }
         power.setKeepAwake(false)
@@ -240,10 +256,11 @@ final class Hub {
         if let preset {
             return .init(displayID: displayID, codec: codec, maxWidth: preset.maxWidth, fps: preset.fps,
                          bitrate: codec == .hevc ? preset.bitrate * 7 / 10 : preset.bitrate, audio: wantsAudio,
-                         excludedWindowIDs: curtainWindowIDs)
+                         excludedWindowIDs: curtainWindowIDs, windowID: windowTarget?.info.id)
         }
         return .init(displayID: displayID, codec: codec, maxWidth: adaptive.maxWidth, fps: adaptive.fps,
-                     bitrate: adaptive.bitrate, audio: wantsAudio, excludedWindowIDs: curtainWindowIDs)
+                     bitrate: adaptive.bitrate, audio: wantsAudio, excludedWindowIDs: curtainWindowIDs,
+                     windowID: windowTarget?.info.id)
     }
 
     private var wantsAudio: Bool { clients.values.contains { $0.audioFormat != nil } }
@@ -277,6 +294,7 @@ final class Hub {
         let previous = captureTask
         let settings = currentSettings
         input.displayID = settings.displayID
+        input.captureRect = windowTarget?.rect
         configMessage = nil
         lastDescription = nil
         for c in clients.values { c.markNeedsKeyframe() }
@@ -341,8 +359,7 @@ final class Hub {
         for c in clients.values { c.send(text: text) }
     }
 
-    private static func cursorShapeMessage(_ s: CursorWatcher.Shape, display: CGDirectDisplayID) -> String {
-        let b = CGDisplayBounds(display)
+    private static func cursorShapeMessage(_ s: CursorWatcher.Shape, bounds b: CGRect) -> String {
         return jsonMessage("cursorShape", [
             "png": s.pngBase64, "w": s.widthPoints, "h": s.heightPoints, "hx": s.hotX, "hy": s.hotY,
             // Size relative to the display, so clients can scale it with the video.
@@ -398,6 +415,68 @@ final class Hub {
         }
     }
 
+    // MARK: Single-window mode
+
+    private func enterWindowMode(_ info: WindowList.Info, fit: Bool, aspect: Double, from client: ClientConnection) {
+        exitWindowMode()
+        if displayBeforeFit != nil { stopFit(); broadcastText(jsonMessage("fit", ["mode": "off"])) }
+        DispatchQueue.main.sync { WindowList.raise(info) }   // so clicks land on it
+        var restore: CGRect?
+        if fit && aspect > 0 {
+            let screen = CGDisplayBounds(displayID)
+            let size = WindowGeometry.fitSize(window: info.frame.size, aspect: aspect, screen: screen.size)
+            let origin = CGPoint(x: min(max(info.frame.minX, screen.minX), screen.maxX - size.width),
+                                 y: min(max(info.frame.minY, screen.minY + 30), screen.maxY - size.height))
+            let ok = DispatchQueue.main.sync { WindowList.resize(info, to: size, origin: origin) }
+            if ok { restore = info.frame; Thread.sleep(forTimeInterval: 0.2) }
+            else { client.send(text: jsonMessage("error", ["msg": "This window can't be resized, so it's shown at its own size."])) }
+        }
+        windowTarget = (info, WindowList.frame(of: info.id) ?? info.frame, restore)
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now() + 0.5, repeating: .milliseconds(500))
+        t.setEventHandler { [weak self] in self?.watchWindow() }
+        t.resume()
+        windowTimer = t
+        restartCapture()
+        broadcastTarget()
+    }
+
+    /// Follows the window: moved → remap input; resized → restart capture; closed → whole screen.
+    private func watchWindow() {
+        guard let target = windowTarget else { return }
+        guard let frame = WindowList.frame(of: target.info.id) else {
+            exitWindowMode(restoreFrame: false)
+            restartCapture()
+            broadcastText(jsonMessage("error", ["msg": "The window closed, so you're seeing the whole screen again."]))
+            broadcastTarget()
+            return
+        }
+        guard frame != target.rect else { return }
+        let resized = WindowGeometry.sizeChanged(target.rect, frame)
+        windowTarget?.rect = frame
+        input.captureRect = frame
+        if resized { restartCapture() }
+    }
+
+    private func exitWindowMode(restoreFrame: Bool = true) {
+        windowTimer?.cancel()
+        windowTimer = nil
+        if restoreFrame, let t = windowTarget, let r = t.restore {
+            let info = t.info
+            DispatchQueue.main.async { WindowList.resize(info, to: r.size, origin: r.origin) }
+        }
+        windowTarget = nil
+        input.captureRect = nil
+    }
+
+    private func broadcastTarget() {
+        if let t = windowTarget {
+            broadcastText(jsonMessage("target", ["window": t.info.id, "title": t.info.title, "app": t.info.app, "fit": t.restore != nil]))
+        } else {
+            broadcastText(jsonMessage("target", ["window": NSNull()]))
+        }
+    }
+
     // MARK: Inbound
 
     func handle(_ message: ClientMessage, from client: ClientConnection) {
@@ -424,7 +503,7 @@ final class Hub {
         case let .display(id):
             if id != displayID { displayID = id; restartCapture() }
             broadcastText(jsonMessage("display", ["id": id]))
-            if let shape = cursor.current { broadcastText(Self.cursorShapeMessage(shape, display: id)) }
+            if let shape = cursor.current { broadcastText(Self.cursorShapeMessage(shape, bounds: CGDisplayBounds(id))) }
         case .keyframe:
             client.markNeedsKeyframe()
             streamer.requestKeyframe()
@@ -435,6 +514,7 @@ final class Hub {
             power.wake()
         case let .fit(modeName, width, height):
             let mode = FitDisplay.Mode(rawValue: modeName) ?? .off
+            if mode != .off && windowTarget != nil { exitWindowMode(); broadcastTarget() }   // one or the other
             if mode == .off { stopFit(); restartCapture(); broadcastText(jsonMessage("fit", ["mode": "off"])); return }
             let created: CGDirectDisplayID? = DispatchQueue.main.sync { fit.start(mode: mode, viewportWidth: width, viewportHeight: height) }
             if let id = created {
@@ -480,8 +560,30 @@ final class Hub {
             DispatchQueue.main.async {
                 NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: .init())
             }
-        case .windows, .focusWindow, .captureWindow:
-            break   // Windows arrive in the next batch.
+        case .windows:
+            Task {
+                let list = await WindowList.list()
+                client.send(text: jsonMessage("windows", ["list": WindowList.json(list)]))
+            }
+        case let .focusWindow(id):
+            Task {
+                guard let info = await WindowList.list().first(where: { $0.id == id }) else { return }
+                DispatchQueue.main.async { WindowList.raise(info) }
+            }
+        case let .captureWindow(id, fit, aspect):
+            guard let id else {
+                exitWindowMode()
+                restartCapture()
+                broadcastTarget()
+                return
+            }
+            Task {
+                guard let info = await WindowList.list().first(where: { $0.id == id }) else {
+                    client.send(text: jsonMessage("error", ["msg": "That window isn't on screen any more."]))
+                    return
+                }
+                self.queue.async { self.enterWindowMode(info, fit: fit, aspect: aspect, from: client) }
+            }
         }
     }
 }

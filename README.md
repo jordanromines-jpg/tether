@@ -69,10 +69,14 @@ The toolbar also has:
 - **More:** buttons that don't fit on a small screen move into **More** instead of scrolling off the edge. **Tips** are there too.
 - **Sticky ⌘ ⌥ ⌃ ⇧:** tap for the next key only, double-tap to lock.
 - **Keys and shortcuts** for Esc, arrows, F-keys and common shortcuts.
-- **Clipboard** sync in both directions.
+- **Clipboard** sync in both directions, including formatted text and **images** (copy an image on the Mac and tap Copy on your phone; or **Paste image** to send one from your phone).
+- **Windows:** a list of the Mac's open windows with their app icons. Tap one to bring it to the front, or **Show only** to stream just that window, which is far easier to use on a phone than a whole 5K desktop. **Fit to this device** reshapes the window to your screen while you use it and puts it back afterwards. Tap **Whole screen** in the toolbar to go back.
+- **Your Macs** (More, or the connection details): every Mac on your tailnet with a live picture, and whether it's online, paused, not answering, or offline since when. Tap one to switch.
+- **Pinned shortcuts:** in Keys and shortcuts, choose **Pin to toolbar** to put up to six shortcuts (or your own combination) right on the toolbar.
+- **Capture pointer** (More, on a computer or an iPad with a trackpad): your trackpad moves the Mac's pointer directly. Press Esc to release it.
 - **Files:** browse the Mac's Downloads, Desktop and Documents; download anything, or **Upload here** to put files in the folder you're looking at. (Files dropped onto the window go to Downloads.)
 - **Sound** on or off.
-- **Display and quality:** pick a monitor; choose Auto, **Saver** (battery and cellular), Fast, Balanced or Sharp; fit the screen to your device; pause when idle; pointer size and the **magnifier** (a zoomed view above your finger while dragging) on touch screens; a **data warning** after 250 MB, 500 MB or 1 GB; and **this device's name** as the Mac shows it.
+- **Display and quality:** pick a monitor (with a live picture of each when there's more than one); choose Auto, **Saver** (battery and cellular), Fast, Balanced or Sharp; fit the screen to your device; pause when idle; pointer size and the **magnifier** (a zoomed view above your finger while dragging) on touch screens; a **data warning** after 250 MB, 500 MB or 1 GB; and **this device's name** as the Mac shows it.
 - **Connection:** your Mac's name with a live quality dot and how much data this session and today have used. Tap it for details, or to switch to another of your Macs running Tether.
 
 ## Turning it on and off

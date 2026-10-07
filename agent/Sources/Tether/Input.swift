@@ -6,6 +6,8 @@ import TetherCore
 /// Not thread-safe: call from the hub queue only.
 final class InputInjector {
     var displayID: CGDirectDisplayID = CGMainDisplayID()
+    /// Set while streaming a single window: positions map to its frame instead of the display.
+    var captureRect: CGRect?
 
     /// Every injected event carries TetherMarker in its user data (see the curtain's escape keys).
     private let source: CGEventSource? = {
@@ -19,7 +21,7 @@ final class InputInjector {
     private var capsLock = false
     private var lastClick: (time: TimeInterval, point: CGPoint, button: Int, count: Int64) = (0, .zero, -1, 0)
 
-    private var bounds: CGRect { CGDisplayBounds(displayID) }
+    private var bounds: CGRect { captureRect ?? CGDisplayBounds(displayID) }
 
     var cursorLocation: CGPoint { CGEvent(source: nil)?.location ?? .zero }
 

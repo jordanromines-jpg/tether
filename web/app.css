@@ -323,6 +323,43 @@ textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
 .field:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
 .segmented .choice small { font-size: 12px; }
 
+/* Windows sheet. */
+.window-row { display: flex; gap: 8px; align-items: stretch; }
+.window-row .window-main { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; text-align: left; }
+.window-row .secondary { flex: none; padding-inline: 12px; }
+.app-icon { width: 28px; height: 28px; flex: none; }
+.window-main .name { display: grid; min-width: 0; }
+.window-main .name strong { font-weight: 600; }
+.window-main .name small { color: var(--text-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Your Macs. */
+.macs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.mac-card {
+  display: grid; gap: 8px; padding: 8px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--fill);
+  transition: background-color var(--t-fade) ease, transform var(--t-press) ease-out;
+}
+.mac-card:hover:not(:disabled) { background: var(--fill-strong); }
+.mac-card:active:not(:disabled) { transform: scale(.98); }
+.mac-card:disabled { cursor: default; opacity: .7; }
+.mac-pic { aspect-ratio: 16 / 10; display: grid; place-items: center; overflow: hidden; border-radius: var(--r-control); background: var(--bg); color: var(--text-muted); }
+.mac-pic img { width: 100%; height: 100%; object-fit: cover; }
+.mac-pic .i { width: 32px; height: 32px; }
+.mac-meta { display: grid; gap: 2px; padding: 0 4px 2px; }
+.mac-meta small { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; }
+
+/* Displays overview, clipboard image, pinned shortcuts, shortcut builder. */
+.displays .choice { display: grid; gap: 6px; }
+.display-thumb { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 6px; background: var(--bg); }
+.clip-image { display: block; max-width: 100%; max-height: 220px; margin: 0 auto; border-radius: var(--r-control); border: 1px solid var(--line); }
+.button-link { display: inline-grid; place-items: center; text-decoration: none; color: var(--text); }
+#toolbar .pin { font-size: 15px; font-weight: 600; min-width: 52px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; }
+.section-head .link { font-size: 13px; min-height: 44px; }
+.key-btn.pinned-on { border-color: var(--accent); background: var(--accent-soft); }
+.builder[hidden] { display: none; }
+.builder .row .field { flex: 1; }
+
 /* More menu: rows with an icon and a visible label. */
 .menu { display: grid; gap: 2px; }
 .menu-item {

@@ -98,6 +98,8 @@ Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, e
 - **Sheet.** A bottom sheet on phones (with a drag handle), a centred panel on larger screens. Focus is trapped inside; Esc closes it; focus returns to the button that opened it.
 - **Tiles.** Quick actions are a 3-column grid of icon tiles (24px accent icon, 13px label, 76px tall). Actions with consequences (Lock screen) ask for a second tap.
 - **Magnifier.** A 120px circle, 2.5x, drawn 96px above the finger with a thin crosshair; only while a finger stays down.
+- **Mac cards.** 16:10 live picture (or a lock or moon icon), name, and a status dot with words (Online, Paused, Not answering, Offline since…). Status never relies on colour alone.
+- **Chips.** Accent-tinted toolbar pills that report a mode and undo it when tapped: View only, Whole screen.
 - **Banner.** The Mac's state while video is live (display asleep, locked), with one action.
 - **Toast.** Short confirmations at the top, auto-dismissed; at most one action.
 

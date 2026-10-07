@@ -27,6 +27,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
     func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
         let path = request.uri.path
         let api = path == "/ws" || path == "/upload" || path == "/files" || path == "/download" || path == "/apps"
+            || path == "/thumbnail" || path == "/clipboard/image"
             || path == "/peers" || path.hasPrefix("/auth/")
         if AppState.shared.paused, api {
             let body = #"{"paused":true,"msg":"Remote access is paused on the Mac. Resume it from the Tether menu-bar icon."}"#
@@ -39,7 +40,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
 
 /// When the passkey lock is on, the screen, input and file endpoints also need a valid session cookie.
 struct PasskeyGateMiddleware<Context: RequestContext>: RouterMiddleware {
-    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download", "/apps"] }
+    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download", "/apps", "/thumbnail", "/clipboard/image"] }
 
     func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
         if PasskeyStore.shared.required, Self.protectedPaths.contains(request.uri.path),
@@ -220,6 +221,44 @@ enum Server {
 
         router.get("apps") { _, _ -> Response in json(["apps": AppCatalog.list()]) }
 
+        // A small picture of a display, for the Macs picker (also from your other Macs' pages)
+        // and the displays overview. At most two a second per login.
+        let thumbLimiter = RateLimiter(perSecond: 2)
+        router.get("thumbnail") { request, _ -> Response in
+            guard thumbLimiter.allow(login(request)) else { return Response(status: .tooManyRequests) }
+            let q = request.uri.queryParameters
+            let width = min(960, max(160, Int(q.get("w") ?? "") ?? 480))
+            guard let jpeg = await Thumbnails.capture(display: q.get("display").flatMap { UInt32($0) }, width: width) else {
+                return Response(status: .serviceUnavailable)
+            }
+            var response = Response(status: .ok, headers: [.contentType: "image/jpeg", .cacheControl: "no-store"],
+                                    body: .init(byteBuffer: ByteBuffer(bytes: jpeg)))
+            if let origin = request.headers[.origin], let suffix = tailnetSuffix,
+               let host = URL(string: origin)?.host, origin.hasPrefix("https://"), host.hasSuffix("." + suffix) {
+                response.headers[.accessControlAllowOrigin] = origin
+                response.headers[.vary] = "Origin"
+            }
+            return response
+        }
+
+        // Images on the clipboard: the Mac's latest copied image, or one sent from a device.
+        router.get("clipboard/image") { request, _ -> Response in
+            guard let id = request.uri.queryParameters.get("id").flatMap({ Int($0) }),
+                  let png = Hub.shared.clipboardImage(id: id) else { return Response(status: .notFound) }
+            return Response(status: .ok, headers: [.contentType: "image/png", .cacheControl: "no-store"],
+                            body: .init(byteBuffer: ByteBuffer(bytes: png)))
+        }
+        router.post("clipboard/image") { request, _ -> Response in
+            if Hub.shared.onlyObserving(login: login(request)) {
+                return json(["error": "View only is on, so pasting to the Mac is off."], status: .forbidden)
+            }
+            var body = try await request.body.collect(upTo: 16 << 20)
+            guard let data = body.readData(length: body.readableBytes), Hub.shared.setClipboardImage(data) else {
+                return json(["error": "That isn't an image the Mac can paste."], status: .badRequest)
+            }
+            return json(["ok": true])
+        }
+
         router.post("upload") { request, _ -> Response in
             let q = request.uri.queryParameters
             let name = q.get("name") ?? "upload"
@@ -333,4 +372,22 @@ enum Uploads {
 
 private enum SHA256Digest {
     static func of(_ s: String) -> Data { Data(SHA256.hash(data: Data(s.utf8))) }
+}
+
+/// A tiny per-key rate limiter (requests per second).
+final class RateLimiter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var last: [String: [Date]] = [:]
+    private let perSecond: Int
+    init(perSecond: Int) { self.perSecond = perSecond }
+    func allow(_ key: String) -> Bool {
+        lock.withLock {
+            let now = Date()
+            var recent = (last[key] ?? []).filter { now.timeIntervalSince($0) < 1 }
+            guard recent.count < perSecond else { return false }
+            recent.append(now)
+            last[key] = recent
+            return true
+        }
+    }
 }

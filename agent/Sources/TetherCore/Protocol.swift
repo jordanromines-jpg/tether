@@ -109,7 +109,7 @@ public enum ClientMessage: Equatable, Sendable {
     case openApp(String)                       // path from GET /apps
     case windows                               // list on-screen windows
     case focusWindow(UInt32)                   // bring a window to the front
-    case captureWindow(UInt32?, fit: Bool)     // stream only this window (nil = whole screen again)
+    case captureWindow(UInt32?, fit: Bool, aspect: Double)   // stream only this window (nil = whole screen again)
     case activity                              // local interaction (zoom, pan) that counts as "not idle"
 
     public static func parse(_ text: String) -> ClientMessage? {
@@ -172,7 +172,7 @@ public enum ClientMessage: Equatable, Sendable {
         case "focusWindow":
             return num("id").map { .focusWindow(UInt32($0)) }
         case "captureWindow":
-            return .captureWindow(num("id").map { UInt32($0) }, fit: bool("fit"))
+            return .captureWindow(num("id").map { UInt32($0) }, fit: bool("fit"), aspect: num("aspect") ?? 0)
         case "activity":
             return .activity
         default:

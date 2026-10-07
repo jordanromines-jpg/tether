@@ -12,41 +12,61 @@ enum Peers {
         return nil
     }
 
-    /// Tailscale's state for the Setup Assistant. Runs the CLI, so call it off the main thread.
-    static func tailnetStatus() -> TailnetStatus {
-        guard let path = tailscalePath else { return .unavailable }
+    /// Runs `tailscale status --json`; logs (once per distinct problem) when it fails.
+    private nonisolated(unsafe) static var lastProblem = ""
+    static func statusJSON() -> Data? {
+        guard let path = tailscalePath else { note("no tailscale command found"); return nil }
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: path)
         proc.arguments = ["status", "--json"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        guard (try? proc.run()) != nil else { return .unavailable }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        // The App Store Tailscale binary only acts as a command-line tool when it looks like it was
+        // started from a shell (SHLVL is set); otherwise it tries to open its app and fails.
+        var env = ProcessInfo.processInfo.environment
+        env["SHLVL"] = env["SHLVL"] ?? "1"
+        proc.environment = env
+        let out = Pipe(), err = Pipe()
+        proc.standardOutput = out
+        proc.standardError = err
+        do { try proc.run() } catch { note("couldn't run \(path): \(error.localizedDescription)"); return nil }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        let errText = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         proc.waitUntilExit()
-        return TailnetStatus.parse(data)
+        if proc.terminationStatus != 0 || data.isEmpty {
+            note("tailscale status exited \(proc.terminationStatus): \(errText.prefix(300)) [stdout \(data.count) bytes]")
+            return data.isEmpty ? nil : data
+        }
+        return data
+    }
+    private static func note(_ problem: String) {
+        guard problem != lastProblem else { return }
+        lastProblem = problem
+        NSLog("Tether: \(problem)")
+    }
+
+    /// Tailscale's state for the Setup Assistant. Runs the CLI, so call it off the main thread.
+    static func tailnetStatus() -> TailnetStatus {
+        statusJSON().map(TailnetStatus.parse) ?? .unavailable
     }
 
     static func list() -> [[String: Any]] {
         lock.lock(); defer { lock.unlock() }
         if let cache, Date().timeIntervalSince(cache.at) < 30 { return cache.list }
-        guard let path = tailscalePath else { return [] }
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: path)
-        proc.arguments = ["status", "--json"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        guard (try? proc.run()) != nil else { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        guard let data = statusJSON() else { return [] }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            note("tailscale status wasn't JSON: \(String(decoding: data.prefix(200), as: UTF8.self))")
+            return []
+        }
         var out: [[String: Any]] = []
+        // Offline Macs are listed too (with when they were last seen), so the picker can say
+        // "Offline since…" rather than just leaving them out.
         func add(_ node: [String: Any], isSelf: Bool) {
-            guard (node["OS"] as? String) == "macOS", isSelf || (node["Online"] as? Bool) == true,
+            guard (node["OS"] as? String) == "macOS",
                   let dns = (node["DNSName"] as? String)?.trimmingCharacters(in: CharacterSet(charactersIn: ".")), !dns.isEmpty
             else { return }
-            out.append(["name": node["HostName"] as? String ?? dns, "url": "https://\(dns)", "self": isSelf])
+            let online = isSelf || (node["Online"] as? Bool) == true
+            var entry: [String: Any] = ["name": node["HostName"] as? String ?? dns, "url": "https://\(dns)", "self": isSelf, "online": online]
+            if !online, let seen = node["LastSeen"] as? String, !seen.hasPrefix("0001") { entry["lastSeen"] = seen }
+            out.append(entry)
         }
         if let me = obj["Self"] as? [String: Any] { add(me, isSelf: true) }
         for peer in (obj["Peer"] as? [String: Any] ?? [:]).values {

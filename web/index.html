@@ -45,6 +45,9 @@
   <button class="grip" data-action="move" data-prio="0" aria-label="Move toolbar" data-tip="Move toolbar" data-hint="Drag to move it anywhere. Tap to pick a spot.">
     <svg class="i"><use href="icons.svg#dots-six-vertical"/></svg>
   </button>
+  <button data-action="wholescreen" class="chip" data-prio="0" hidden aria-label="Showing one window. Tap for the whole screen." data-tip="Whole screen" data-hint="You're seeing one window. Tap to see the whole screen again.">
+    <svg class="i"><use href="icons.svg#desktop"/></svg><span>Whole screen</span>
+  </button>
   <button data-action="viewonly" class="chip" data-prio="0" hidden aria-label="View only. Tap to control again." data-tip="View only" data-hint="Your taps and typing don't reach the Mac. Tap to control it again.">
     <svg class="i"><use href="icons.svg#eye"/></svg><span>View only</span>
   </button>
@@ -65,6 +68,7 @@
       <svg class="i"><use href="icons.svg#lightning"/></svg>
     </button>
   </div>
+  <div class="group pinned" role="group" aria-label="Pinned shortcuts"></div>
   <div class="group" role="group" aria-label="Transfer">
     <button data-action="clipboard" data-prio="5" aria-label="Clipboard" data-tip="Clipboard" data-hint="Copy and paste between this device and the Mac.">
       <svg class="i"><use href="icons.svg#clipboard-text"/></svg>
@@ -74,6 +78,9 @@
     </button>
   </div>
   <div class="group" role="group" aria-label="Session">
+    <button data-action="windows" data-prio="5" aria-label="Windows" data-tip="Windows" data-hint="Bring a window to the front, or show just that one window.">
+      <svg class="i"><use href="icons.svg#app-window"/></svg>
+    </button>
     <button data-action="macs" class="conn" data-prio="9" aria-label="Connection" data-tip="Connection" data-hint="Connecting">
       <span class="dot" aria-hidden="true"></span><span class="conn-name">Mac</span>
     </button>

@@ -23,6 +23,13 @@ export class Input {
     const s = this.surface;
     s.addEventListener('pointermove', (e) => {
       if (e.pointerType === 'touch') return;
+      // Pointer captured (trackpad or mouse locked to the page): send relative moves, like a real trackpad.
+      if (document.pointerLockElement) {
+        if (e.movementX || e.movementY) {
+          this.send({ t: 'mrel', dx: e.movementX / this.view.displayedWidth, dy: e.movementY / this.view.displayedHeight });
+        }
+        return;
+      }
       const events = e.getCoalescedEvents?.() ?? [];
       const last = events.length ? events[events.length - 1] : e;
       this.queueMove(this.view.toNormalized(last.clientX, last.clientY));
@@ -32,7 +39,7 @@ export class Input {
       e.preventDefault();
       s.focus({ preventScroll: true });
       s.setPointerCapture(e.pointerId);
-      this.flushMove(this.view.toNormalized(e.clientX, e.clientY));
+      if (!document.pointerLockElement) this.flushMove(this.view.toNormalized(e.clientX, e.clientY));
       this.send({ t: 'btn', b: e.button, down: true });
     });
     s.addEventListener('pointerup', (e) => {
