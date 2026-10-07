@@ -17,8 +17,12 @@ WSS + WebCodecs decode`"):::frontend
 local cursor, predicted`"):::frontend
     filesui("`**Files sheet**
 XHR upload · download`"):::frontend
-    macs("`**Macs switcher**
-probe peers' /healthz`"):::frontend
+    macs("`**Your Macs**
+live previews · status`"):::frontend
+    idle("`**idle.js**
+pause when idle or hidden`"):::frontend
+    actionsui("`**Quick actions · Windows**
+apps · links · windows`"):::frontend
   end
   subgraph MAC["The Mac you control"]
     serve("`**tailscale serve**
@@ -26,7 +30,7 @@ HTTPS :443`"):::security
     appsupport("`**App Support/Tether**
 passkeys · HMAC secret`"):::database
     folders("`**Downloads · Desktop**
-Files & Folders consent`"):::database
++ Documents · consent`"):::database
     displays("`**Displays**
 physical + virtual`"):::external
     hid("`**macOS input**
@@ -39,7 +43,7 @@ login allowlist`"):::security
       static("`**Static web client**
 FileMiddleware · web/`"):::backend
       auth("`**/auth/∗ routes**
-register · options · verify`"):::backend
+register · verify · lock`"):::backend
       ws("`**/ws WebSocket**
 JSON control + binary A/V`"):::backend
       files("`**File routes**
@@ -70,6 +74,16 @@ CGEvent mouse · keys · text`"):::backend
 poll changeCount 0.5 s`"):::backend
       cursorw("`**CursorWatcher**
 shape 8 Hz · pos 60 Hz`"):::backend
+      apps("`**/apps · /thumbnail**
++ /clipboard/image`"):::backend
+      quick("`**QuickActions**
+media keys · open app or link`"):::backend
+      curtain("`**Curtain**
+covers screens, not the stream`"):::backend
+      windows("`**WindowList**
+list · raise · one window`"):::backend
+      activity("`**ActivityStore**
+who connected, when`"):::backend
     end
   end
   you -->|"taps"| ui
@@ -108,6 +122,15 @@ shape 8 Hz · pos 60 Hz`"):::backend
   displays -->|"pixels"| streamer
   inputinj -->|"CGEvent"| hid
   clip -->|"sync"| pasteboard
+  idle -->|"pause"| stream
+  actionsui --> serve
+  gate --> apps
+  apps -->|"catalog"| quick
+  hub --> curtain
+  hub --> quick
+  hub --> windows
+  hub --> activity
+  activity -->|"log"| appsupport
   linkStyle 0 stroke:#94a3b8,stroke-width:1.5px
   linkStyle 1 stroke:#94a3b8,stroke-width:1.5px
   linkStyle 2 stroke:#94a3b8,stroke-width:1.5px
@@ -144,6 +167,15 @@ shape 8 Hz · pos 60 Hz`"):::backend
   linkStyle 33 stroke:#94a3b8,stroke-width:1.5px
   linkStyle 34 stroke:#94a3b8,stroke-width:1.5px
   linkStyle 35 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 36 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 37 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 38 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 39 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 40 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 41 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 42 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 43 stroke:#94a3b8,stroke-width:1.5px
+  linkStyle 44 stroke:#94a3b8,stroke-width:1.5px
   classDef frontend fill:#0891b21f,stroke:#0891b2,stroke-width:1.5px,rx:6,ry:6
   classDef backend fill:#0596691f,stroke:#059669,stroke-width:1.5px,rx:6,ry:6
   classDef security fill:#e11d481f,stroke:#e11d48,stroke-width:1.5px,rx:6,ry:6

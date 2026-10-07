@@ -79,6 +79,26 @@ busy.activity = [
 ]
 render(StatusPanelView(model: busy).background(.background), "panel-activity-passkeys-update")
 
+// Live update check: SNAPSHOT_UPDATE_PLIST=<built Tether.app/Contents/Info.plist> asks GitHub for the
+// newest commit, exactly as the app does, and renders the panel with the real answer.
+if let plist = ProcessInfo.processInfo.environment["SNAPSHOT_UPDATE_PLIST"],
+   let info = NSDictionary(contentsOfFile: plist) {
+    let repo = info["TetherRepo"] as? String ?? Links.defaultRepo
+    let built = (info["TetherBuildDate"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+    var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/commits/main")!, timeoutInterval: 8)
+    request.setValue("Tether", forHTTPHeaderField: "User-Agent")
+    request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+    var remote: Date?
+    let done = DispatchSemaphore(value: 0)
+    URLSession.shared.dataTask(with: request) { data, _, _ in remote = data.flatMap(UpdateCheck.latestCommitDate); done.signal() }.resume()
+    done.wait()
+    let live = PanelModel()
+    live.url = sampleURL
+    live.updateAvailable = UpdateCheck.isNewer(remote: remote, build: built)
+    print("update check: repo \(repo), built \(built.map { "\($0)" } ?? "unknown"), latest \(remote.map { "\($0)" } ?? "unknown"), available \(live.updateAvailable)")
+    render(StatusPanelView(model: live).background(.background), "panel-update-live")
+}
+
 let paused = PanelModel()
 paused.paused = true
 paused.url = sampleURL

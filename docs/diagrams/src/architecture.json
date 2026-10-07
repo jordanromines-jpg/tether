@@ -10,7 +10,7 @@
       "url": "https://github.com/jordanromines-jpg/tether.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "9554d913c0f732a4e6834d5da55b201b5adc217b"
+      "revision": "09e3649f113b7d254691814c04563b30c2cb7f47"
     },
     "views": [
       {
@@ -302,8 +302,8 @@
     {
       "id": "macs",
       "type": "frontend",
-      "label": "Macs switcher",
-      "sublabel": "probe peers' /healthz",
+      "label": "Your Macs",
+      "sublabel": "live previews · status",
       "pos": [
         592,
         276
@@ -414,7 +414,7 @@
       "id": "auth",
       "type": "backend",
       "label": "/auth/* routes",
-      "sublabel": "register · options · verify",
+      "sublabel": "register · verify · lock",
       "pos": [
         224,
         630
@@ -608,7 +608,7 @@
       "id": "folders",
       "type": "database",
       "label": "Downloads · Desktop",
-      "sublabel": "Files & Folders consent",
+      "sublabel": "+ Documents · consent",
       "pos": [
         776,
         866
@@ -959,6 +959,172 @@
           "label": "read / write"
         }
       ]
+    },
+    {
+      "id": "idle",
+      "type": "frontend",
+      "label": "idle.js",
+      "sublabel": "pause when idle or hidden",
+      "pos": [
+        408,
+        158
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "web/js/idle.js",
+          "line": 1,
+          "end_line": 23,
+          "label": "idle decision"
+        }
+      ]
+    },
+    {
+      "id": "actionsui",
+      "type": "frontend",
+      "label": "Quick actions · Windows",
+      "sublabel": "apps · links · windows",
+      "pos": [
+        960,
+        276
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "web/js/app.js",
+          "line": 711,
+          "end_line": 797,
+          "label": "Quick actions sheet"
+        },
+        {
+          "path": "web/js/app.js",
+          "line": 798,
+          "end_line": 860,
+          "label": "Windows sheet"
+        }
+      ]
+    },
+    {
+      "id": "apps",
+      "type": "backend",
+      "label": "/apps · /thumbnail",
+      "sublabel": "+ /clipboard/image",
+      "pos": [
+        592,
+        630
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Server.swift",
+          "line": 222,
+          "end_line": 260,
+          "label": "apps, thumbnails, clipboard images"
+        }
+      ]
+    },
+    {
+      "id": "quick",
+      "type": "backend",
+      "label": "QuickActions",
+      "sublabel": "media keys · open app or link",
+      "pos": [
+        592,
+        748
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/QuickActions.swift",
+          "line": 1,
+          "end_line": 57,
+          "label": "actions and app catalog"
+        }
+      ]
+    },
+    {
+      "id": "curtain",
+      "type": "backend",
+      "label": "Curtain",
+      "sublabel": "covers screens, not the stream",
+      "pos": [
+        592,
+        866
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Curtain.swift",
+          "line": 1,
+          "end_line": 96,
+          "label": "curtain windows + escape key"
+        }
+      ]
+    },
+    {
+      "id": "windows",
+      "type": "backend",
+      "label": "WindowList",
+      "sublabel": "list · raise · one window",
+      "pos": [
+        960,
+        866
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/Windows.swift",
+          "line": 1,
+          "end_line": 110,
+          "label": "windows, AX raise and resize"
+        },
+        {
+          "path": "agent/Sources/Tether/Thumbnails.swift",
+          "line": 1,
+          "end_line": 20,
+          "label": "display thumbnails"
+        }
+      ]
+    },
+    {
+      "id": "activity",
+      "type": "backend",
+      "label": "ActivityStore",
+      "sublabel": "who connected, when",
+      "pos": [
+        40,
+        866
+      ],
+      "size": [
+        150,
+        56
+      ],
+      "sources": [
+        {
+          "path": "agent/Sources/Tether/ActivityStore.swift",
+          "line": 1,
+          "end_line": 37,
+          "label": "activity.json, last 500"
+        }
+      ]
     }
   ],
   "boundaries": [
@@ -974,7 +1140,9 @@
         "stream",
         "cursorc",
         "filesui",
-        "macs"
+        "macs",
+        "idle",
+        "actionsui"
       ]
     },
     {
@@ -1004,7 +1172,12 @@
         "cursorw",
         "displays",
         "hid",
-        "pasteboard"
+        "pasteboard",
+        "apps",
+        "quick",
+        "curtain",
+        "windows",
+        "activity"
       ]
     },
     {
@@ -1028,7 +1201,12 @@
         "adaptive",
         "inputinj",
         "clip",
-        "cursorw"
+        "cursorw",
+        "apps",
+        "quick",
+        "curtain",
+        "windows",
+        "activity"
       ]
     }
   ],
@@ -1480,6 +1658,78 @@
       "from": "clip",
       "to": "pasteboard",
       "label": "sync"
+    },
+    {
+      "id": "idle-stream",
+      "from": "idle",
+      "to": "stream",
+      "label": "pause"
+    },
+    {
+      "id": "actions-serve",
+      "from": "actionsui",
+      "to": "serve",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          1035.0,
+          384
+        ],
+        [
+          575.0,
+          384
+        ]
+      ]
+    },
+    {
+      "id": "gate-apps",
+      "from": "gate",
+      "to": "apps",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          575.0,
+          578
+        ],
+        [
+          667.0,
+          578
+        ]
+      ]
+    },
+    {
+      "id": "apps-quick",
+      "from": "apps",
+      "to": "quick",
+      "label": "catalog"
+    },
+    {
+      "id": "hub-curtain",
+      "from": "hub",
+      "to": "curtain"
+    },
+    {
+      "id": "hub-quick",
+      "from": "hub",
+      "to": "quick"
+    },
+    {
+      "id": "hub-windows",
+      "from": "hub",
+      "to": "windows"
+    },
+    {
+      "id": "hub-activity",
+      "from": "hub",
+      "to": "activity"
+    },
+    {
+      "id": "activity-disk",
+      "from": "activity",
+      "to": "appsupport",
+      "label": "log"
     }
   ],
   "cards": [
@@ -1487,11 +1737,11 @@
       "dot": "cyan",
       "title": "Wire protocol (one WebSocket)",
       "items": [
-        "Text frames: JSON control — hello, config, cursor, cursorShape, clip, state, quality, fit, pong",
+        "Text frames: JSON control: hello, config, cursor, cursorShape, clip, state, target, curtain, windows, pong",
         "Client → Mac: move / mrel / btn / scroll / key / text / setclip / audio / fit / ping / stats",
-        "Binary type 1: video [1][key flag][µs ts][AVCC access unit]",
-        "Binary type 2: audio [2][AAC=1 | PCM=2][µs ts][payload]",
-        "Device name rides on /ws?device= for connect notices"
+        "…plus observe, curtain, action, openURL, openApp, windows, focusWindow, captureWindow, activity",
+        "Binary type 1: video [1][key flag][µs ts][AVCC access unit]; type 2: audio [2][AAC=1 | PCM=2][µs ts][payload]",
+        "Device name rides on /ws?device= for connect notices and the activity log"
       ]
     },
     {
@@ -1522,17 +1772,19 @@
         "Reachable only inside your tailnet — the agent binds 127.0.0.1 and is published by tailscale serve",
         "tailscale serve stamps the verified Tailscale-User-Login; anything not allowlisted gets 403",
         "Optional passkey lock: Face ID / Touch ID → HMAC-signed 12 h cookie required for /ws, files and uploads",
-        "New passkeys only during a 10-minute window opened from the Mac's menu bar"
+        "New passkeys only during a 10-minute window opened from the Mac's menu bar",
+        "View only is enforced on the Mac: input from an observing viewer is dropped",
+        "After an idle pause the page signs out (/auth/lock), so the passkey is asked for again"
       ]
     },
     {
       "dot": "amber",
       "title": "Files & clipboard",
       "items": [
-        "Browse and download only inside ~/Downloads and ~/Desktop (.. and symlink escapes rejected)",
-        "Uploads stream to ~/Downloads with non-clobbering names",
+        "Browse and download only inside ~/Downloads, ~/Desktop and ~/Documents (.. and symlink escapes rejected)",
+        "Uploads go to the folder being browsed, with non-clobbering names",
         "Folder-access prompts are checked on a background thread so nothing blocks waiting for consent",
-        "Pasteboard polled every 0.5 s; text from a viewer is written without echoing back"
+        "Pasteboard polled every 0.5 s: text, HTML and images (PNG up to 8 MB) both ways, no echo"
       ]
     },
     {
@@ -1540,9 +1792,10 @@
       "title": "Around the core",
       "items": [
         "PowerManager wakes the display on connect and holds it awake while anyone is viewing",
-        "Lock / display-sleep state shown as a banner with a Wake button",
-        "Menu bar: QR code, active sessions, Disconnect all, passkey controls, permission status",
-        "Connect notices via UserNotifications: “iPhone connected — you@example.com”"
+        "Idle and hidden-tab pauses close the socket, so the Mac stops capturing and can sleep",
+        "Curtain covers the Mac's own screens and is left out of the stream",
+        "Single-window mode streams one window and maps input to its frame",
+        "Activity log, per-device passkeys, and a once-a-day update check in the menu-bar panel"
       ]
     },
     {

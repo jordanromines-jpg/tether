@@ -4,7 +4,9 @@
 
 Tether is a small, free, open-source alternative to apps like Screens. A tiny menu-bar app on your Mac streams the screen to a web page that only *your* devices can open. Add it to your Home Screen and it behaves like an app: sharp, low-latency video, a trackpad-style touch mode, keyboard shortcuts, clipboard sync and file transfer.
 
-<!-- Screenshot: docs/screenshot-iphone.png -->
+<p align="center">
+  <img src="docs/screenshot-iphone.png" width="300" alt="Tether on an iPhone, showing only the Mac's Calculator window, with the toolbar at the bottom">
+</p>
 
 ## Set it up with Claude (easiest)
 
