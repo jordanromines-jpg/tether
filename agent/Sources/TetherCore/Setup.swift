@@ -31,6 +31,13 @@ public struct TailnetStatus: Equatable, Sendable {
 
 /// When the Setup Assistant opens by itself.
 public enum SetupPolicy {
+    /// Everything the Setup Assistant walks through is done: permissions, a working tailnet with HTTPS,
+    /// and a device has connected. Then it can say "All set" and close itself.
+    public static func isComplete(screenAllowed: Bool, inputAllowed: Bool, tailnet: TailnetStatus?, deviceConnected: Bool) -> Bool {
+        guard let tailnet else { return false }
+        return screenAllowed && inputAllowed && tailnet.running && !tailnet.needsLogin && tailnet.httpsEnabled && deviceConnected
+    }
+
     /// On the first launch, when asked for (tether://setup), or whenever a permission Tether needs is missing.
     public static func shouldOpenAssistant(onboarded: Bool, requested: Bool, screenAllowed: Bool, inputAllowed: Bool) -> Bool {
         requested || !onboarded || !screenAllowed || !inputAllowed

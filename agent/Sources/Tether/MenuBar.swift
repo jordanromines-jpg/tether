@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var setupRequested = CommandLine.arguments.contains("--setup")
     private var panelTimer: Timer?
     private var activityWindow: NSWindow?
+    private var updateWindow: NSWindow?
 
     init(port: Int, publicURL: String?) {
         self.port = port
@@ -55,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Updates.shared.start()
         Updater.shared.onChange = { [weak self] in self?.refreshPanel() }
         Updater.shared.resume()
+        CrashWatch.shared.onChange = { [weak self] in self?.refreshPanel() }
+        CrashWatch.shared.check()
 
         let open = SetupPolicy.shouldOpenAssistant(onboarded: AppState.shared.onboarded, requested: setupRequested,
                                                    screenAllowed: Permissions.screenRecording, inputAllowed: Permissions.accessibility)
@@ -116,6 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.activity = Array(ActivityStore.shared.recent.prefix(3))
         panel.passkeys = store.credentials.map { PasskeyRow(id: $0.id, device: $0.device, created: $0.created) }
         panel.update = updateBanner()
+        panel.whatsNew = Updater.shared.progress?.state == .done ? Updater.shared.savedWhatsNew : (Updates.shared.info?.whatsNew ?? [])
+        panel.crashedAt = CrashWatch.shared.latest.map { $0.date ?? Date() }
         panel.checkUpdates = AppState.shared.checkUpdates
         panel.screenAllowed = Permissions.screenRecording
         panel.inputAllowed = Permissions.accessibility
@@ -153,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         a.showAllActivity = { [weak self] in self?.popover.performClose(nil); self?.showActivity() }
         a.setCheckUpdates = { on in AppState.shared.setCheckUpdates(on); Updates.shared.start() }
         a.openUpdateHelp = { [weak self] in self?.popover.performClose(nil); Self.open("updating") }
-        a.updateNow = { Updater.shared.start() }
+        a.updateNow = { [weak self] in self?.startUpdate() }
         a.copyUpdateCommand = {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString("scripts/update.sh --all", forType: .string)
@@ -162,7 +167,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.popover.performClose(nil)
             NSWorkspace.shared.open(Updater.logURL)
         }
-        a.dismissUpdate = { Updater.shared.dismiss() }
+        a.dismissUpdate = { [weak self] in
+            Updater.shared.dismiss()
+            self?.updateWindow?.close()
+        }
+        a.reportCrash = { [weak self] in
+            self?.popover.performClose(nil)
+            if let url = CrashWatch.shared.issueURL { NSWorkspace.shared.open(url) }
+            CrashWatch.shared.dismiss()
+        }
+        a.dismissCrash = { CrashWatch.shared.dismiss() }
         return a
     }
 
@@ -330,7 +344,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openHelp() { Self.open("help") }
     @objc private func reportProblem() { Self.open("issues") }
 
-    @objc private func updateNow() { Updater.shared.start() }
+    @objc private func updateNow() { startUpdate() }
+
+    /// Update now: the progress lives in its own window, which stays open while you use the Mac.
+    private func startUpdate() {
+        popover.performClose(nil)
+        refreshPanel()
+        if updateWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 220), styleMask: [.titled, .closable],
+                             backing: .buffered, defer: false)
+            w.title = "Update Tether"
+            w.isReleasedWhenClosed = false
+            w.contentViewController = NSHostingController(rootView: UpdateView(model: panel))   // sizes the window to fit
+            w.center()
+            updateWindow = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        updateWindow?.makeKeyAndOrderFront(nil)
+        Updater.shared.start()
+    }
 
     static func open(_ link: String) {
         if let s = BuildInfo.links[link], let url = URL(string: s) { NSWorkspace.shared.open(url) }

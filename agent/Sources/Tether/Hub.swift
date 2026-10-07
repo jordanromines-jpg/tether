@@ -204,7 +204,8 @@ final class Hub {
     private func sendHello(to client: ClientConnection) async {
         let displays = (try? await Displays.list()) ?? []
         let current = queue.sync { displayID }
-        client.send(text: jsonMessage("hello", [
+        let updated = await MainActor.run { Updater.shared.recentUpdate }
+        var hello: [String: Any] = [
             "name": Host.current().localizedName ?? "Mac",
             "displays": displays.map(\.json),
             "display": current,
@@ -214,7 +215,10 @@ final class Hub {
             "curtain": Curtain.shared.isOnApprox,
             "links": BuildInfo.links,
             "version": BuildInfo.version,
-        ]))
+        ]
+        // Just updated: the web page shows what's new once.
+        if let updated { hello["updated"] = ["version": updated.version, "whatsNew": updated.whatsNew] }
+        client.send(text: jsonMessage("hello", hello))
         let bounds = queue.sync { captureBounds }
         if let shape = cursor.current { client.send(text: Self.cursorShapeMessage(shape, bounds: bounds)) }
         queue.async {

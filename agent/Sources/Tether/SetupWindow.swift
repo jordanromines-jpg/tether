@@ -9,6 +9,8 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
     private let model = SetupModel()
     private var timer: Timer?
     private var checkingNetwork = false
+    /// Set once the person chooses Keep open, so the window stops trying to close itself.
+    private var keepOpen = false
     var onFinish: () -> Void = {}
 
     convenience init() {
@@ -47,6 +49,7 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
         a.chooseFolder = { Shortcuts.chooseFolder() }
         a.finish = { [weak self] in self?.finish() }
         a.openHelp = { AppDelegate.open("help") }
+        a.keepOpen = { [weak self] in self?.keepOpen = true; self?.model.closingIn = nil }
         model.actions = a
     }
 
@@ -70,6 +73,7 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
     private func refresh() {
         model.screenAllowed = Permissions.screenRecording
         model.inputAllowed = Permissions.accessibility
+        countDownIfComplete()
         guard !checkingNetwork else { return }
         checkingNetwork = true
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -96,8 +100,30 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
         onFinish()
     }
 
+    /// Everything done and a device has connected: show "All set" and close in 5 seconds, keeping
+    /// the person's current choices (no new shortcut, login item unchanged). Runs once a second.
+    private func countDownIfComplete() {
+        guard !keepOpen, window?.isVisible == true, isComplete else { model.closingIn = nil; return }
+        if model.step != .done { model.step = .done }
+        let left = (model.closingIn ?? 6) - 1
+        if left > 0 { model.closingIn = left; return }
+        model.closingIn = nil
+        AppState.shared.setOnboarded()
+        close()
+        onFinish()
+    }
+
+    private var isComplete: Bool {
+        let deviceConnected = Hub.shared.queue.sync { !Hub.shared.clients.isEmpty } || !ActivityStore.shared.recent.isEmpty
+        return SetupPolicy.isComplete(screenAllowed: model.screenAllowed, inputAllowed: model.inputAllowed,
+                                      tailnet: model.tailnet == .unavailable ? nil : model.tailnet, deviceConnected: deviceConnected)
+    }
+
     func windowWillClose(_ notification: Notification) {
         timer?.invalidate()
         timer = nil
+        model.closingIn = nil
+        // Closing it with everything done counts as finishing.
+        if isComplete { AppState.shared.setOnboarded() }
     }
 }

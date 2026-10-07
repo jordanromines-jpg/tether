@@ -117,6 +117,27 @@ for (name, banner) in banners {
     render(StatusPanelView(model: m).background(.background), "panel-update-\(name)")
 }
 
+// v6: the Update window, the crash note, Setup's "All set" countdown.
+for (name, banner) in [("available", UpdateBanner.availableHere(count: 3, whatsNew: [])), ("updating", .updating(message: "Building (usually a few minutes)")),
+                       ("updated", .updated(version: "4f2c9e1")), ("failed", .failed(message: "Couldn't reach GitHub. Check the internet connection and try again."))] {
+    let m = PanelModel()
+    m.update = banner
+    m.whatsNew = name == "updating" ? [] : ["Explain why a Mac can't be reached", "Diagnose button on the connection card", "Update in its own window"]
+    render(UpdateView(model: m).background(.background), "update-window-\(name)")
+}
+let crashed = PanelModel()
+crashed.url = sampleURL
+crashed.crashedAt = Date().addingTimeInterval(-3600)
+render(StatusPanelView(model: crashed).background(.background), "panel-crash")
+let allSet = SetupModel()
+allSet.screenAllowed = true
+allSet.inputAllowed = true
+allSet.loginItemInstalled = true
+allSet.tailnet = TailnetStatus(running: true, needsLogin: false, dnsName: "studio.tail1234.ts.net", httpsEnabled: true)
+allSet.step = .done
+allSet.closingIn = 4
+render(SetupAssistantView(model: allSet), "setup-all-set")
+
 let paused = PanelModel()
 paused.paused = true
 paused.url = sampleURL

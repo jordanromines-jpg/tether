@@ -10,6 +10,7 @@ import { refreshTip, hideTip } from './tooltip.js';
 import { initToolbar, setDock, currentDock, foldedCount, fit } from './toolbar.js';
 import { tool, TOOLS, deviceClass, defaultLayout, normalizeLayout, visibleLayout, isAvailable, sections, move as moveTool, toggle as toggleTool, keyRowTop, shortMacName } from './tools.js';
 import { startTour } from './tour.js';
+import { healthKind, diagnose, pollDelay } from './diagnose.js';
 import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
@@ -81,7 +82,8 @@ function icon(name, className = 'i') {
   s.append(u);
   return s;
 }
-const macName = () => hello?.name || 'your Mac';
+// The name from the last hello is kept, so the page can name the Mac even when it can't reach it.
+const macName = () => hello?.name || pref('macName', '') || 'your Mac';
 
 // ---------- Status screen ----------
 // One card for every "not showing the screen yet" state: icon, title, one line, one main action.
@@ -109,32 +111,128 @@ function status(kind, title, detail = '', actions = []) {
   }));
   if (!stillConnecting) {
     clearTimeout(helpTimer);
+    stopExplaining();
     $('#status-help').hidden = true;
-    if (kind === 'connecting') helpTimer = setTimeout(showConnectHelp, 8000);
-  } else if (!$('#status-help').hidden) {
-    showConnectHelp(); // re-adds the Try again button the action reset removed
+    if (kind === 'connecting') helpTimer = setTimeout(explainLoop, 4000);
+  } else {
+    // A reconnect attempt repainted the card: keep the reason and the buttons already worked out.
+    if (lastReason && lastReason.kind !== 'ok') showReason(lastReason);
+    if (explaining) showConnectActions();
   }
   input.enabled = false;
 }
 function hideStatus() {
   clearTimeout(helpTimer);
+  stopExplaining();
   $('#status').hidden = true;
   input.enabled = !sheetOpen() && !tipsOpen();
 }
-// Still connecting after 8 seconds: list the things the person can actually check.
-function showConnectHelp() {
-  const item = (strong, rest) => el('li', {}, el('strong', { textContent: strong }), ` ${rest}`);
-  $('#status-help').replaceChildren(
-    item('Is Tailscale on?', 'Open Tailscale on this device and check it says Connected.'),
-    item('Is the Mac awake?', 'A Mac that is asleep or shut down can\'t answer. Wake it or turn on "Wake for network access".'),
-    item('Is Tether running?', 'Look for the Tether icon in the Mac\'s menu bar. If it\'s paused, resume it there.'));
-  $('#status-help').hidden = false;
-  if (!$('#status-actions').children.length) {
-    $('#status-actions').append(el('button', { className: 'secondary', textContent: 'Try again', onclick: () => stream.reconnect() }),
-      el('button', { className: 'secondary', textContent: 'Your other Macs', onclick: openMacsSheet }));
-  }
+
+// ---------- Why it can't connect ----------
+// Still connecting after a few seconds: find out why (this device offline, the Mac off the tailnet,
+// Tether not running...), say so in plain words, and keep checking so the page reconnects the moment
+// the Mac answers. Pure logic in diagnose.js.
+let explaining = false;
+let explainTimer = 0;
+let explainAttempt = 0;
+let lastReason = null;
+const deviceNoun = () => ({ 'A device': 'device', 'Android device': 'Android device', 'Windows PC': 'PC' }[deviceName()] || deviceName());
+
+async function checkHealth() {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 4000);
+  try {
+    const r = await fetch('healthz', { cache: 'no-store', signal: ctl.signal });
+    const json = await r.json().catch(() => null);
+    return healthKind({ status: r.status, json });
+  } catch { return healthKind({ threw: true }); } finally { clearTimeout(t); }
 }
 
+// Asks your other Macs' Tether when Tailscale last saw this one (their /peers allows this page's origin).
+async function askOtherMacs() {
+  const others = (pref('macsSeen', []) || []).filter((m) => m.url && m.url !== location.origin);
+  const ask = async (m) => {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 3000);
+    try {
+      const peers = (await (await fetch(`${m.url}/peers`, { mode: 'cors', credentials: 'omit', signal: ctl.signal })).json()).peers || [];
+      const me = peers.find((p) => p.url === location.origin);
+      if (!me) throw new Error('not listed');
+      return { by: m.name, online: me.online !== false, lastSeen: me.lastSeen };
+    } finally { clearTimeout(t); }
+  };
+  try { return await Promise.any(others.map(ask)); } catch { return null; }
+}
+
+async function runDiagnosis() {
+  const online = navigator.onLine;
+  const health = online ? await checkHealth() : 'unreachable';
+  const peer = online && health === 'unreachable' ? await askOtherMacs() : null;
+  return { health, ...diagnose({ online, health, peer, mac: macName(), device: deviceNoun() }) };
+}
+
+async function explainLoop() {
+  const s = $('#status');
+  if (s.hidden || s.dataset.kind !== 'connecting') { stopExplaining(); return; }
+  explaining = true;
+  const { health, reason } = await runDiagnosis();
+  if (s.hidden || s.dataset.kind !== 'connecting') { stopExplaining(); return; }
+  lastReason = reason;
+  if (health === 'ok' || health === 'permissions') {
+    // Tether answers: drop the old reason and connect now instead of waiting out the retry timer.
+    if (lastReason?.kind !== 'ok') { delete s.dataset.reason; $('#status-text').textContent = `Connecting to ${macName()}`; $('#status-detail').textContent = ''; }
+    if (!stream.connected && !stream.paused) stream.reconnect();
+  } else if (reason.kind !== 'ok') {
+    showReason(reason);
+  }
+  showConnectActions();
+  explainTimer = setTimeout(explainLoop, pollDelay(explainAttempt++));
+}
+
+function showReason(reason) {
+  const s = $('#status');
+  s.dataset.reason = reason.kind;   // swaps the spinner for the icon
+  s.querySelector('.glyph use').setAttribute('href', `icons.svg#${reason.kind === 'deviceOffline' || reason.kind === 'macOffline' ? 'plugs' : 'warning-circle'}`);
+  $('#status-text').textContent = reason.title;
+  $('#status-detail').textContent = reason.detail;
+}
+
+function stopExplaining() {
+  explaining = false;
+  delete $('#status').dataset.reason;
+  clearTimeout(explainTimer);
+  explainAttempt = 0;
+  lastReason = null;
+}
+
+function showConnectActions() {
+  if ($('#status-actions').children.length) return;
+  $('#status-actions').append(
+    el('button', { className: 'secondary', textContent: 'Try again', onclick: () => { explainAttempt = 0; stream.reconnect(); } }),
+    el('button', { className: 'secondary', textContent: 'Diagnose', onclick: openDiagnoseSheet }),
+    el('button', { className: 'secondary', textContent: 'Your other Macs', onclick: openMacsSheet }));
+}
+
+// A checklist of everything between this device and the Mac, each failure with its fix.
+async function openDiagnoseSheet() {
+  openSheet('Diagnose', (body) => {
+    const list = el('div', { className: 'checks' }, el('p', { className: 'muted', textContent: 'Checking…' }));
+    const again = el('button', { className: 'secondary', textContent: 'Check again' });
+    const run = async () => {
+      again.disabled = true;
+      const { reason, checks } = await runDiagnosis();
+      list.replaceChildren(
+        ...(reason.kind === 'ok' ? [el('p', { className: 'muted', textContent: `Everything checks out. ${macName()} answers; the picture should follow.` })] : []),
+        ...checks.map((c) => el('div', { className: `check ${c.state}` }, icon({ ok: 'check', fail: 'warning-circle', unknown: 'dots-three' }[c.state]),
+          el('span', {}, el('strong', { textContent: c.label }),
+            el('small', { textContent: c.state === 'fail' ? c.fix : c.state === 'unknown' ? 'Checked once the step above works.' : '' })))));
+      again.disabled = false;
+    };
+    again.addEventListener('click', run);
+    body.append(list, el('div', { className: 'row' }, again));
+    run();
+  });
+}
 function deviceName() {
   const ua = navigator.userAgent;
   if (/iPhone/.test(ua)) return 'iPhone';
@@ -193,6 +291,7 @@ if (unsupported) {
 
 stream.addEventListener('connecting', () => { if (!stream.hasVideo) status('connecting', `Connecting to ${macName()}`); });
 stream.addEventListener('open', () => {
+  stopExplaining();   // it answered: whatever was wrong isn't any more
   if (viewOnly) stream.send({ t: 'observe', on: true });
   if (!stream.hasVideo) status('connecting', `Connecting to ${macName()}`, 'Waiting for the first picture.');
 });
@@ -206,6 +305,16 @@ stream.addEventListener('close', () => {
   updateConnection();
   status('connecting', 'Reconnecting', `Lost the connection to ${macName()}. Trying again.`);
 });
+// Just updated: say so once, with what's new.
+function showWhatsNew(updated) {
+  if (!updated?.version || pref('seenVersion', '') === updated.version) return;
+  setPref('seenVersion', updated.version);
+  const lines = updated.whatsNew || [];
+  toast(`Tether was updated (${updated.version})`, lines.length ? { label: 'What\'s new', run: () => openSheet('What\'s new', (body) => {
+    body.append(el('ul', { className: 'whats-new' }, ...lines.map((l) => el('li', { textContent: l }))));
+  }) } : null, 8000);
+}
+
 // The Mac was updated while this page was open: load the new page so both sides match. An unsent
 // Compose draft is never thrown away; the person reloads when ready.
 let pageVersion = null;
@@ -220,10 +329,14 @@ function checkVersion(version) {
 stream.addEventListener('hello', (e) => {
   hello = e.detail;
   checkVersion(hello.version);
+  setPref('macName', hello.name);
   currentDisplay = hello.display;
   document.title = `${hello.name} · Tether`;
   curtainOn = !!hello.curtain;
   renderToolbar();   // help links and the Mac's name arrive with hello
+  // Remember your other Macs, so if this one stops answering the page can ask them about it.
+  fetch('peers').then((r) => r.json()).then((d) => setPref('macsSeen', (d.peers || []).map((p) => ({ name: p.name, url: p.url })))).catch(() => {});
+  showWhatsNew(hello.updated);
   const missing = [];
   if (!hello.perms?.screen) missing.push('Screen Recording');
   if (!hello.perms?.input) missing.push('Accessibility');
@@ -377,6 +490,9 @@ function openLink(name) {
 }
 
 addEventListener('blur', () => kb.releaseAll());
+// Back online, or back from the browser's page cache: reconnect now rather than at the next retry.
+addEventListener('online', () => { if (!pausedReason && !stream.connected) { explainAttempt = 0; stream.reconnect(); } });
+addEventListener('pageshow', (e) => { if (e.persisted && !pausedReason && !stream.connected) stream.reconnect(); });
 
 // ---------- Connection quality (toolbar chip) ----------
 function quality() {
@@ -1296,6 +1412,8 @@ function openConnectionSheet() {
       el('p', { className: 'muted stats', textContent: `Data: ${formatBytes(usage().session)} this session, ${formatBytes(usage().today)} today on this device.` }),
       el('div', { className: 'row' }, el('button', { className: 'secondary', textContent: 'Reconnect', onclick: () => { stream.reconnect(); closeSheet(); } })));
     body.append(el('div', { className: 'menu' },
+      el('button', { className: 'menu-item', onclick: openDiagnoseSheet }, icon('warning-circle'),
+        el('span', {}, 'Diagnose', el('small', { className: 'hint', textContent: 'Check everything between this device and the Mac' }))),
       toggleRow('eye', 'View only', viewOnly, () => { setViewOnly(!viewOnly); closeSheet(); }, 'Watch without controlling'),
       ...(viewOnly ? [] : [toggleRow('eye-slash', 'Curtain', curtainOn, () => { setCurtain(!curtainOn); closeSheet(); },
         'Blacks out the Mac\'s own screen')])));

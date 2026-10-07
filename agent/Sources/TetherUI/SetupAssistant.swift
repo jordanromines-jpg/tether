@@ -36,6 +36,7 @@ public struct SetupActions {
     public var chooseFolder: () -> URL? = { nil }
     public var finish: () -> Void = {}
     public var openHelp: () -> Void = {}
+    public var keepOpen: () -> Void = {}
     public init() {}
 }
 
@@ -51,6 +52,8 @@ public final class SetupModel: ObservableObject {
     @Published public var addShortcut = true
     @Published public var shortcutFolder = URL(fileURLWithPath: "/Applications")
     @Published public var copied: String?
+    /// Counting down to closing by itself once everything is done (nil: not closing).
+    @Published public var closingIn: Int?
     public var actions = SetupActions()
     public init() {}
 
@@ -244,6 +247,17 @@ public struct SetupAssistantView: View {
     private var done: some View {
         VStack(alignment: .leading, spacing: 16) {
             heading("You're all set", "A few last choices. You can change them later from the Tether menu.")
+            if let seconds = model.closingIn {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("Everything works, and a device has connected. This window closes in \(seconds) s without changing anything below.")
+                        .font(.callout)
+                    Spacer()
+                    Button("Keep open", action: model.actions.keepOpen).controlSize(.small)
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.1)))
+            }
             if model.loginItemInstalled {
                 Toggle(isOn: $model.startAtLogin) {
                     VStack(alignment: .leading, spacing: 1) {

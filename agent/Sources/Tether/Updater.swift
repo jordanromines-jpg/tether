@@ -14,6 +14,9 @@ final class Updater {
     private var domain: String { "gui/\(getuid())" }
     private var statusURL: URL { AppPaths.supportDirectory.appendingPathComponent("update.json") }
     private var jobURL: URL { AppPaths.supportDirectory.appendingPathComponent("updater.plist") }
+    /// What's new in the update being installed, saved before it starts (the new copy can't ask GitHub
+    /// for "what changed since the old one" once it is the new one).
+    private var whatsNewURL: URL { AppPaths.supportDirectory.appendingPathComponent("whatsnew.json") }
     static var logURL: URL { URL(fileURLWithPath: NSHomeDirectory() + "/Library/Logs/Tether-update.log") }
 
     /// Apple's developer tools present? Asked once; `xcode-select -p` is quick and never prompts.
@@ -37,14 +40,38 @@ final class Updater {
         } else {
             cleanUp()
             // An old result isn't news any more.
-            if let at = p.at, Date().timeIntervalSince(at) > 86_400 { dismiss() }
+            if let at = p.at, Date().timeIntervalSince(at) > 86_400 { dismiss(); return }
+            announce(p)
         }
+    }
+
+    /// The newest commit subjects of the update that just finished, for 24 hours (the web page shows them once).
+    var recentUpdate: (version: String, whatsNew: [String])? {
+        guard let p = progress, p.state == .done, let at = p.at, Date().timeIntervalSince(at) < 86_400,
+              let commit = BuildInfo.commit, p.to == commit else { return nil }
+        return (BuildInfo.version, savedWhatsNew)
+    }
+
+    var savedWhatsNew: [String] {
+        guard let d = try? Data(contentsOf: whatsNewURL), let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return [] }
+        return o["whatsNew"] as? [String] ?? []
+    }
+
+    /// One notification per finished update, posted by whichever copy of Tether sees the result first.
+    private func announce(_ p: UpdateProgress) {
+        let key = "\(p.state.rawValue)-\(p.to)-\(p.at.map { "\($0.timeIntervalSince1970)" } ?? "")"
+        guard UserDefaults.standard.string(forKey: "announcedUpdate") != key, p.state == .done || p.state == .failed else { return }
+        UserDefaults.standard.set(key, forKey: "announcedUpdate")
+        Notifier.updateFinished(ok: p.state == .done, version: String(p.to.prefix(7)), message: p.message, whatsNew: savedWhatsNew)
     }
 
     func start() {
         guard case .here(let source) = mode, !running else { return }
         Self.run("/bin/launchctl", ["bootout", "\(domain)/\(label)"])
         write(UpdateProgress(state: .running, step: "starting", message: "Starting", at: Date()))
+        if let d = try? JSONSerialization.data(withJSONObject: ["whatsNew": Updates.shared.info?.whatsNew ?? [], "at": ISO8601DateFormatter().string(from: Date())]) {
+            try? d.write(to: whatsNewURL, options: .atomic)
+        }
         let job: [String: Any] = [
             "Label": label,
             "ProgramArguments": ["/bin/bash", source + "/scripts/update.sh", "--status-file", statusURL.path],
@@ -79,7 +106,7 @@ final class Updater {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self, let p = self.read() else { return }
             if p != self.progress { self.progress = p; self.onChange() }
-            if p.finished { self.cleanUp() } else if !self.jobLoaded { self.fail("The update stopped. See \(Self.logURL.path).") }
+            if p.finished { self.cleanUp(); self.announce(p) } else if !self.jobLoaded { self.fail("The update stopped. See \(Self.logURL.path).") }
         }
     }
 

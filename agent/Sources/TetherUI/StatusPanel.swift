@@ -114,6 +114,8 @@ public struct PanelActions {
     public var copyUpdateCommand: () -> Void = {}
     public var showUpdateLog: () -> Void = {}
     public var dismissUpdate: () -> Void = {}
+    public var reportCrash: () -> Void = {}
+    public var dismissCrash: () -> Void = {}
     public init() {}
 }
 
@@ -133,6 +135,10 @@ public final class PanelModel: ObservableObject {
     @Published public var activity: [ActivityEntry] = []
     @Published public var passkeys: [PasskeyRow] = []
     @Published public var update: UpdateBanner?
+    /// Commit subjects for the Update window (what's coming, or what just arrived).
+    @Published public var whatsNew: [String] = []
+    /// When Tether last quit unexpectedly (shown once, until dismissed).
+    @Published public var crashedAt: Date?
     @Published public var checkUpdates = true
     public var actions = PanelActions()
     public init() {}
@@ -168,6 +174,7 @@ public struct StatusPanelView: View {
             Divider()
             VStack(alignment: .leading, spacing: 14) {
                 if let banner = model.update { update(banner) }
+                if let crashedAt = model.crashedAt { crash(crashedAt) }
                 if model.curtainOn { curtain }
                 if !model.screenAllowed || !model.inputAllowed { permissions }
                 if let url = model.url, !model.paused { link(url) }
@@ -347,6 +354,7 @@ public struct StatusPanelView: View {
                 Spacer(minLength: 4)
                 if case .updating = banner { ProgressView().controlSize(.small) }
             }
+            if case .updated = banner, !model.whatsNew.isEmpty { whatsNewList(model.whatsNew) }
             if case .availableHere(_, let whatsNew) = banner, !whatsNew.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("What's new").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -359,6 +367,35 @@ public struct StatusPanelView: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 10).fill(banner.tint.opacity(0.1)))
+    }
+
+    private func whatsNewList(_ lines: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("What's new").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                Text("· \(line)").font(.caption).lineLimit(1).truncationMode(.tail)
+            }
+        }
+    }
+
+    private func crash(_ date: Date) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tether quit unexpectedly (\(Calendar.current.isDateInToday(date) ? date.formatted(date: .omitted, time: .shortened) : date.formatted(date: .abbreviated, time: .shortened)))").font(.subheadline.weight(.semibold))
+                    Text("It started again by itself. A report helps fix it, and you'll see it before anything is sent.")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Report a problem", action: model.actions.reportCrash).controlSize(.small)
+                Button("Dismiss", action: model.actions.dismissCrash).controlSize(.small)
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.1)))
     }
 
     @ViewBuilder
@@ -489,5 +526,55 @@ public struct ActivityListView: View {
             }
         }
         .frame(minWidth: 420, minHeight: 360)
+    }
+}
+
+
+/// The Update Tether window: the same update as the panel's banner, in a window that stays open
+/// while you use the Mac (a popover closes as soon as you click anything else).
+public struct UpdateView: View {
+    @ObservedObject var model: PanelModel
+    public init(model: PanelModel) { self.model = model }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let banner = model.update {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: banner.symbol).font(.system(size: 28)).foregroundStyle(banner.tint)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(banner.title).font(.title3.weight(.semibold))
+                        Text(banner.detail).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    if case .updating = banner { ProgressView().controlSize(.small) }
+                }
+                if !model.whatsNew.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("What's new").font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+                        ForEach(Array(model.whatsNew.enumerated()), id: \.offset) { _, line in
+                            Text("· \(line)").font(.callout).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                HStack {
+                    Spacer()
+                    switch banner {
+                    case .availableHere:
+                        Button("Update now", action: model.actions.updateNow).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                    case .updating:
+                        Text("You can keep using the Mac. Tether restarts at the end.").font(.caption).foregroundStyle(.secondary)
+                    case .failed:
+                        Button("Show log", action: model.actions.showUpdateLog)
+                        Button("Close", action: model.actions.dismissUpdate).keyboardShortcut(.defaultAction)
+                    default:
+                        Button("Close", action: model.actions.dismissUpdate).keyboardShortcut(.defaultAction)
+                    }
+                }
+            } else {
+                Text("Tether is up to date.").font(.title3.weight(.semibold))
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
     }
 }

@@ -322,5 +322,27 @@ do {
     expect(fit.height <= 1692, "fit stays on screen")
 }
 
+
+// v6: crash notes, setup finishing itself
+do {
+    let ips = #"{"app_name":"Tether","timestamp":"2026-10-03 14:16:02.00 -0400","os_version":"macOS 26.6.2 (25G83)","name":"Tether"}"#
+        + "\n" + #"{"exception":{"type":"EXC_CRASH","signal":"SIGABRT"},"usedImages":[{"name":"libsystem_kernel.dylib"},{"name":"Tether"}],"threads":[{"frames":[]},{"triggered":true,"frames":[{"imageIndex":0,"symbol":"__pthread_kill"},{"imageIndex":1,"symbol":"Hub.apply(_:from:)","sourceFile":"/Users/someone/code/tether/agent/Sources/Tether/Hub.swift","sourceLine":42},{"imageIndex":1,"imageOffset":4096}]}]}"#
+    let crash = CrashSummary.parse(Data(ips.utf8))
+    expect(crash?.exception == "EXC_CRASH SIGABRT", "crash: exception type and signal")
+    expect(crash?.frames == ["Tether: Hub.apply(_:from:) (Hub.swift:42)", "Tether: 0x1000"], "crash: Tether's own frames first, file names only")
+    expect(crash?.os == "macOS 26.6.2 (25G83)" && crash?.date != nil, "crash: macOS version and time")
+    let body = crash?.issueBody(version: "abc1234") ?? ""
+    expect(body.contains("abc1234") && !body.contains("/Users/"), "crash: issue body has the version and no home folder")
+    expect(CrashSummary.parse(Data("not a report".utf8)) == nil, "crash: junk is ignored")
+
+    let net = TailnetStatus(running: true, needsLogin: false, dnsName: "mac.tail.ts.net", httpsEnabled: true)
+    expect(SetupPolicy.isComplete(screenAllowed: true, inputAllowed: true, tailnet: net, deviceConnected: true), "setup: all green is complete")
+    expect(!SetupPolicy.isComplete(screenAllowed: true, inputAllowed: true, tailnet: net, deviceConnected: false), "setup: waits for a device")
+    expect(!SetupPolicy.isComplete(screenAllowed: true, inputAllowed: false, tailnet: net, deviceConnected: true), "setup: waits for Accessibility")
+    var noCerts = net; noCerts.httpsEnabled = false
+    expect(!SetupPolicy.isComplete(screenAllowed: true, inputAllowed: true, tailnet: noCerts, deviceConnected: true), "setup: waits for HTTPS")
+    expect(!SetupPolicy.isComplete(screenAllowed: true, inputAllowed: true, tailnet: nil, deviceConnected: true), "setup: unknown network is not complete")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

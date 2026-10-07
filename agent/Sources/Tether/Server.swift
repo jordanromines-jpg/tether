@@ -70,6 +70,14 @@ enum Server {
     static func run(port: Int, webDirectory: String, policy: AuthPolicy, publicURL: String?) async throws {
         let router = Router(context: BasicWebSocketRequestContext.self)
         let tailnetSuffix = Peers.tailnetSuffix(publicURL: publicURL)
+        /// CORS for pages on this tailnet's other Macs (https://<machine>.<tailnet>.ts.net), no credentials.
+        func allowTailnetOrigin(_ request: Request, _ response: inout Response) {
+            if let origin = request.headers[.origin], let suffix = tailnetSuffix,
+               let host = URL(string: origin)?.host, origin.hasPrefix("https://"), host.hasSuffix("." + suffix) {
+                response.headers[.accessControlAllowOrigin] = origin
+                response.headers[.vary] = "Origin"
+            }
+        }
         Server.publicURL = publicURL
         router.middlewares.add(TailscaleAuthMiddleware(policy: policy))
         router.middlewares.add(PauseMiddleware())
@@ -86,15 +94,17 @@ enum Server {
                                  "keepAwake": Hub.shared.keepAwake,
                                  "curtain": Curtain.shared.status()])
             // Let the Tether page on another of your Macs (same tailnet) see that this one is up.
-            if let origin = request.headers[.origin], let suffix = tailnetSuffix,
-               let host = URL(string: origin)?.host, origin.hasPrefix("https://"), host.hasSuffix("." + suffix) {
-                response.headers[.accessControlAllowOrigin] = origin
-                response.headers[.vary] = "Origin"
-            }
+            allowTailnetOrigin(request, &response)
             return response
         }
 
-        router.get("peers") { _, _ -> Response in json(["peers": Peers.list()]) }
+        // Also readable from another of your Macs' pages: when one Mac can't be reached, the page
+        // asks the others when Tailscale last saw it. Still identity-gated like everything else.
+        router.get("peers") { request, _ -> Response in
+            var response = json(["peers": Peers.list()])
+            allowTailnetOrigin(request, &response)
+            return response
+        }
 
         // ---- Passkey lock (WebAuthn) ----
         router.get("auth/status") { request, _ -> Response in

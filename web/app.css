@@ -123,6 +123,9 @@ button:disabled { opacity: .5; cursor: default; }
 .state-icon .glyph { width: 28px; height: 28px; display: none; }
 #status:not([data-kind="connecting"]) .spinner { display: none; }
 #status:not([data-kind="connecting"]) .glyph { display: block; }
+/* Connecting, but the reason is known (offline, not running): show its icon instead of the spinner. */
+#status[data-reason] .spinner { display: none; }
+#status[data-reason] .glyph { display: block; }
 #status[data-kind="error"] .state-icon { color: var(--danger); }
 #status[data-kind="paused"] .state-icon, #status[data-kind="locked"] .state-icon,
 #status[data-kind="passkey"] .state-icon { color: var(--accent-text); }
@@ -522,3 +525,16 @@ body[data-dock^="top"] #banner, body[data-dock^="top"] #toast { top: auto; botto
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0ms !important; animation: none !important; }
 }
+
+/* Diagnose: one line per check, with the fix under anything that failed. */
+.checks { display: grid; gap: 8px; margin-bottom: 12px; }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-control); background: var(--fill); }
+.check .i { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.check.ok .i { color: var(--ok); }
+.check.fail .i { color: var(--danger); }
+.check.unknown { opacity: .6; }
+.check.unknown .i { color: var(--text-muted); }
+.check small:empty { display: none; }
+.check span { display: grid; gap: 2px; }
+.check small { color: var(--text-muted); font-size: 13px; }
+.whats-new { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
