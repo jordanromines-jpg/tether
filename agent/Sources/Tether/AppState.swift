@@ -21,6 +21,10 @@ struct AppConfig {
     let publicURL: String?
     let devMode: Bool
     let webDirectory: String
+    /// A Tether checkout on this Mac that "Update now" rebuilds from (empty when another Mac installs it).
+    let sourceDir: String?
+    /// The Mac that builds and installs Tether here, named in the update banner.
+    let updateFrom: String?
 
     static func load() -> AppConfig {
         let env = ProcessInfo.processInfo.environment
@@ -30,7 +34,9 @@ struct AppConfig {
         let logins = env["TETHER_ALLOWED_LOGINS"] ?? (file["allowedLogins"] as? String) ?? ""
         let url = env["TETHER_PUBLIC_URL"] ?? (file["publicURL"] as? String)
         let web = env["TETHER_WEB_DIR"] ?? Bundle.main.resourceURL?.appendingPathComponent("web").path ?? "web"
-        return AppConfig(port: port, allowedLogins: logins, publicURL: url, devMode: env["TETHER_DEV"] == "1", webDirectory: web)
+        let text = { (key: String) in (file[key] as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        return AppConfig(port: port, allowedLogins: logins, publicURL: url, devMode: env["TETHER_DEV"] == "1", webDirectory: web,
+                         sourceDir: env["TETHER_SOURCE_DIR"] ?? text("sourceDir"), updateFrom: text("updateFrom"))
     }
 }
 

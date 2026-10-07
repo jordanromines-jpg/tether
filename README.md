@@ -97,12 +97,13 @@ Tether lives in your Mac's menu bar. Setup makes it start automatically when you
 
 ## Updating
 
-The Tether panel on the Mac shows **Update available** when a newer version is on GitHub (it checks once a day; untick **Check for updates** to stop). To update:
+The Tether panel on the Mac shows **Update available** when a newer version is on GitHub, with a short list of what's new. It checks once a day; untick **Check for updates** to stop.
 
-- **This Mac:** in the Tether folder, run `git pull` and then `scripts/setup.sh`. Or ask Claude: *"update Tether on this Mac"*.
-- **Another Mac you set up:** `git pull`, then `scripts/deploy.sh <name>`.
+- **A Mac that has the Tether source** (you ran `scripts/setup.sh` on it): click **Update now** in the panel (or in the right-click menu). Tether downloads the latest version, rebuilds it and restarts, which takes a few minutes. Connected devices reconnect by themselves, and an open Tether page reloads itself.
+- **A Mac you set up from another Mac** (`setup.sh --remote`): its panel names the Mac to update it from. There, open **Tether Updater** (make it once with `scripts/shortcut.sh updater`), or run `scripts/update.sh --all` in the Tether folder. That updates every Mac you've set up, in one go.
+- **Let that Mac update itself instead:** if it has Apple's developer tools, run `scripts/deploy.sh <name> --self-update` once. It gets its own copy of the source and of this Mac's Tether signing identity, so its permissions are kept, and from then on its own **Update now** works.
 
-Your settings, passkeys and macOS permissions are kept.
+Updates only ever move forward along `main` of the repo Tether was built from. A copy with changes of its own is left alone (update it in Terminal with `git pull` and `scripts/setup.sh`). Your settings, passkeys and macOS permissions are kept.
 
 ## How it stays private
 

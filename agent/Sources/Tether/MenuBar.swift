@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ActivityStore.shared.onChange = { [weak self] in self?.refreshPanel() }
         Updates.shared.onChange = { [weak self] in self?.refreshPanel() }
         Updates.shared.start()
+        Updater.shared.onChange = { [weak self] in self?.refreshPanel() }
+        Updater.shared.resume()
 
         let open = SetupPolicy.shouldOpenAssistant(onboarded: AppState.shared.onboarded, requested: setupRequested,
                                                    screenAllowed: Permissions.screenRecording, inputAllowed: Permissions.accessibility)
@@ -113,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.curtainOn = Curtain.shared.isOn
         panel.activity = Array(ActivityStore.shared.recent.prefix(3))
         panel.passkeys = store.credentials.map { PasskeyRow(id: $0.id, device: $0.device, created: $0.created) }
-        panel.updateAvailable = Updates.shared.available
+        panel.update = updateBanner()
         panel.checkUpdates = AppState.shared.checkUpdates
         panel.screenAllowed = Permissions.screenRecording
         panel.inputAllowed = Permissions.accessibility
@@ -151,7 +153,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         a.showAllActivity = { [weak self] in self?.popover.performClose(nil); self?.showActivity() }
         a.setCheckUpdates = { on in AppState.shared.setCheckUpdates(on); Updates.shared.start() }
         a.openUpdateHelp = { [weak self] in self?.popover.performClose(nil); Self.open("updating") }
+        a.updateNow = { Updater.shared.start() }
+        a.copyUpdateCommand = {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString("scripts/update.sh --all", forType: .string)
+        }
+        a.showUpdateLog = { [weak self] in
+            self?.popover.performClose(nil)
+            NSWorkspace.shared.open(Updater.logURL)
+        }
+        a.dismissUpdate = { Updater.shared.dismiss() }
         return a
+    }
+
+    /// The panel's update banner: a running or finished update wins over "Update available".
+    private func updateBanner() -> UpdateBanner? {
+        if let p = Updater.shared.progress {
+            switch p.state {
+            case .running: return .updating(message: p.message)
+            case .done: return .updated(version: p.to.isEmpty ? BuildInfo.version : String(p.to.prefix(7)))
+            case .current: return .updated(version: BuildInfo.version)
+            case .failed: return .failed(message: p.message)
+            }
+        }
+        guard let info = Updates.shared.info, info.available else { return nil }
+        switch Updater.shared.mode {
+        case .here: return .availableHere(count: info.count, whatsNew: info.whatsNew)
+        case .elsewhere(let name): return .availableElsewhere(from: name)
+        case .manual: return .availableManual
+        }
     }
 
     private func showActivity() {
@@ -225,6 +255,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         if Curtain.shared.isOn { menu.addItem(item("Turn off curtain", #selector(curtainOff))) }
         menu.addItem(item("Setup Assistant…", #selector(showSetup)))
+        if Updates.shared.available, case .here = Updater.shared.mode, !Updater.shared.running {
+            menu.addItem(item("Update now", #selector(updateNow)))
+        }
         menu.addItem(item("Help and docs", #selector(openHelp)))
         menu.addItem(item("Report a problem", #selector(reportProblem)))
         menu.addItem(item("Add a shortcut…", #selector(addShortcut)))
@@ -296,6 +329,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func curtainOff() { Curtain.shared.set(false) }
     @objc private func openHelp() { Self.open("help") }
     @objc private func reportProblem() { Self.open("issues") }
+
+    @objc private func updateNow() { Updater.shared.start() }
 
     static func open(_ link: String) {
         if let s = BuildInfo.links[link], let url = URL(string: s) { NSWorkspace.shared.open(url) }

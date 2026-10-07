@@ -63,8 +63,10 @@ When `setup.sh` prints **"✓ Tether is ready"**:
 - **Remove:** `scripts/uninstall.sh` (this Mac) or `scripts/uninstall.sh <name>` (another Mac); add `--all` to delete settings and passkeys too. Confirm with them before running it.
 
 ### Updating later
-- **This Mac:** run `scripts/setup.sh` again.
-- **Another Mac:** run `scripts/deploy.sh <name>`. The target name was saved during setup, in `~/.config/tether/targets/`.
+- **The easy way:** **Update now** in the Tether panel on a Mac that has the source (set up with `scripts/setup.sh` on that Mac). It runs `scripts/update.sh`.
+- **From Terminal:** `scripts/update.sh` (this Mac) or `scripts/update.sh --all` (this Mac and every saved Mac). Exit 1 ends with a `✗` line; the log is `~/Library/Logs/Tether-update.log` when started from the panel.
+- **Another Mac:** `scripts/deploy.sh <name>` builds here and installs there. The target name was saved during setup, in `~/.config/tether/targets/`. If that Mac has Apple's developer tools, `scripts/deploy.sh <name> --self-update` (once) lets it update itself; ask before running it, since it copies the Tether signing identity to that Mac.
+- `scripts/shortcut.sh updater` makes a "Tether Updater" app that runs `scripts/update.sh --all` in Terminal.
 
 ## Working on the code
 
@@ -76,6 +78,7 @@ When `setup.sh` prints **"✓ Tether is ready"**:
   - `SelfTest`: tests. Command Line Tools ship without XCTest, so run them with `swift run --package-path agent SelfTest`.
 - `web/`: the browser client. Plain ES modules, no build step. Tests: `node --test web/tests/*.test.mjs`. Design rules (colours, icons, motion, copy) are in `docs/DESIGN.md`.
 - `scripts/dev.sh`: runs the agent on this Mac at `http://localhost:7400` in dev mode. Dev mode allows header-less local requests, so never use it for real installs. Use it to test the client, and don't inject input into the developer's own Mac without asking. `TETHER_DEV_PASSKEY=1` (dev mode only) turns the passkey lock on and opens enrollment at launch, for testing Face ID flows with a virtual authenticator; it writes `settings.json` and `passkeys.json` to `~/Library/Application Support/Tether`, so delete them afterwards.
+- `scripts/update.sh`: pulls (fast-forward only) and reinstalls; tested by `bash scripts/tests/update.test.sh` (a throwaway repo, build and install stubbed).
 - `scripts/build-app.sh`: builds `build/Tether.app`, signed with the stable identity from `scripts/setup-signing.sh`.
 - `scripts/lib/install-agent.sh`: runs on the controlled Mac (locally or over SSH). It writes `~/Library/Application Support/Tether/config.json` and sets up the LaunchAgent and `tailscale serve`. The LaunchAgent restarts Tether only after a crash (`KeepAlive.SuccessfulExit = false`), so Quit stays quit. It uses only built-in macOS tools, so the controlled Mac doesn't need Apple's developer tools.
 - Logs on the controlled Mac are in `~/Library/Logs/Tether.log`.

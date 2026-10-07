@@ -181,7 +181,9 @@ if [[ -n "$REMOTE" ]]; then
   on_target 'mkdir -p ~/Applications' || fail "Lost the SSH connection to $REMOTE."
   rsync -a --delete -e "$(printf '%q ' ssh "${SSH_OPTS[@]}")" "$APP/" "$REMOTE:Applications/Tether.app/" \
     || fail "Couldn't copy Tether to $REMOTE. Check the connection and run again."
-  OUT="$(ssh "${SSH_OPTS[@]}" "$REMOTE" bash -s -- "$ALLOWED_LOGINS" "$TETHER_PORT" < "$ROOT/scripts/lib/install-agent.sh" 2>&1)" \
+  # Updates for that Mac come from this one (its banner names this Mac).
+  OUT="$(ssh "${SSH_OPTS[@]}" "$REMOTE" bash -s -- "$ALLOWED_LOGINS" "$TETHER_PORT" "''" "$(printf '%q' "$(scutil --get ComputerName)")" \
+    < "$ROOT/scripts/lib/install-agent.sh" 2>&1)" \
     || { printf '%s\n' "$OUT" | sed 's/^/  /' >&2; fail "Installing on $REMOTE failed (see above)."; }
   # Remember this Mac for future updates: scripts/deploy.sh <name>
   HOSTPART="${REMOTE#*@}"
@@ -192,7 +194,8 @@ if [[ -n "$REMOTE" ]]; then
 else
   mkdir -p "$HOME/Applications"
   rsync -a --delete "$APP/" "$HOME/Applications/Tether.app/"
-  OUT="$(bash "$ROOT/scripts/lib/install-agent.sh" "$ALLOWED_LOGINS" "$TETHER_PORT" 2>&1)" \
+  # "Update now" in Tether's panel rebuilds from this checkout.
+  OUT="$(bash "$ROOT/scripts/lib/install-agent.sh" "$ALLOWED_LOGINS" "$TETHER_PORT" "$ROOT" "" 2>&1)" \
     || { printf '%s\n' "$OUT" | sed 's/^/  /' >&2; fail "Installing Tether failed (see above)."; }
 fi
 printf '%s\n' "$OUT" | grep -v '^TETHER_RESULT' || true

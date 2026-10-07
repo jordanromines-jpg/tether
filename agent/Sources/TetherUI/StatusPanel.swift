@@ -34,6 +34,59 @@ public struct SessionRow: Identifiable, Equatable {
     }
 }
 
+/// The update banner at the top of the panel.
+public enum UpdateBanner: Equatable {
+    /// "Update now" rebuilds on this Mac; `whatsNew` are the newest commit subjects.
+    case availableHere(count: Int, whatsNew: [String])
+    /// Another Mac builds and installs Tether here.
+    case availableElsewhere(from: String)
+    /// No record of where updates come from (an older install).
+    case availableManual
+    case updating(message: String)
+    case updated(version: String)
+    case failed(message: String)
+
+    var title: String {
+        switch self {
+        case .availableHere, .availableElsewhere, .availableManual: return "Update available"
+        case .updating: return "Updating Tether"
+        case .updated: return "Tether is up to date"
+        case .failed: return "The update didn't finish"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .availableHere(let count, _):
+            let changes = count == 1 ? "1 change" : "\(count) changes"
+            return count > 0 ? "\(changes) since this copy. It takes a few minutes, and connected devices reconnect by themselves."
+                             : "A newer Tether is on GitHub. It takes a few minutes, and connected devices reconnect by themselves."
+        case .availableElsewhere(let from):
+            return "Update it from \(from): open Tether Updater there, or copy the command and run it in its Tether folder."
+        case .availableManual: return "A newer Tether is on GitHub."
+        case .updating(let message): return message
+        case .updated(let version): return "Updated to \(version)."
+        case .failed(let message): return message
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .updated: return "checkmark.circle.fill"
+        case .failed: return "exclamationmark.triangle.fill"
+        default: return "arrow.down.circle.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .updated: return .green
+        case .failed: return .orange
+        default: return .accentColor
+        }
+    }
+}
+
 /// What the menu-bar panel can do. The app fills these in; Snapshots leaves them empty.
 public struct PanelActions {
     public var setPaused: (Bool) -> Void = { _ in }
@@ -57,6 +110,10 @@ public struct PanelActions {
     public var showAllActivity: () -> Void = {}
     public var setCheckUpdates: (Bool) -> Void = { _ in }
     public var openUpdateHelp: () -> Void = {}
+    public var updateNow: () -> Void = {}
+    public var copyUpdateCommand: () -> Void = {}
+    public var showUpdateLog: () -> Void = {}
+    public var dismissUpdate: () -> Void = {}
     public init() {}
 }
 
@@ -75,7 +132,7 @@ public final class PanelModel: ObservableObject {
     @Published public var curtainOn = false
     @Published public var activity: [ActivityEntry] = []
     @Published public var passkeys: [PasskeyRow] = []
-    @Published public var updateAvailable = false
+    @Published public var update: UpdateBanner?
     @Published public var checkUpdates = true
     public var actions = PanelActions()
     public init() {}
@@ -110,7 +167,7 @@ public struct StatusPanelView: View {
             header
             Divider()
             VStack(alignment: .leading, spacing: 14) {
-                if model.updateAvailable { update }
+                if let banner = model.update { update(banner) }
                 if model.curtainOn { curtain }
                 if !model.screenAllowed || !model.inputAllowed { permissions }
                 if let url = model.url, !model.paused { link(url) }
@@ -279,18 +336,51 @@ public struct StatusPanelView: View {
         }
     }
 
-    private var update: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.accentColor)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Update available").font(.subheadline.weight(.semibold))
-                Text("A newer Tether is on GitHub.").font(.caption).foregroundStyle(.secondary)
+    private func update(_ banner: UpdateBanner) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: banner.symbol).foregroundStyle(banner.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(banner.title).font(.subheadline.weight(.semibold))
+                    Text(banner.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                if case .updating = banner { ProgressView().controlSize(.small) }
             }
-            Spacer()
-            Button("How to update", action: model.actions.openUpdateHelp).controlSize(.small)
+            if case .availableHere(_, let whatsNew) = banner, !whatsNew.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("What's new").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    ForEach(Array(whatsNew.enumerated()), id: \.offset) { _, line in
+                        Text("· \(line)").font(.caption).lineLimit(1).truncationMode(.tail)
+                    }
+                }
+            }
+            updateButtons(banner)
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: 10).fill(banner.tint.opacity(0.1)))
+    }
+
+    @ViewBuilder
+    private func updateButtons(_ banner: UpdateBanner) -> some View {
+        switch banner {
+        case .availableHere:
+            HStack { Spacer(); Button("Update now", action: model.actions.updateNow).buttonStyle(.borderedProminent).controlSize(.small) }
+        case .availableElsewhere:
+            HStack { Spacer(); Button("Copy command", action: model.actions.copyUpdateCommand).controlSize(.small) }
+        case .availableManual:
+            HStack { Spacer(); Button("How to update", action: model.actions.openUpdateHelp).controlSize(.small) }
+        case .updating:
+            EmptyView()
+        case .updated:
+            HStack { Spacer(); Button("OK", action: model.actions.dismissUpdate).controlSize(.small) }
+        case .failed:
+            HStack {
+                Spacer()
+                Button("Show log", action: model.actions.showUpdateLog).controlSize(.small)
+                Button("Dismiss", action: model.actions.dismissUpdate).controlSize(.small)
+            }
+        }
     }
 
     private var activity: some View {

@@ -4,10 +4,12 @@
 # Uses only tools that ship with macOS (no python3), so the controlled Mac doesn't need
 # Apple's developer tools.
 #
-#   install-agent.sh <allowed-logins> [port]
+#   install-agent.sh <allowed-logins> [port] [source-dir] [update-from]
 #
 # - Writes ~/Library/Application Support/Tether/config.json (logins, port, public URL), so Tether
-#   starts the same way at login or when opened from Applications.
+#   starts the same way at login or when opened from Applications. It also records where updates
+#   come from: <source-dir> is a Tether checkout on THIS Mac (its "Update now" rebuilds there);
+#   <update-from> is the name of the Mac that builds and installs it (shown in the update banner).
 # - Installs the login agent: starts at login, restarts only after a crash (Quit stays quit).
 #   If the person turned "Start Tether at login" off, that choice is kept and Tether is just opened.
 # - Publishes it to the tailnet with `tailscale serve` (when HTTPS certificates are enabled).
@@ -16,6 +18,10 @@
 set -euo pipefail
 LOGINS="${1:?allowed logins required}"
 PORT="${2:-7400}"
+# Strip characters that would break the hand-written JSON below.
+clean() { printf '%s' "$1" | tr -d '"\\'; }
+SOURCE_DIR="$(clean "${3:-}")"
+UPDATE_FROM="$(clean "${4:-}")"
 LABEL="com.tether.agent"
 APP="$HOME/Applications/Tether.app"
 [[ -x "$APP/Contents/MacOS/Tether" ]] || { echo "  ✗ $APP is missing" >&2; exit 1; }
@@ -33,7 +39,8 @@ URL="https://$DNS"
 SUPPORT="$HOME/Library/Application Support/Tether"
 mkdir -p "$SUPPORT" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 chmod 700 "$SUPPORT"
-printf '{"allowedLogins":"%s","port":%s,"publicURL":"%s"}\n' "$LOGINS" "$PORT" "$URL" > "$SUPPORT/config.json"
+printf '{"allowedLogins":"%s","port":%s,"publicURL":"%s","sourceDir":"%s","updateFrom":"%s"}\n' \
+  "$LOGINS" "$PORT" "$URL" "$SOURCE_DIR" "$UPDATE_FROM" > "$SUPPORT/config.json"
 chmod 600 "$SUPPORT/config.json"
 
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"

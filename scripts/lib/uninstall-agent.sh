@@ -29,7 +29,14 @@ if [[ -x "$TS" ]] && "$TS" serve status --json 2>/dev/null | grep -q "127.0.0.1:
 fi
 
 if [[ "$ALL" == "--all" ]]; then
-  gone "$HOME/Library/Application Support/Tether" "Tether's settings and passkeys"
+  gone "$HOME/Library/Application Support/Tether" "Tether's settings, passkeys and source copy"
+  # A signing identity copied here by `deploy.sh --self-update` (never one this Mac made itself,
+  # which may still sign Tether for other Macs).
+  if [[ -f "$HOME/.config/tether/signing-copied-from" ]]; then
+    security delete-keychain "$HOME/Library/Keychains/tether-signing.keychain-db" 2>/dev/null || rm -f "$HOME/Library/Keychains/tether-signing.keychain-db"
+    rm -f "$HOME/.config/tether/signing-keychain-password" "$HOME/.config/tether/signing-copied-from"
+    echo "  ✓ removed the copied Tether signing identity"
+  fi
   gone "$HOME/Library/Logs/Tether.log" "the log"
 fi
 echo "  Note: Tether may still be listed under System Settings → Privacy & Security"

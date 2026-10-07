@@ -274,6 +274,36 @@ do {
     expect(UpdateCheck.latestCommitDate(Data("{}".utf8)) == nil, "unexpected GitHub reply ignored")
 }
 
+// v5: one-click updates
+do {
+    let ahead = Data(#"{"status":"ahead","ahead_by":3,"commits":[{"commit":{"message":"First\n\nbody"}},{"commit":{"message":"Second"}},{"commit":{"message":"Third"}}]}"#.utf8)
+    let info = UpdateCheck.compare(ahead)
+    expect(info?.available == true && info?.count == 3, "compare: main ahead means an update")
+    expect(info?.whatsNew == ["Third", "Second", "First"], "compare: newest first, subject lines only")
+    expect(UpdateCheck.compare(ahead, limit: 2)?.whatsNew.count == 2, "compare: what's new is capped")
+    let same = Data(#"{"status":"identical","ahead_by":0,"commits":[]}"#.utf8)
+    expect(UpdateCheck.compare(same)?.available == false, "compare: identical is no update")
+    let behind = Data(#"{"status":"behind","ahead_by":0,"behind_by":2,"commits":[]}"#.utf8)
+    expect(UpdateCheck.compare(behind)?.available == false, "compare: a newer local build is no update")
+    let diverged = Data(#"{"status":"diverged","ahead_by":1,"behind_by":1,"commits":[{"commit":{"message":"x"}}]}"#.utf8)
+    expect(UpdateCheck.compare(diverged)?.available == true, "compare: diverged still reports what's new")
+    expect(UpdateCheck.compare(Data(#"{"message":"Not Found"}"#.utf8)) == nil, "compare: unknown commit falls back")
+
+    expect(UpdateMode.decide(sourceDir: "/src", isCheckout: true, hasTools: true, updateFrom: "") == .here(sourceDir: "/src"),
+           "mode: checkout + tools updates here")
+    expect(UpdateMode.decide(sourceDir: "/src", isCheckout: true, hasTools: false, updateFrom: "MacBook") == .elsewhere("MacBook"),
+           "mode: no developer tools falls back to the building Mac")
+    expect(UpdateMode.decide(sourceDir: "", isCheckout: false, hasTools: true, updateFrom: "MacBook") == .elsewhere("MacBook"),
+           "mode: a remote install names its Mac")
+    expect(UpdateMode.decide(sourceDir: nil, isCheckout: false, hasTools: false, updateFrom: nil) == .manual,
+           "mode: an old install gets instructions")
+
+    let progress = UpdateProgress.parse(Data(#"{"state":"running","step":"building","message":"Building","from":"a","to":"b","at":"2026-10-07T18:00:00Z"}"#.utf8))
+    expect(progress?.state == .running && progress?.step == "building" && progress?.finished == false, "progress: running parsed")
+    expect(UpdateProgress.parse(Data(#"{"state":"done","step":"done","message":"Updated"}"#.utf8))?.finished == true, "progress: done is finished")
+    expect(UpdateProgress.parse(Data(#"{"state":"exploded"}"#.utf8)) == nil, "progress: unknown state ignored")
+}
+
 // v4 batch 3: window geometry
 do {
     let win = CGRect(x: -1200, y: 100, width: 800, height: 600)   // on a display left of the main one

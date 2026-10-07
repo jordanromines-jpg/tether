@@ -63,21 +63,3 @@ public struct ActivityLog: Equatable, Sendable {
         return (try? encoder.encode(entries)) ?? Data("[]".utf8)
     }
 }
-
-/// "Update available": is the newest commit on GitHub newer than the one this copy was built from?
-public enum UpdateCheck {
-    /// The committer date from GitHub's GET /repos/{owner}/{repo}/commits/{branch} response.
-    public static func latestCommitDate(_ data: Data) -> Date? {
-        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let commit = obj["commit"] as? [String: Any],
-              let committer = commit["committer"] as? [String: Any],
-              let date = committer["date"] as? String else { return nil }
-        return ISO8601DateFormatter().date(from: date)
-    }
-
-    /// Only a strictly newer commit counts, so a build of the latest (or of local changes) never nags.
-    public static func isNewer(remote: Date?, build: Date?) -> Bool {
-        guard let remote, let build else { return false }
-        return remote.timeIntervalSince(build) > 60
-    }
-}

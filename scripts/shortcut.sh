@@ -7,6 +7,8 @@
 #                                                       #   (<target> is a saved name like "studio", or user@machine)
 #   scripts/shortcut.sh viewer <name|url> [folder]      # on the Mac you control FROM: a "Tether - <name>" app that
 #                                                       #   opens that Mac's screen in its own window
+#   scripts/shortcut.sh updater [folder]               # on the Mac that installs Tether on others: a "Tether Updater"
+#                                                       #   app that updates this Mac and every saved Mac in one click
 #
 # Shortcuts are listed in ~/Library/Application Support/Tether/shortcuts.json so scripts/uninstall.sh
 # removes exactly these.
@@ -19,12 +21,12 @@ ARG=""; FOLDER=""; REMOTE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --remote) REMOTE="${2:?--remote needs a target name or user@machine}"; shift ;;
-    -h|--help) sed -n 2,14p "$0"; exit 0 ;;
+    -h|--help) sed -n 2,16p "$0"; exit 0 ;;
     *) if [[ "$KIND" == viewer && -z "$ARG" ]]; then ARG="$1"; else FOLDER="$1"; fi ;;
   esac
   shift
 done
-[[ "$KIND" == app || "$KIND" == viewer ]] || { sed -n 2,14p "$0" >&2; exit 2; }
+[[ "$KIND" == app || "$KIND" == viewer || "$KIND" == updater ]] || { sed -n 2,16p "$0" >&2; exit 2; }
 
 # The folder: given, or picked in a Finder dialog when someone is at the keyboard, else Applications.
 pick_folder() {
@@ -54,6 +56,50 @@ if [[ "$KIND" == app ]]; then
     OUT="$(bash -c "$CMD" 2>&1)" || fail "Couldn't add the shortcut: $OUT"
   fi
   ok "added a Tether shortcut: $OUT"
+  exit 0
+fi
+
+# ---- updater: a tiny app that runs scripts/update.sh --all in a Terminal window ----
+if [[ "$KIND" == updater ]]; then
+  DIR="$(pick_folder)"; DIR="${DIR%/}"
+  [[ -w "$DIR" ]] || { info "$DIR isn't writable, using ~/Applications instead"; DIR="$HOME/Applications"; mkdir -p "$DIR"; }
+  APP="$DIR/Tether Updater.app"
+  REG="$HOME/Library/Application Support/Tether/shortcuts.json"
+  if [[ -e "$APP" ]] && ! registry_paths "$REG" | grep -qxF "$APP"; then
+    fail "There's already something called \"Tether Updater.app\" in $DIR that Tether didn't make. Pick another folder."
+  fi
+  rm -rf "$APP"
+  mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+  for c in "$ROOT/build/Tether.app" "$HOME/Applications/Tether.app"; do
+    [[ -f "$c/Contents/Resources/AppIcon.icns" ]] && { cp "$c/Contents/Resources/AppIcon.icns" "$APP/Contents/Resources/"; break; }
+  done
+  cat > "$APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.tether.updater-app</string>
+  <key>CFBundleName</key><string>Tether Updater</string>
+  <key>CFBundleExecutable</key><string>open-updater</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+</dict>
+</plist>
+PLIST
+  cat > "$APP/Contents/Resources/update.command" <<SCRIPT
+#!/bin/bash
+# Updates Tether on this Mac (if it's installed here) and on every Mac saved in ~/.config/tether/targets.
+cd $(printf '%q' "$ROOT") && scripts/update.sh --all
+echo
+read -n 1 -s -r -p "Press any key to close this window."
+SCRIPT
+  printf '#!/bin/bash\nexec open -a Terminal "$(dirname "$0")/../Resources/update.command"\n' > "$APP/Contents/MacOS/open-updater"
+  chmod +x "$APP/Contents/MacOS/open-updater" "$APP/Contents/Resources/update.command"
+  touch "$APP"
+  registry_add "$REG" "$APP"
+  ok "made \"Tether Updater\" in $DIR. Open it to update Tether everywhere in one click."
   exit 0
 fi
 

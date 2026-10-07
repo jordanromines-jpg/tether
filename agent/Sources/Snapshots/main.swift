@@ -66,7 +66,7 @@ render(CurtainView().frame(width: 960, height: 600), "curtain")
 // v4 batch 2: update banner, recent activity, each device's passkey.
 let busy = PanelModel()
 busy.url = sampleURL
-busy.updateAvailable = true
+busy.update = .availableManual
 busy.passkeyRequired = true
 busy.passkeys = [PasskeyRow(id: "a", device: "Jordan's iPhone", created: Date().addingTimeInterval(-86400 * 12)),
                  PasskeyRow(id: "b", device: "iPad", created: Date().addingTimeInterval(-86400 * 3))]
@@ -94,9 +94,27 @@ if let plist = ProcessInfo.processInfo.environment["SNAPSHOT_UPDATE_PLIST"],
     done.wait()
     let live = PanelModel()
     live.url = sampleURL
-    live.updateAvailable = UpdateCheck.isNewer(remote: remote, build: built)
-    print("update check: repo \(repo), built \(built.map { "\($0)" } ?? "unknown"), latest \(remote.map { "\($0)" } ?? "unknown"), available \(live.updateAvailable)")
+    let newer = UpdateCheck.isNewer(remote: remote, build: built)
+    live.update = newer ? .availableManual : nil
+    print("update check: repo \(repo), built \(built.map { "\($0)" } ?? "unknown"), latest \(remote.map { "\($0)" } ?? "unknown"), available \(newer)")
     render(StatusPanelView(model: live).background(.background), "panel-update-live")
+}
+
+// v5: every state of the update banner.
+let banners: [(String, UpdateBanner)] = [
+    ("here", .availableHere(count: 3, whatsNew: ["Toolbar labels and a key row above the keyboard",
+                                                  "One-click updates from the menu bar",
+                                                  "Fix the connection row in More"])),
+    ("elsewhere", .availableElsewhere(from: "Jordan's MacBook Pro")),
+    ("updating", .updating(message: "Building (usually a few minutes)")),
+    ("updated", .updated(version: "4f2c9e1")),
+    ("failed", .failed(message: "This copy has changes of its own that aren't committed. Update it in Terminal.")),
+]
+for (name, banner) in banners {
+    let m = PanelModel()
+    m.url = sampleURL
+    m.update = banner
+    render(StatusPanelView(model: m).background(.background), "panel-update-\(name)")
 }
 
 let paused = PanelModel()

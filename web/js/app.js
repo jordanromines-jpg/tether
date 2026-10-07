@@ -194,8 +194,20 @@ stream.addEventListener('close', () => {
   updateConnection();
   status('connecting', 'Reconnecting', `Lost the connection to ${macName()}. Trying again.`);
 });
+// The Mac was updated while this page was open: load the new page so both sides match. An unsent
+// Compose draft is never thrown away; the person reloads when ready.
+let pageVersion = null;
+function checkVersion(version) {
+  if (!version) return;
+  pageVersion ??= version;
+  if (version === pageVersion) return;
+  if ($('#compose-area')?.value) toast('Tether was updated on the Mac', { label: 'Reload', run: () => location.reload() }, 0);
+  else location.reload();
+}
+
 stream.addEventListener('hello', (e) => {
   hello = e.detail;
+  checkVersion(hello.version);
   currentDisplay = hello.display;
   document.title = `${hello.name} · Tether`;
   $('.conn-name').textContent = hello.name;

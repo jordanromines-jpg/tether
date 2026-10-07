@@ -213,6 +213,7 @@ final class Hub {
             "fitAvailable": FitDisplay.isAvailable,
             "curtain": Curtain.shared.isOnApprox,
             "links": BuildInfo.links,
+            "version": BuildInfo.version,
         ]))
         let bounds = queue.sync { captureBounds }
         if let shape = cursor.current { client.send(text: Self.cursorShapeMessage(shape, bounds: bounds)) }

@@ -11,5 +11,13 @@ enum BuildInfo {
         (Bundle.main.object(forInfoDictionaryKey: "TetherBuildDate") as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
     }
 
+    /// The full git commit this copy was built from, if known.
+    static var commit: String? {
+        (Bundle.main.object(forInfoDictionaryKey: "TetherCommit") as? String).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// Short form for display and for the web page's "was Tether updated?" check.
+    static var version: String { commit.map { String($0.prefix(7)) } ?? "dev" }
+
     static var links: [String: String] { Links.urls(repo: repo) }
 }
