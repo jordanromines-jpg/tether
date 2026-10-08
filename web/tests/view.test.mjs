@@ -52,3 +52,24 @@ test('a viewport that starts lower on the page (e.g. under a browser bar) is acc
   const n = v.toNormalized(195, 44 + 400);
   assert.ok(Math.abs(n.x - 0.5) < 1e-9 && Math.abs(n.y - 0.5) < 1e-9);
 });
+
+test('rotating re-fits the picture even when the resize event came too early (iOS)', () => {
+  const observers = [];
+  globalThis.ResizeObserver = class { constructor(cb) { this.cb = cb; observers.push(this); } observe() {} };
+  try {
+    const canvas = { style: {}, width: 0, height: 0 };
+    const viewport = { clientWidth: 390, clientHeight: 844, getBoundingClientRect: () => ({ left: 0, top: 0, width: viewport.clientWidth, height: viewport.clientHeight }) };
+    const v = new View(canvas, viewport);
+    v.setVideoSize(5120, 2880);
+    // Rotated: the width is new, but the height the 'resize' event saw was still the portrait one.
+    viewport.clientWidth = 844; viewport.clientHeight = 750;
+    v.layout(true);
+    // Then layout settles to the real landscape height, which only the observer reports.
+    viewport.clientHeight = 390;
+    observers.at(-1).cb();
+    assert.ok(v.displayedHeight <= 390 + 0.5, `picture fits the height (${v.displayedHeight})`);
+    assert.ok(v.ty >= 0 && v.ty + v.displayedHeight <= 390 + 0.5, `and isn't pushed down (ty ${v.ty})`);
+    const mid = v.toNormalized(v.toClient(0.5, 0.5).x, v.toClient(0.5, 0.5).y);
+    assert.ok(Math.abs(mid.x - 0.5) < 1e-6 && Math.abs(mid.y - 0.5) < 1e-6, 'taps still land where drawn');
+  } finally { delete globalThis.ResizeObserver; }
+});

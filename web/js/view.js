@@ -12,6 +12,12 @@ export class View {
     this.scale = 1;
     addEventListener('resize', () => this.layout(true));
     visualViewport?.addEventListener('resize', () => this.layout(true));
+    // Rotating a phone (above all from the Home Screen) fires 'resize' before the new height is
+    // settled, which left the picture placed for the old shape: too low and cut off, with taps off by
+    // as much. The viewport's own size, reported after layout, is the one to trust.
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => this.layout(true)).observe(viewport);
+    }
   }
 
   setVideoSize(w, h) {
