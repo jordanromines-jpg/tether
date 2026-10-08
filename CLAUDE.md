@@ -82,3 +82,11 @@ When `setup.sh` prints **"✓ Tether is ready"**:
 - `scripts/build-app.sh`: builds `build/Tether.app`, signed with the stable identity from `scripts/setup-signing.sh`.
 - `scripts/lib/install-agent.sh`: runs on the controlled Mac (locally or over SSH). It writes `~/Library/Application Support/Tether/config.json` and sets up the LaunchAgent and `tailscale serve`. The LaunchAgent restarts Tether only after a crash (`KeepAlive.SuccessfulExit = false`), so Quit stays quit. It uses only built-in macOS tools, so the controlled Mac doesn't need Apple's developer tools.
 - Logs on the controlled Mac are in `~/Library/Logs/Tether.log`.
+- **Changelog and versions:** every user-facing change gets a plain-words line under **Unreleased** in `CHANGELOG.md` (same copy rules as the interface). When a version ships, give that section its number and date, bump `VERSION` (stamped into Info.plist by `build-app.sh` and shown as "6.0 (commit)"), and tag the commit `vX.Y`.
+- **Testing on a Mac someone uses:** prefer what can't disturb them.
+  - Logic: `SelfTest`, `node --test`, `scripts/tests/update.test.sh`.
+  - Layout: a mock Tether (a small Node server that serves `web/` and fakes `hello`, `/healthz`, `/peers`) and Playwright at phone, tablet and desktop sizes, light and dark.
+  - Live input only into a throwaway browser window you opened yourself (a local "test bench" page that logs clicks, keys and scrolls), streamed with **Show only this window**, and only after checking that window is the target and in front. Never type into other apps, click the menu bar, turn on the curtain, or sleep or lock the Mac.
+  - The display must be awake and the Mac unlocked for capture; if it's locked, stop and say so (don't try to unlock it).
+  - Ask before running anything that brings a window to the front while the person may be using the Mac.
+

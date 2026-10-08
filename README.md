@@ -59,28 +59,30 @@ Steps:
 | Move | Drag one finger (trackpad mode) or tap where you want (direct mode) | Move the pointer |
 | Click / right-click | Tap / two-finger tap | Click / right-click |
 | Drag | Touch and hold, then drag | Click and drag |
-| Scroll | Two fingers | Wheel or trackpad |
+| Scroll | Two fingers (it keeps gliding after you let go, like a Mac trackpad) | Wheel or trackpad |
 | Spaces / Mission Control | Three-finger swipe left/right, or up/down | **Actions** or **Keys** |
 | Zoom the view | Pinch. The view follows the cursor; three fingers pan while zoomed | n/a |
 | Type | **Keyboard**; ⌘ ⌥ ⌃ ⇧, esc, tab and the arrows sit above the on-screen keyboard. Or **Compose** for autocorrect and dictation | Just type; ⌘ shortcuts pass through |
 
 The toolbar shows each tool's name under its icon. A short tour points them out the first time (**More → Tips** shows it again).
-- **More** lists every tool, in sections, including the ones that aren't in the toolbar. **More → Edit toolbar** chooses which tools sit in the toolbar and in what order (a phone, an iPad and a computer each keep their own). Prefer icons only? Turn labels off there or in **Display and quality**.
+- **More** lists every tool, in sections, including the ones that aren't in the toolbar. **More → Edit toolbar** chooses which tools sit in the toolbar and in what order (drag the handle, or use the arrows; a phone, an iPad and a computer each keep their own). **Labels** is Auto by default: names when there's room, icons only before anything has to fold away. The bottom of More shows which version the Mac runs, with a link to [what changed](CHANGELOG.md).
+- **Menu bar:** when the pointer is up in the Mac's menu bar, a magnified strip of it appears at the top of your screen, so the small icons are easy to hit. A ripple shows where each tap clicked (turn either off in **Display and quality**).
 - **Actions** (the lightning bolt): volume, mute, play/pause, next and previous track, Mission Control, sleep the Mac's display, lock the Mac (tap twice), take a **screenshot** to your device, **open a link** on the Mac, **open an app** by name, Force Quit, and the full **keys and shortcuts** list.
 - **More about a button:** hover over it, or touch and hold it on a phone or iPad, for a line on what it does.
 - **Put it anywhere:** drag the toolbar by its grip (the dots on the end) to any edge or corner. On the sides it stands upright. Or choose **More → Move toolbar**.
 - **Small screens:** tools that don't fit fold away from the end instead of scrolling off the edge; they're always in **More**.
 - **Sticky ⌘ ⌥ ⌃ ⇧** (above the on-screen keyboard, or in **Keys**): tap for the next key or click only (⌘-click works), double-tap to lock.
 - **Keys and shortcuts** for Esc, arrows, F-keys and common shortcuts.
-- **Clipboard** sync in both directions, including formatted text and **images** (copy an image on the Mac and tap Copy on your phone; or **Paste image** to send one from your phone).
-- **Windows:** a list of the Mac's open windows with their app icons. Tap one to bring it to the front, or **Show only** to stream just that window, which is far easier to use on a phone than a whole 5K desktop. **Fit to this device** reshapes the window to your screen while you use it and puts it back afterwards. Tap **Whole screen** in the toolbar to go back.
-- **Your Macs** (More, or the connection details): every Mac on your tailnet with a live picture, and whether it's online, paused, not answering, or offline since when. Tap one to switch.
+- **Clipboard** sync in both directions, including formatted text and **images** (copy an image on the Mac and tap Copy on your phone; or **Paste image** to send one from your phone). **Recent** lists the last 10 things each way while the page is open (never saved). **Type it on the Mac** types your text as keystrokes, for password managers and fields that block pasting.
+- **Windows:** a list of the Mac's open windows with their app icons. Tap one to bring it to the front, or **Show only** to stream just that window, which is far easier to use on a phone than a whole 5K desktop. **Fit to this device** reshapes the window to your screen while you use it and puts it back afterwards. Tap **Whole screen** in the toolbar to go back. If you reconnect later, Tether offers to go back to that window.
+- **Your Macs** (More, or the connection details): every Mac on your tailnet with a live picture, and whether it's online, paused, not answering, or offline since when. Tap one to switch. A sleeping Mac on the same network as another of yours shows **Wake** (see [Known limits](#known-limits)).
 - **Pinned shortcuts:** in Keys and shortcuts, choose **Pin to toolbar** to put up to six shortcuts (or your own combination) right on the toolbar.
 - **Capture pointer** (More, on a computer or an iPad with a trackpad): your trackpad moves the Mac's pointer directly. Press Esc to release it.
-- **Files:** browse the Mac's Downloads, Desktop and Documents; download anything, or **Upload here** to put files in the folder you're looking at. (Files dropped onto the window go to Downloads.)
+- **Files:** browse the Mac's Downloads, Desktop and Documents; download anything, or **Upload here** to put files in the folder you're looking at. (Files dropped onto the window go to Downloads.) Uploads show speed and time left, can be cancelled, and offer **Show on Mac** when done.
 - **Sound** on or off.
 - **Display and quality:** pick a monitor (with a live picture of each when there's more than one); choose Auto, **Saver** (battery and cellular), Fast, Balanced or Sharp; fit the screen to your device; pause when idle; pointer size and the **magnifier** (a zoomed view above your finger while dragging) on touch screens; a **data warning** after 250 MB, 500 MB or 1 GB; and **this device's name** as the Mac shows it.
 - **Connection:** your Mac's name with a live quality dot and how much data this session and today have used. Tap it for details, or to switch to another of your Macs running Tether.
+- **When it can't connect,** the card says why (this device is offline, the Mac is off Tailscale and when it was last seen, Tether isn't running on it, or it's paused) and keeps trying every few seconds. **Diagnose** checks each step between your device and the Mac and says how to fix the one that fails.
 
 ## Turning it on and off
 
@@ -103,6 +105,8 @@ The Tether panel on the Mac shows **Update available** when a newer version is o
 - **A Mac that has the Tether source** (you ran `scripts/setup.sh` on it): click **Update now** in the panel (or in the right-click menu). Tether downloads the latest version, rebuilds it and restarts, which takes a few minutes. Connected devices reconnect by themselves, and an open Tether page reloads itself.
 - **A Mac you set up from another Mac** (`setup.sh --remote`): its panel names the Mac to update it from. There, open **Tether Updater** (make it once with `scripts/shortcut.sh updater`), or run `scripts/update.sh --all` in the Tether folder. That updates every Mac you've set up, in one go.
 - **Let that Mac update itself instead:** if it has Apple's developer tools, run `scripts/deploy.sh <name> --self-update` once. It gets its own copy of the source and of this Mac's Tether signing identity, so its permissions are kept, and from then on its own **Update now** works.
+
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md). After an update the Mac shows a notification, and your phone shows "Tether was updated" with what's new.
 
 Updates only ever move forward along `main` of the repo Tether was built from. A copy with changes of its own is left alone (update it in Terminal with `git pull` and `scripts/setup.sh`). Your settings, passkeys and macOS permissions are kept.
 
@@ -359,7 +363,9 @@ Tailscale admin → DNS`"]):::action
 
 ```bash
 swift run --package-path agent SelfTest   # core logic tests
-node --test web/tests/*.test.mjs          # client logic tests (tools and layouts, docking, key row)
+node --test web/tests/*.test.mjs          # client logic tests (layouts, docking, key row, gestures, pointer, diagnose, wake)
+bash scripts/tests/update.test.sh         # update.sh, against a throwaway repo
+swift scripts/make-icons.swift web/icons  # app icons, maskable icon and launch screens
 swift run --package-path agent Snapshots snaps/   # render the Mac UI to PNGs (light and dark) for review
 scripts/dev.sh                            # run the agent on this Mac at http://localhost:7400 (dev mode)
 scripts/build-app.sh                      # build/Tether.app, signed with a stable local identity
@@ -373,6 +379,7 @@ Logs on the controlled Mac are in `~/Library/Logs/Tether.log`.
 
 - **You build it yourself, from source.** There's no signed or notarized download. Setup builds Tether on your Mac and signs it with a self-made identity kept in a dedicated keychain, so macOS permissions survive updates. If you build on a different Mac or delete that keychain, grant the two permissions once more.
 - **Browser-reserved shortcuts.** Desktop browsers keep a few shortcuts for themselves (⌘W, ⌘T, ⌘Q). Use the **…** menu, or install the page as an app.
+- **Waking a Mac needs Ethernet.** **Wake** sends a Wake-on-LAN packet from another of your Macs on the same network, so it works for a Mac on Ethernet with **Wake for network access** on (System Settings → Energy). A Mac on Wi-Fi with a Private Wi-Fi address can wake others but can't be woken this way.
 - **"Fit to device" uses an undocumented macOS feature.** A future macOS update could break it. If so, the toggle disables itself, and everything else keeps working.
 - **Future ideas:** WebRTC transport for lossy networks, and a signed one-click download.
 

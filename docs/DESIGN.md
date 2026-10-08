@@ -87,7 +87,12 @@ Ask how often something happens before animating it.
 | Toolbar snap after a drag | occasional | Spring from the drop point to the dock (bounce 0.18) |
 | Connecting spinner | while waiting | `svg-spinners` ring, 0.75s per turn |
 | First-run tips | once | Cross-fade between cards |
-| Tour ring moving to the next button | once | 200ms ease on position and size |
+| Tour ring moving to the next button | once | 200ms ease on position and size (the one place that animates layout) |
+| Tap feedback on the screen | hundreds a day | A ripple where the click landed: 250ms scale and fade, never blocks the next tap |
+| Two-finger scroll release | constant | Momentum: the scroll keeps going and slows by friction per frame; the next touch stops it |
+| Toasts, empty states, the menu-bar strip | often | None: they appear and go instantly |
+
+Hover fades on buttons change only their background colour; that's the single exception to transform and opacity, and it's cheap.
 
 Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, everything is instant and the spinner is replaced by a static ring. Springs come from [Anime.js](https://animejs.com) (`web/vendor/anime.esm.min.js`), which is loaded only when first needed.
 
@@ -97,9 +102,10 @@ Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, e
   - Defaults: phone Keyboard · Actions · Windows · Clipboard; iPad adds Files, Sound, Display and the connection; desktop is Actions · Windows · Clipboard · Files · Sound · Display · Full screen · connection. The device class comes from the screen's short side, so rotating keeps it.
   - The connection is the Mac icon with a quality dot, labelled with the Mac's name.
   - It docks to the top, bottom or a side; sides make it vertical (64px wide, still labelled). Tools that don't fit fold away from the end, pinned shortcuts first. Nothing scrolls, and More still lists everything.
-- **Key row.** On touch screens, while typing: ⌘ ⌥ ⌃ ⇧ (sticky, double-tap to lock), esc, tab and the four arrows, sharing the width evenly, plus a hide-keyboard button. It sits on the keyboard's top edge (`visualViewport`), acts on press without taking focus, repeats held arrows, and the toolbar steps aside while it's up.
+- **Key row.** On touch screens, while typing: ⌘ ⌥ ⌃ ⇧ (sticky, double-tap to lock), esc, tab, the four arrows, ⌫ and ↩, sharing the width evenly, plus a hide-keyboard button. Under 600px wide it's two rows (modifiers, esc and tab; then arrows, ⌫ and ↩), so every key is at least 44px wide. It sits on the keyboard's top edge (`visualViewport`), acts on press without taking focus, repeats held arrows, and the toolbar steps aside while it's up.
 - **More.** Every tool, whether or not it's in the bar. A connection card on top (name, quality dot, live line; opens Connection), then sections (Type, Control, Transfer, View, Toolbar, Help) of labelled tiles, four across on phones. Toggles show an On or Off pill; pinned shortcuts show their keys.
-- **Edit toolbar.** A switch per tool ("On" puts it in the bar), up and down buttons to reorder, a note when some don't fit this screen, Labels on or off, and Reset to default. Saved per device class.
+- **Edit toolbar.** A switch per tool ("On" puts it in the bar), a drag handle and up and down buttons to reorder, a note when some don't fit this screen, Labels (Auto, On, Off), and Reset to default. Saved per device class. Auto shows labels when they fit and drops to icons only before any tool folds into More.
+- **Menu-bar strip.** While the pointer is in the top 2.5% of the Mac's screen and the view isn't zoomed, a 3x strip of the menu bar spans the top of the screen and follows the pointer.
 - **Tour.** After the gesture tips, once: a ring around one real toolbar button at a time (Keyboard, Actions, Windows, More, the grip) with a card beside it, placed by the dock. Steps for buttons that aren't showing are skipped. More → Tips runs it again.
 - **Tooltip.** The tool's full name plus one line on what it does. Shown on hover with a mouse and on touch-and-hold on touch screens; a touch-and-hold never fires the button. Tether adds no keyboard shortcuts of its own, since nearly every key goes to the Mac.
 - **Status screen.** One card: icon, title, one line of explanation, one primary action. Used for connecting, paused, locked, passkey, idle (the whole card is tappable to resume), error and unsupported browser.
@@ -110,7 +116,10 @@ Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, e
 - **Mac cards.** 16:10 live picture (or a lock or moon icon), name, and a status dot with words (Online, Paused, Not answering, Offline since…). Status never relies on colour alone.
 - **Chips.** Accent-tinted toolbar pills that report a mode and undo it when tapped: View only, Whole screen.
 - **Banner.** The Mac's state while video is live (display asleep, locked), with one action.
-- **Toast.** Short confirmations at the top, auto-dismissed; at most one action.
+- **Toast.** Short confirmations at the top, auto-dismissed; at most one action. An upload toast is the one larger form: file name on top, a progress bar with speed and time left under it, Cancel to the side.
+- **Empty and error states.** One pattern everywhere (`emptyState()` in `app.js`): a 28px muted icon, one line saying what's true ("This folder is empty", "Couldn't load the folder"), and at most one action, usually **Try again**.
+- **Version line.** The bottom of More: "Tether 6.0 (573e17e) · What changed", muted, linking to CHANGELOG.md.
+- **Launch screens.** From the Home Screen: the dark background (`--bg`) with the app icon in the middle, generated by `scripts/make-icons.swift`.
 
 ## Copy
 
@@ -121,4 +130,4 @@ Animate only `transform` and `opacity`. With `prefers-reduced-motion: reduce`, e
 
 ## Mac app
 
-The menu-bar icon is a template image, so macOS tints it. Left-click opens the status panel (SwiftUI in an `NSPopover`); right-click opens the classic menu. The Setup Assistant is a standard macOS window with a step list on the left. Both use system materials, system colours with the same blue accent, and SF Symbols.
+The menu-bar icon is a template image, so macOS tints it. Left-click opens the status panel (SwiftUI in an `NSPopover`); right-click opens the classic menu. The Setup Assistant is a standard macOS window with a step list on the left; once every step is green and a device has connected, it says "All set" and closes after 5 seconds unless touched. **Update now** opens a small Update Tether window (what's new, progress, result) that stays open while the update runs; a notification follows when it's done. Both use system materials, system colours with the same blue accent, and SF Symbols.
