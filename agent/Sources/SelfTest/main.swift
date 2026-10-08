@@ -419,5 +419,14 @@ do {
     expect(p.x == 200, "pointer: quick moves all count (ended at \(p.x), expected 200)")
 }
 
+// Why there's no picture
+do {
+    expect(CaptureProblem.reason(screenRecording: false, lidClosed: true, asleep: true, error: "x").kind == "permission", "no picture: permission comes first")
+    expect(CaptureProblem.reason(screenRecording: true, lidClosed: true, asleep: true, error: "x").kind == "lidClosed", "no picture: a closed lid explains a sleeping display")
+    expect(CaptureProblem.reason(screenRecording: true, lidClosed: false, asleep: true, error: "x").kind == "asleep", "no picture: display asleep")
+    let other = CaptureProblem.reason(screenRecording: true, lidClosed: false, asleep: false, error: "No display to capture")
+    expect(other.kind == "capture" && other.message.contains("No display to capture"), "no picture: anything else keeps the error")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

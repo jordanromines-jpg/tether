@@ -449,9 +449,16 @@ stream.addEventListener('cursorShape', (e) => cursor.setShape(e.detail));
 stream.addEventListener('quality', (e) => { autoInfo = e.detail; });
 stream.addEventListener('fit', (e) => { fitMode = e.detail.mode; });
 stream.addEventListener('config', (e) => { if (e.detail.auto) autoInfo = { ...autoInfo, maxWidth: e.detail.w }; });
+// No picture, and the Mac says why (lid closed, display asleep, permission off, or another error).
+// There's always a way to another Mac from here.
 stream.addEventListener('error', (e) => {
-  if (stream.hasVideo) toast(e.detail.msg, null, 6000);
-  else status('error', 'Can\'t show the screen', e.detail.msg, [{ label: 'Try again', run: () => stream.reconnect() }]);
+  const { msg, title, kind } = e.detail;
+  if (stream.hasVideo) { toast(msg, null, 6000); return; }
+  const first = kind === 'asleep'
+    ? { label: 'Wake', run: () => stream.send({ t: 'wake' }) }
+    : { label: 'Try again', run: () => stream.reconnect() };
+  status('error', title ? `${macName()}: ${title.toLowerCase()}` : 'Can\'t show the screen', msg,
+    [first, { label: 'Your other Macs', run: openMacsSheet, secondary: true }]);
 });
 let lastMacHTML = null;
 let lastMacImage = null;   // { id, w, h }

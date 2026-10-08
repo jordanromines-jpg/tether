@@ -105,6 +105,11 @@ final class Hub {
     private var curtainWindowIDs: [CGWindowID] = []
     /// Failed capture starts in a row (e.g. while the display sleeps); retried every 2 seconds.
     private var captureFailures = 0
+    private var captureProblem: CaptureProblem.Reason?
+
+    static func problemMessage(_ r: CaptureProblem.Reason) -> String {
+        jsonMessage("error", ["msg": r.message, "kind": r.kind, "title": r.title])
+    }
     /// Single-window mode: the window, its current frame, and the frame to restore after "Fit".
     private var windowTarget: (info: WindowList.Info, rect: CGRect, restore: CGRect?)?
     private var windowTimer: DispatchSourceTimer?
@@ -229,6 +234,12 @@ final class Hub {
             if self.windowTarget != nil { self.broadcastTarget() }
             // Where the pointer is right now, so the device can draw it before it next moves.
             if let p = self.input.normalizedCursor { client.send(text: jsonMessage("cursor", ["x": p.x, "y": p.y])) }
+            // Joining while there's no picture: say why now, and try again (the lid may be open by now).
+            if self.captureFailures > 0 {
+                if let r = self.captureProblem { client.send(text: Self.problemMessage(r)) }
+                self.captureFailures = min(self.captureFailures, 1)
+                self.restartCapture()
+            }
         }
     }
 
@@ -304,7 +315,16 @@ final class Hub {
         let session = CGSessionCopyCurrentDictionary() as? [String: Any]
         let locked = (session?["CGSSessionScreenIsLocked"] as? Bool) ?? false
         let asleep = CGDisplayIsAsleep(CGMainDisplayID()) != 0
-        return ["locked": locked, "asleep": asleep]
+        return ["locked": locked, "asleep": asleep, "lidClosed": lidClosed]
+    }
+
+    /// A MacBook's lid is shut (with no other display there's nothing to capture).
+    static var lidClosed: Bool {
+        let root = IORegistryEntryFromPath(kIOMainPortDefault, "IOService:/IOResources/IOPMrootDomain")
+        guard root != 0 else { return false }
+        defer { IOObjectRelease(root) }
+        let v = IORegistryEntryCreateCFProperty(root, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+        return (v as? Bool) ?? false
     }
 
     /// Restarts capture with current settings. Serialized via task chaining.
@@ -321,15 +341,20 @@ final class Hub {
             guard self.queue.sync(execute: { !self.clients.isEmpty }) else { return }
             do {
                 try await self.streamer.start(settings)
-                self.queue.async { self.captureFailures = 0 }
+                self.queue.async { self.captureFailures = 0; self.captureProblem = nil }
             } catch {
                 NSLog("Tether: capture failed: \(error)")
-                let msg = Permissions.screenRecording
-                    ? "Couldn't start screen capture: \(error.localizedDescription)"
-                    : "Screen Recording permission is off for Tether on this Mac."
+                let state = Self.readMacState()
+                let reason = CaptureProblem.reason(screenRecording: Permissions.screenRecording, lidClosed: state["lidClosed"] == true,
+                                                   asleep: state["asleep"] == true, error: error.localizedDescription)
+                if state["asleep"] == true { self.power.wake() }
                 self.queue.async {
-                    // Say it once, then keep trying quietly: a sleeping display comes back by itself.
-                    if self.captureFailures == 0 { self.broadcastText(jsonMessage("error", ["msg": msg])) }
+                    // Say why (again whenever the reason changes), then keep trying quietly: a display
+                    // that wakes or a lid that opens brings the picture back by itself.
+                    if self.captureFailures == 0 || reason != self.captureProblem {
+                        self.captureProblem = reason
+                        self.broadcastText(Self.problemMessage(reason))
+                    }
                     self.captureFailures += 1
                     guard Permissions.screenRecording, self.captureFailures <= 150 else { return }
                     self.queue.asyncAfter(deadline: .now() + 2) {

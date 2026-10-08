@@ -97,3 +97,26 @@ public enum PointerBase {
         return posted
     }
 }
+
+/// Why there's no picture, in plain words, for the device that's waiting for one.
+public enum CaptureProblem {
+    public struct Reason: Equatable, Sendable {
+        public let kind: String, title: String, message: String
+    }
+
+    public static func reason(screenRecording: Bool, lidClosed: Bool, asleep: Bool, error: String) -> Reason {
+        if !screenRecording {
+            return Reason(kind: "permission", title: "Screen Recording is off",
+                          message: "On the Mac, allow Tether in Privacy & Security → Screen Recording.")
+        }
+        if lidClosed {
+            return Reason(kind: "lidClosed", title: "The lid is closed",
+                          message: "A closed MacBook has no screen to show. Open the lid, or connect a display.")
+        }
+        if asleep {
+            return Reason(kind: "asleep", title: "The display is asleep",
+                          message: "Tether is waking it. The picture appears as soon as it's on.")
+        }
+        return Reason(kind: "capture", title: "Can't show the screen", message: "Couldn't start screen capture: \(error)")
+    }
+}

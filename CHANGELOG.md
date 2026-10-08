@@ -10,7 +10,11 @@ and tag the commit.
 
 ## Unreleased
 
-Nothing yet.
+### Fixes
+- When a Mac can't show its screen, every device that connects is told why ("the lid is closed",
+  "the display is asleep", Screen Recording off) instead of waiting for a picture that never
+  comes, and the card always offers **Your other Macs**. Joining also retries straight away, in
+  case the lid has been opened since.
 
 ## 6.0, 8 October 2026: polish pass
 
