@@ -8,11 +8,14 @@ How to add to it: put each change under **Unreleased** as you make it, in plain 
 using Tether. When a version is finished, give that section its number and date, bump `VERSION`,
 and tag the commit.
 
-## Unreleased: 6.0 (polish pass)
+## Unreleased
 
-The polish pass: 26 changes across connecting, touch, picture, files, other Macs and the look,
-built and tested on a Mac before shipping. Runs 1 to 3 and two fixes are on both Macs already;
-run 4 is finished and waiting for the final update.
+Nothing yet.
+
+## 6.0, 8 October 2026: polish pass
+
+26 changes across connecting, touch, picture, files, other Macs and the look, each built and
+tested on a Mac before shipping (and one tried and taken out again, see Picture).
 
 ### Connecting
 - When a Mac can't be reached, the page says why: this device is offline, the Mac is off
