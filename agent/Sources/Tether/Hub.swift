@@ -215,10 +215,11 @@ final class Hub {
             "fitAvailable": FitDisplay.isAvailable,
             "curtain": Curtain.shared.isOnApprox,
             "links": BuildInfo.links,
-            "version": BuildInfo.version,
+            "version": BuildInfo.version,   // the commit: what "was Tether updated?" compares
+            "label": BuildInfo.label,       // for people: "6.0 (573e17e)"
         ]
         // Just updated: the web page shows what's new once.
-        if let updated { hello["updated"] = ["version": updated.version, "whatsNew": updated.whatsNew] }
+        if let updated { hello["updated"] = ["version": updated.version, "label": BuildInfo.label, "whatsNew": updated.whatsNew] }
         client.send(text: jsonMessage("hello", hello))
         let bounds = queue.sync { captureBounds }
         if let shape = cursor.current { client.send(text: Self.cursorShapeMessage(shape, bounds: bounds)) }

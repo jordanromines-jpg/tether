@@ -62,7 +62,8 @@ final class Updater {
         let key = "\(p.state.rawValue)-\(p.to)-\(p.at.map { "\($0.timeIntervalSince1970)" } ?? "")"
         guard UserDefaults.standard.string(forKey: "announcedUpdate") != key, p.state == .done || p.state == .failed else { return }
         UserDefaults.standard.set(key, forKey: "announcedUpdate")
-        Notifier.updateFinished(ok: p.state == .done, version: String(p.to.prefix(7)), message: p.message, whatsNew: savedWhatsNew)
+        Notifier.updateFinished(ok: p.state == .done, version: p.to == BuildInfo.commit ? BuildInfo.label : String(p.to.prefix(7)),
+                                message: p.message, whatsNew: savedWhatsNew)
     }
 
     func start() {

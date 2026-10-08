@@ -332,7 +332,7 @@ function showWhatsNew(updated) {
   if (!updated?.version || pref('seenVersion', '') === updated.version) return;
   setPref('seenVersion', updated.version);
   const lines = updated.whatsNew || [];
-  toast(`Tether was updated (${updated.version})`, lines.length ? { label: 'What\'s new', run: () => openSheet('What\'s new', (body) => {
+  toast(`Tether was updated to ${updated.label || updated.version}`, lines.length ? { label: 'What\'s new', run: () => openSheet('What\'s new', (body) => {
     body.append(el('ul', { className: 'whats-new' }, ...lines.map((l) => el('li', { textContent: l }))));
   }) } : null, 8000);
 }
@@ -960,6 +960,12 @@ function openMoreSheet() {
         }
       }
       body.append(el('h3', { textContent: title }), el('div', { className: 'tiles more-tiles' }, ...tiles));
+    }
+    if (hello?.label || hello?.version) {
+      // Which Tether this Mac runs, linking to what changed in each version.
+      const log = hello.links?.repo ? `${hello.links.repo.replace(/\/$/, '')}/blob/main/CHANGELOG.md` : null;
+      body.append(el('p', { className: 'muted version-line' }, `Tether ${hello.label || hello.version}`,
+        ...(log ? [' · ', el('a', { href: log, target: '_blank', rel: 'noopener', textContent: 'What changed' })] : [])));
     }
     syncToolState();
     updateConnection();

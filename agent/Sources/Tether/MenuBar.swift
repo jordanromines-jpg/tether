@@ -185,8 +185,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let p = Updater.shared.progress {
             switch p.state {
             case .running: return .updating(message: p.message)
-            case .done: return .updated(version: p.to.isEmpty ? BuildInfo.version : String(p.to.prefix(7)))
-            case .current: return .updated(version: BuildInfo.version)
+            case .done: return .updated(version: p.to.isEmpty || p.to == BuildInfo.commit ? BuildInfo.label : String(p.to.prefix(7)))
+            case .current: return .updated(version: BuildInfo.label)
             case .failed: return .failed(message: p.message)
             }
         }

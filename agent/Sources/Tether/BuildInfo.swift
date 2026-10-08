@@ -19,5 +19,13 @@ enum BuildInfo {
     /// Short form for display and for the web page's "was Tether updated?" check.
     static var version: String { commit.map { String($0.prefix(7)) } ?? "dev" }
 
+    /// The version number from VERSION ("6.0"), stamped by build-app.sh. Nil in dev builds.
+    static var release: String? {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String).flatMap { $0.isEmpty || $0 == "0" ? nil : $0 }
+    }
+
+    /// For people: "6.0 (573e17e)", or just the commit when there's no version number.
+    static var label: String { release.map { "\($0) (\(version))" } ?? version }
+
     static var links: [String: String] { Links.urls(repo: repo) }
 }
