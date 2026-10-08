@@ -10,6 +10,10 @@ and tag the commit.
 
 ## Unreleased
 
+Nothing yet.
+
+## 6.0.1, 8 October 2026
+
 ### Fixes
 - When a Mac can't show its screen, every device that connects is told why ("the lid is closed",
   "the display is asleep", Screen Recording off) instead of waiting for a picture that never
