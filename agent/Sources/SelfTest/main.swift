@@ -369,16 +369,6 @@ do {
     expect(d.level == 2, "cap: a clear link doesn't climb past the cap")
 }
 
-// Sharp when still
-do {
-    // Sizes seen on this Mac, streaming a 1.16 MP window.
-    let window = 1_164_800
-    expect(!StillPolicy.isMotion(frameBytes: 220, pixels: window), "still: an unchanged picture isn't movement")
-    expect(!StillPolicy.isMotion(frameBytes: 625, pixels: window), "still: a blinking caret isn't movement")
-    expect(StillPolicy.isMotion(frameBytes: 2_812, pixels: window), "still: a scrolled list is movement")
-    expect(!StillPolicy.isMotion(frameBytes: 5_000, pixels: 3840 * 2160), "still: the bar rises with the picture size")
-}
-
 // Wake-on-LAN
 do {
     let mac = WakeOnLAN.parseMAC("A4:83:e7:12:34:56")

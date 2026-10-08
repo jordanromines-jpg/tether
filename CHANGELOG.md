@@ -46,11 +46,11 @@ run 4 is finished and waiting for the final update.
   anything folds into More.
 
 ### Picture
-- Sharp when still: half a second after the screen stops changing, a sharper version of it is
-  sent, so text that was soft while scrolling turns crisp. Off in Battery saver.
-- The first picture after connecting is lighter, so it shows sooner on a slow link.
 - Auto quality doesn't send more pixels than your screen can show (a phone gets at most
   1920 px wide), which saves data.
+- Tried and taken out again: a sharp extra frame when the screen goes still, and a lighter first
+  picture. Measured side by side, neither made a difference (macOS's encoder already restores
+  full sharpness within about half a second), so they only added data and code.
 
 ### Files and clipboard
 - Uploads show speed and time left, can be cancelled, and offer **Show on Mac** when done.

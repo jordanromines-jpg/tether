@@ -62,19 +62,3 @@ public enum Sizing {
         return (even(Double(nativeWidth) * scale), even(Double(nativeHeight) * scale))
     }
 }
-
-/// "Sharp when still": when has the screen stopped moving?
-public enum StillPolicy {
-    /// After this long without real movement, one sharp frame goes out.
-    public static let stillAfterMs = 500
-    /// How a change is spotted: by the encoded size of each in-between (non-key) frame. An unchanged
-    /// picture encodes to a few hundred bytes and a blinking caret to well under a kilobyte, so neither
-    /// counts; a scroll or a new window does. (ScreenCaptureKit's dirty rects can't be used: in window
-    /// mode they cover the whole window on every frame.)
-    /// Frames to ignore after a keyframe while the encoder settles.
-    public static let settleFrames = 3
-
-    public static func isMotion(frameBytes: Int, pixels: Int) -> Bool {
-        frameBytes > max(1_000, pixels / 1_000)
-    }
-}

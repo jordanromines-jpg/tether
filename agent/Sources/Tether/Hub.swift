@@ -263,8 +263,7 @@ final class Hub {
         if let preset {
             return .init(displayID: displayID, codec: codec, maxWidth: preset.maxWidth, fps: preset.fps,
                          bitrate: codec == .hevc ? preset.bitrate * 7 / 10 : preset.bitrate, audio: wantsAudio,
-                         excludedWindowIDs: curtainWindowIDs, windowID: windowTarget?.info.id,
-                         refineWhenStill: preset != .saver)
+                         excludedWindowIDs: curtainWindowIDs, windowID: windowTarget?.info.id)
         }
         return .init(displayID: displayID, codec: codec, maxWidth: adaptive.maxWidth, fps: adaptive.fps,
                      bitrate: adaptive.bitrate, audio: wantsAudio, excludedWindowIDs: curtainWindowIDs,

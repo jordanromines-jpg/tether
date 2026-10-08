@@ -54,8 +54,6 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
         var audio: Bool
         var excludedWindowIDs: [CGWindowID] = []
         var windowID: CGWindowID?    // single-window mode
-        /// Re-encode a still screen once at high quality (off in Battery saver: it costs data).
-        var refineWhenStill = true
     }
 
     var onFrame: ((VideoEncoder.Output) -> Void)?
@@ -71,13 +69,6 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
     private let queue = DispatchQueue(label: "tether.capture", qos: .userInteractive)
     private var lastPixelBuffer: CVPixelBuffer?
     private var wantKeyframe = true
-    /// The first frame of a capture goes out light and quick; then a still screen gets one sharp frame.
-    private var quickNext = true
-    private var refine = true
-    private var changeCount = 0
-    private var settling = 0
-    private var refinedAt = -1
-    private static let stillAfter: DispatchTimeInterval = .milliseconds(StillPolicy.stillAfterMs)
 
     func start(_ settings: Settings) async throws {
         await stop()
@@ -132,19 +123,15 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
         queue.sync {
             self.size = target
             self.wantKeyframe = true
-            self.quickNext = true
-            self.refine = settings.refineWhenStill
             self.lastPixelBuffer = nil
             self.codec = settings.codec
             self.encoder = VideoEncoder(codec: settings.codec, width: target.width, height: target.height,
                                         fps: settings.fps, bitrate: settings.bitrate) { [weak self] out in
                 self?.onFrame?(out)
-                self?.noteEncoded(out)
             }
                 ?? VideoEncoder(codec: .h264, width: target.width, height: target.height,
                                 fps: settings.fps, bitrate: settings.bitrate) { [weak self] out in
                     self?.onFrame?(out)
-                    self?.noteEncoded(out)
                 }
             if self.encoder?.codec != settings.codec { self.codec = .h264 }
         }
@@ -177,21 +164,8 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
             self.wantKeyframe = true
             if let pb = self.lastPixelBuffer, let enc = self.encoder {
                 self.wantKeyframe = false
-                // The screen is still (or this frame would be new): send it sharp straight away.
-                if self.refine { enc.encodeRefined(pb); self.refinedAt = self.changeCount } else { enc.encode(pb, forceKeyframe: true) }
+                enc.encode(pb, forceKeyframe: true)
             }
-        }
-    }
-
-    /// Half a second after the last change, if nothing new arrived, send one sharp version of the screen.
-    private func scheduleRefine() {
-        guard refine else { return }
-        let change = changeCount
-        queue.asyncAfter(deadline: .now() + Self.stillAfter) { [weak self] in
-            guard let self, self.changeCount == change, self.refinedAt != change,
-                  let pb = self.lastPixelBuffer, let enc = self.encoder else { return }
-            self.refinedAt = change
-            enc.encodeRefined(pb)
         }
     }
 
@@ -208,26 +182,7 @@ final class ScreenStreamer: NSObject, SCStreamOutput, SCStreamDelegate {
         lastPixelBuffer = pb
         let key = wantKeyframe
         wantKeyframe = false
-        if key && quickNext {
-            quickNext = false
-            encoder?.encodeQuick(pb)
-            changeCount += 1
-            scheduleRefine()
-        } else {
-            encoder?.encode(pb, forceKeyframe: key)
-        }
-    }
-
-    /// Every encoded frame: a big in-between frame means the screen moved, so restart the "still" clock.
-    /// The encoder settles for a few frames after a keyframe; those frames say nothing about movement.
-    private func noteEncoded(_ out: VideoEncoder.Output) {
-        queue.async {
-            if out.isKeyframe { self.settling = StillPolicy.settleFrames; return }
-            if self.settling > 0 { self.settling -= 1; return }
-            guard StillPolicy.isMotion(frameBytes: out.data.count, pixels: self.size.width * self.size.height) else { return }
-            self.changeCount += 1
-            self.scheduleRefine()
-        }
+        encoder?.encode(pb, forceKeyframe: key)
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
