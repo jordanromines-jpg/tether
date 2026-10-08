@@ -12,7 +12,7 @@ and tag the commit.
 
 The polish pass: 26 changes across connecting, touch, picture, files, other Macs and the look,
 built and tested on a Mac before shipping. Runs 1 to 3 and two fixes are on both Macs already;
-run 4 is in progress.
+run 4 is finished and waiting for the final update.
 
 ### Connecting
 - When a Mac can't be reached, the page says why: this device is offline, the Mac is off
@@ -52,10 +52,25 @@ run 4 is in progress.
 - Auto quality doesn't send more pixels than your screen can show (a phone gets at most
   1920 px wide), which saves data.
 
-### Files and clipboard (run 4, in progress)
+### Files and clipboard
 - Uploads show speed and time left, can be cancelled, and offer **Show on Mac** when done.
 - Clipboard keeps the last 10 things each way, to copy or send again. Only while the page is
   open; never saved, since clipboards hold passwords.
+- Clipboard's buttons sit two to a line on phones instead of being squeezed into one row.
+
+### Your Macs
+- **Wake** a sleeping Mac from another of your Macs on the same network (Wake-on-LAN), from
+  Your Macs or from the "is offline" card. Works for Macs on Ethernet with "Wake for network
+  access" on; Macs using a Private Wi-Fi address can wake others but can't be woken.
+- After showing only one window, reconnecting offers to go back to it.
+
+### Look
+- Lists say plainly when they're empty or couldn't load, with **Try again** where it helps
+  (Windows, Files, Apps, Your Macs).
+- Launch screens for iPhone and iPad when Tether is opened from the Home Screen, and an icon
+  that fits Android's round and squircle shapes.
+- The bottom of More shows the version, with a link to this changelog.
+- The tap ripple is quicker (250 ms).
 
 ### Fixes
 - Trackpad mode: the pointer drawn on the phone could drift from the Mac's real pointer, so taps

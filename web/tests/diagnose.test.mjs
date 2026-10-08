@@ -47,3 +47,20 @@ test('last seen reads naturally', () => {
 test('polling backs off from 2 s to 10 s', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 9].map(pollDelay), [2000, 4000, 6000, 8000, 10000, 10000]);
 });
+
+test('wake: a Mac on the same network that is online does the waking', async () => {
+  const { pickWaker, rememberWake } = await import('../js/diagnose.js');
+  let wake = rememberWake({}, 'https://studio', { mac: 'a4:83:e7:12:34:56', net: '192.168.1.0/24' });
+  wake = rememberWake(wake, 'https://mbp', { mac: '11:22:33:44:55:66', net: '192.168.1.0/24' });
+  wake = rememberWake(wake, 'https://office', { mac: '66:55:44:33:22:11', net: '10.0.0.0/24' });
+  const macs = [{ url: 'https://studio', online: false }, { url: 'https://office', online: true }, { url: 'https://mbp', online: true }];
+  assert.equal(pickWaker('https://studio', macs, wake), 'https://mbp');
+  assert.equal(pickWaker('https://studio', macs.filter((m) => m.url !== 'https://mbp'), wake), null, 'another network can\'t');
+  assert.equal(pickWaker('https://studio', [{ url: 'https://mbp', online: false }], wake), null, 'an offline Mac can\'t');
+  assert.equal(pickWaker('https://unknown', macs, wake), null, 'never heard its address');
+  assert.deepEqual(rememberWake(wake, 'https://mbp', null), wake, 'no network info keeps the last known');
+  // A Mac on Wi-Fi with a Private Wi-Fi address: can't be woken, but can wake the Studio.
+  const wifi = rememberWake(wake, 'https://mbp', { net: '192.168.1.0/24' });
+  assert.equal(pickWaker('https://studio', macs, wifi), 'https://mbp');
+  assert.equal(pickWaker('https://mbp', [{ url: 'https://studio', online: true }], wifi), null);
+});

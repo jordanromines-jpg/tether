@@ -261,7 +261,7 @@ What `scripts/setup.sh` checks, builds and installs. The ✋ boxes are the momen
 ```mermaid
 %%{init: {"flowchart": {"curve": "stepBefore", "nodeSpacing": 28, "rankSpacing": 44, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
 flowchart TB
-  subgraph CHECKS["Checks — this Mac runs scripts/setup.sh"]
+  subgraph CHECKS["Checks: this Mac runs scripts/setup.sh"]
     direction TB
     macos("`**macOS 14+**
 else ✗ stop`"):::external

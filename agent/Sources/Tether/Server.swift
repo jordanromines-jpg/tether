@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import HTTPTypes
 import Hummingbird
@@ -27,7 +28,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
     func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
         let path = request.uri.path
         let api = path == "/ws" || path == "/upload" || path == "/files" || path == "/download" || path == "/apps"
-            || path == "/thumbnail" || path == "/clipboard/image"
+            || path == "/thumbnail" || path == "/clipboard/image" || path == "/reveal"
             || path == "/peers" || path.hasPrefix("/auth/")
         if AppState.shared.paused, api {
             let body = #"{"paused":true,"msg":"Remote access is paused on the Mac. Resume it from the Tether menu-bar icon."}"#
@@ -40,7 +41,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
 
 /// When the passkey lock is on, the screen, input and file endpoints also need a valid session cookie.
 struct PasskeyGateMiddleware<Context: RequestContext>: RouterMiddleware {
-    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download", "/apps", "/thumbnail", "/clipboard/image"] }
+    static var protectedPaths: Set<String> { ["/ws", "/upload", "/files", "/download", "/apps", "/thumbnail", "/clipboard/image", "/reveal"] }
 
     func handle(_ request: Request, context: Context, next: (Request, Context) async throws -> Response) async throws -> Response {
         if PasskeyStore.shared.required, Self.protectedPaths.contains(request.uri.path),
@@ -92,7 +93,7 @@ enum Server {
                                  "paused": AppState.shared.paused,
                                  "clients": Hub.shared.queue.sync { Hub.shared.clients.count },
                                  "keepAwake": Hub.shared.keepAwake,
-                                 "curtain": Curtain.shared.status()])
+                                 "curtain": Curtain.shared.status(), "wake": WakeInfo.json ?? NSNull()])
             // Let the Tether page on another of your Macs (same tailnet) see that this one is up.
             allowTailnetOrigin(request, &response)
             return response
@@ -104,6 +105,22 @@ enum Server {
             var response = json(["peers": Peers.list()])
             allowTailnetOrigin(request, &response)
             return response
+        }
+
+        // Wake another of your Macs on this Mac's network (Wake-on-LAN). Called from your page on a
+        // Mac that's asleep, so it's readable from your other Macs' pages too. Identity-gated like
+        // everything else; a magic packet can only wake a machine, nothing more.
+        router.post("wake") { request, _ -> Response in
+            guard let mac = request.uri.queryParameters.get("mac").flatMap({ WakeOnLAN.parseMAC(String($0)) }) else {
+                var r = json(["error": "That isn't a hardware address."], status: .badRequest)
+                allowTailnetOrigin(request, &r)
+                return r
+            }
+            let sent = WakeInfo.wake(mac: mac)
+            NSLog("Tether: wake packet for \(WakeOnLAN.formatMAC(mac)) \(sent ? "sent" : "failed")")
+            var r = json(["ok": sent], status: sent ? .ok : .internalServerError)
+            allowTailnetOrigin(request, &r)
+            return r
         }
 
         // ---- Passkey lock (WebAuthn) ----
@@ -277,6 +294,7 @@ enum Server {
             }
             // Into the folder being browsed (inside Downloads, Desktop or Documents), else Downloads.
             var folder = Uploads.directory
+            var savedRoot = "downloads", savedDir = ""
             if let root = q.get("root") {
                 var isDir: ObjCBool = false
                 guard Permissions.folderAllowed(root) == true,
@@ -284,6 +302,8 @@ enum Server {
                       FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue
                 else { return json(["error": "Can't save into that folder."], status: .forbidden) }
                 folder = dir
+                savedRoot = root
+                savedDir = q.get("path") ?? ""
             }
             let url = Uploads.destination(for: name, in: folder)
             guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
@@ -301,7 +321,23 @@ enum Server {
                 throw error
             }
             NSLog("Tether: saved upload \(url.path)")
-            return json(["saved": url.lastPathComponent, "folder": folder.lastPathComponent])
+            let savedPath = savedDir.isEmpty ? url.lastPathComponent : savedDir + "/" + url.lastPathComponent
+            return json(["saved": url.lastPathComponent, "folder": folder.lastPathComponent,
+                         "root": savedRoot, "path": savedPath])
+        }
+
+        // "Show on Mac": select a file in Finder. Only inside the shared folders, and not in View only.
+        router.post("reveal") { request, _ -> Response in
+            let q = request.uri.queryParameters
+            if Hub.shared.onlyObserving(login: login(request)) {
+                return json(["error": "View only is on."], status: .forbidden)
+            }
+            guard let root = q.get("root"), Permissions.folderAllowed(root) == true,
+                  let url = sandbox.resolve(root: root, relativePath: q.get("path") ?? ""),
+                  FileManager.default.fileExists(atPath: url.path)
+            else { return json(["error": "Can't find that file."], status: .notFound) }
+            await MainActor.run { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            return json(["ok": true])
         }
 
         router.ws("ws") { request, _ in

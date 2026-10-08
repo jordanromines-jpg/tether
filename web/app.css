@@ -269,7 +269,7 @@ body.typing #toolbar, body.typing #toolbar-show { display: none !important; }
 .tap-ripple {
   position: fixed; z-index: 16; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%;
   border: 2px solid rgb(255 255 255 / .9); box-shadow: 0 0 0 1px rgb(0 0 0 / .25); pointer-events: none;
-  animation: tap-ripple 320ms ease-out forwards;
+  animation: tap-ripple 250ms ease-out forwards;
 }
 @keyframes tap-ripple { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
 
@@ -350,6 +350,10 @@ body.typing #toolbar, body.typing #toolbar-show { display: none !important; }
 .list .choice { text-align: left; }
 .row { display: flex; gap: 8px; margin-top: 12px; }
 .row > * { flex: 1; }
+/* Many buttons: two to a line, the main one full width. */
+.row.wrap { flex-wrap: wrap; }
+.row.wrap > * { flex: 1 1 calc(50% - 4px); }
+.row.wrap > .primary { flex-basis: 100%; }
 .segmented { display: flex; gap: 6px; }
 .segmented .choice { flex: 1; padding-inline: 6px; }
 textarea {
@@ -442,6 +446,7 @@ textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 0; }
 .mac-card:hover:not(:disabled) { background: var(--fill-strong); }
 .mac-card:active:not(:disabled) { transform: scale(.98); }
 .mac-card:disabled { cursor: default; opacity: .7; }
+.mac-slot { display: grid; gap: 6px; }
 .mac-pic { aspect-ratio: 16 / 10; display: grid; place-items: center; overflow: hidden; border-radius: var(--r-control); background: var(--bg); color: var(--text-muted); }
 .mac-pic img { width: 100%; height: 100%; object-fit: cover; }
 .mac-pic .i { width: 32px; height: 32px; }
@@ -518,6 +523,12 @@ body[data-dock^="top"] #banner, body[data-dock^="top"] #toast { top: auto; botto
   background: var(--accent); color: var(--on-accent); font-weight: 600; cursor: pointer;
 }
 #toast progress { width: 120px; accent-color: var(--accent); }
+/* An upload: name on top, bar and speed under it, Cancel to the side. */
+#toast.transfer { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; padding-block: 8px; width: min(420px, calc(100vw - 32px)); }
+#toast.transfer .text { grid-column: 1; grid-row: 1; }
+#toast.transfer .meter { grid-column: 1; grid-row: 2; display: flex; align-items: center; gap: 10px; min-width: 0; }
+#toast.transfer .meter progress { flex: 1; min-width: 60px; }
+#toast.transfer button { grid-column: 2; grid-row: 1 / span 2; background: var(--fill-strong); color: var(--text); }
 
 #drop-hint {
   position: fixed; inset: 16px; z-index: 45; display: grid; place-content: center; justify-items: center; gap: 10px;
@@ -564,5 +575,15 @@ body[data-dock^="top"] #banner, body[data-dock^="top"] #toast { top: auto; botto
 .check small { color: var(--text-muted); font-size: 13px; }
 .whats-new { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 
+/* Upload progress line and clipboard history */
+#toast .rate { font-size: 12px; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#toast .rate:empty { display: none; }
+.clip-history { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.clip-row { display: grid; grid-template-columns: 20px 1fr auto auto; align-items: center; gap: 10px; min-height: 44px; }
+.clip-row .clip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clip-row .clip-thumb { height: 36px; max-width: 120px; object-fit: contain; border-radius: 6px; justify-self: start; }
+.clip-row small { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 .version-line { margin-top: 20px; text-align: center; font-size: 13px; }
 .version-line a { color: var(--accent-text); }
+.empty button { margin-top: 6px; min-height: 44px; color: var(--text); }

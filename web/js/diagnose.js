@@ -74,3 +74,24 @@ export function diagnose({ online, health, peer = null, mac = 'your Mac', device
 /** How long to wait before checking again while the Mac can't be reached: 2 s, growing to 10 s. */
 export const pollDelay = (attempt) => Math.min(10_000, 2000 + attempt * 2000);
 
+
+// Waking a sleeping Mac (Wake-on-LAN): another Mac that's online and on the same network sends
+// the magic packet. `wake` maps each Mac's URL to what its /healthz reported: { mac, net }.
+
+/** The URL of a Mac that can wake `target`, or null. `candidates`: [{ url, online }]. */
+export function pickWaker(target, candidates, wake) {
+  const t = wake?.[target];
+  if (!t?.mac || !t.net) return null;
+  const helper = candidates.find((c) => c.url !== target && c.online && wake[c.url]?.net === t.net);
+  return helper?.url ?? null;
+}
+
+/**
+ * Keeps what /healthz said about a Mac's network. `mac` is missing on a Mac that can't be woken (a
+ * randomized Wi-Fi address) but that Mac can still wake others on its network.
+ */
+export function rememberWake(wake, url, info) {
+  const next = { ...(wake || {}) };
+  if (info?.net) next[url] = info.mac ? { mac: info.mac, net: info.net } : { net: info.net };
+  return next;
+}

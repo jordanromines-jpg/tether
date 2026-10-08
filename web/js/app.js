@@ -10,14 +10,15 @@ import { refreshTip, hideTip } from './tooltip.js';
 import { initToolbar, setDock, currentDock, foldedCount, fit } from './toolbar.js';
 import { tool, TOOLS, deviceClass, defaultLayout, normalizeLayout, visibleLayout, isAvailable, sections, move as moveTool, toggle as toggleTool, keyRowTop, shortMacName } from './tools.js';
 import { startTour } from './tour.js';
-import { healthKind, diagnose, pollDelay } from './diagnose.js';
+import { healthKind, diagnose, pollDelay, pickWaker, rememberWake } from './diagnose.js';
 import { LABELS as DOCK_LABELS } from './dock.js';
 import { showTips, tipsOpen, dismissTips } from './tips.js';
 import { preloadMotion, sheetIn, sheetOut, settleFrom } from './motion.js';
 import { Loupe, MenuBarStrip } from './loupe.js';
 import { inMenuBar } from './gesture.js';
 import { comboLabel, buildCombo, parsePinned, togglePinned, isPinned, MAX_PINNED } from './shortcuts.js';
-import { formatBytes, addToDay, crossedLimit, localDay } from './usage.js';
+import { formatBytes, addToDay, crossedLimit, localDay, transferText } from './usage.js';
+import { addClip, clipPreview } from './cliphistory.js';
 import { idleMinutes, shouldIdlePause, shouldHiddenPause, HIDDEN_PAUSE_MS, DEFAULT_IDLE_MINUTES } from './idle.js';
 
 const $ = (s) => document.querySelector(s);
@@ -83,6 +84,12 @@ const codecs = Stream.support() ? ['h264'] : await Stream.detectCodecs();
 // The screen goes along so the Mac doesn't send a phone more pixels than it can show.
 stream.helloExtra = () => ({ quality: pref('quality', 'auto'), display: currentDisplay ?? undefined, codecs,
   screen: { w: screen.width, h: screen.height, dpr: devicePixelRatio || 1 } });
+
+// The one empty or error state: an icon, one line, and optionally a way forward.
+function emptyState(iconName, text, action = null) {
+  return el('div', { className: 'empty' }, icon(iconName), el('span', { textContent: text }),
+    ...(action ? [el('button', { className: 'secondary', textContent: action.label, onclick: action.run })] : []));
+}
 
 function el(tag, props = {}, ...children) {
   const n = document.createElement(tag);
@@ -180,7 +187,7 @@ async function askOtherMacs() {
       const peers = (await (await fetch(`${m.url}/peers`, { mode: 'cors', credentials: 'omit', signal: ctl.signal })).json()).peers || [];
       const me = peers.find((p) => p.url === location.origin);
       if (!me) throw new Error('not listed');
-      return { by: m.name, online: me.online !== false, lastSeen: me.lastSeen };
+      return { by: m.name, byUrl: m.url, online: me.online !== false, lastSeen: me.lastSeen };
     } finally { clearTimeout(t); }
   };
   try { return await Promise.any(others.map(ask)); } catch { return null; }
@@ -190,14 +197,14 @@ async function runDiagnosis() {
   const online = navigator.onLine;
   const health = online ? await checkHealth() : 'unreachable';
   const peer = online && health === 'unreachable' ? await askOtherMacs() : null;
-  return { health, ...diagnose({ online, health, peer, mac: macName(), device: deviceNoun() }) };
+  return { health, peer, ...diagnose({ online, health, peer, mac: macName(), device: deviceNoun() }) };
 }
 
 async function explainLoop() {
   const s = $('#status');
   if (s.hidden || s.dataset.kind !== 'connecting') { stopExplaining(); return; }
   explaining = true;
-  const { health, reason } = await runDiagnosis();
+  const { health, reason, peer } = await runDiagnosis();
   if (s.hidden || s.dataset.kind !== 'connecting') { stopExplaining(); return; }
   lastReason = reason;
   if (health === 'ok' || health === 'permissions') {
@@ -208,6 +215,10 @@ async function explainLoop() {
     showReason(reason);
   }
   showConnectActions();
+  // Asleep and another of your Macs is on its network: offer to wake it.
+  const waker = reason.kind === 'macOffline' && peer?.byUrl
+    ? pickWaker(location.origin, [{ url: peer.byUrl, online: true }], pref('macsWake', {})) : null;
+  showWakeAction(waker);
   explainTimer = setTimeout(explainLoop, pollDelay(explainAttempt++));
 }
 
@@ -225,6 +236,31 @@ function stopExplaining() {
   clearTimeout(explainTimer);
   explainAttempt = 0;
   lastReason = null;
+}
+
+function showWakeAction(helperUrl) {
+  let b = $('#status-actions .wake');
+  if (!helperUrl) { b?.remove(); return; }
+  if (!b) {
+    b = el('button', { className: 'primary wake', textContent: `Wake ${macName()}` });
+    $('#status-actions').prepend(b);
+  }
+  b.onclick = () => wakeMac(macName(), location.origin, helperUrl);
+}
+
+// Asks another of your Macs, on the same network, to send the Wake-on-LAN packet.
+async function wakeMac(name, targetUrl, helperUrl) {
+  const mac = pref('macsWake', {})[targetUrl]?.mac;
+  if (!mac) return;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const r = await fetch(`${helperUrl.replace(/\/$/, '')}/wake?mac=${encodeURIComponent(mac)}`,
+      { method: 'POST', mode: 'cors', credentials: 'omit', signal: ctl.signal });
+    toast(r.ok ? `Waking ${name}. It can take up to a minute.` : `Couldn't wake ${name}.`, null, 5000);
+  } catch {
+    toast(`Couldn't reach the Mac that would wake ${name}.`, null, 5000);
+  } finally { clearTimeout(t); }
 }
 
 function showConnectActions() {
@@ -358,7 +394,10 @@ stream.addEventListener('hello', (e) => {
   renderToolbar();   // help links and the Mac's name arrive with hello
   // Remember your other Macs, so if this one stops answering the page can ask them about it.
   fetch('peers').then((r) => r.json()).then((d) => setPref('macsSeen', (d.peers || []).map((p) => ({ name: p.name, url: p.url })))).catch(() => {});
+  // And this Mac's network address, so another Mac can wake it if it falls asleep.
+  fetch('healthz').then((r) => r.json()).then((h) => setPref('macsWake', rememberWake(pref('macsWake', {}), location.origin, h.wake))).catch(() => {});
   showWhatsNew(hello.updated);
+  offerLastWindow();
   const missing = [];
   if (!hello.perms?.screen) missing.push('Screen Recording');
   if (!hello.perms?.input) missing.push('Accessibility');
@@ -370,9 +409,32 @@ stream.addEventListener('windows', (e) => windowsReply?.(e.detail.list || []));
 stream.addEventListener('target', (e) => {
   const one = e.detail.window != null;
   $('[data-action="wholescreen"]').hidden = !one;
+  targetSeen = true;
+  // Remembered per Mac, so reconnecting can offer to go back to it.
+  setPref('lastWindow', one ? { id: e.detail.window, app: e.detail.app, title: e.detail.title, fit: !!e.detail.fit } : null);
   if (one) toast(`Showing only ${e.detail.app}: ${e.detail.title}`);
   fit();
 });
+
+// Reconnected after showing only one window: offer to go back to it (if it's still open).
+let targetSeen = false;
+function offerLastWindow() {
+  targetSeen = false;
+  const last = pref('lastWindow', null);
+  if (!last) return;
+  setTimeout(() => {
+    if (targetSeen || !stream.connected) return;   // already in window mode, or gone again
+    toast(`Back to ${last.app}?`, { label: 'Show it', run: () => {
+      windowsReply = (wins) => {
+        windowsReply = null;
+        const w = wins.find((x) => x.id === last.id) || wins.find((x) => x.app === last.app && x.title === last.title);
+        if (!w) { toast(`That ${last.app} window is closed.`); setPref('lastWindow', null); return; }
+        stream.send({ t: 'captureWindow', id: w.id, fit: last.fit, aspect: innerWidth / innerHeight });
+      };
+      stream.send({ t: 'windows' });
+    } }, 8000);
+  }, 1500);
+}
 stream.addEventListener('curtain', (e) => {
   curtainOn = !!e.detail.on;
   syncToolState();
@@ -393,14 +455,17 @@ stream.addEventListener('error', (e) => {
 });
 let lastMacHTML = null;
 let lastMacImage = null;   // { id, w, h }
+let clipHistory = [];      // memory only, never saved (see cliphistory.js)
 stream.addEventListener('clip', (e) => {
   if (e.detail.kind === 'image') {
     lastMacImage = { id: e.detail.id, w: e.detail.w, h: e.detail.h };
+    clipHistory = addClip(clipHistory, { from: 'mac', kind: 'image', id: e.detail.id, w: e.detail.w, h: e.detail.h });
     toast(`Mac copied an image (${e.detail.w} × ${e.detail.h})`, { label: 'Copy', run: () => copyMacImage(lastMacImage.id) }, 8000);
     return;
   }
   lastMacClip = e.detail.s;
   lastMacHTML = e.detail.html || null;
+  clipHistory = addClip(clipHistory, { from: 'mac', kind: 'text', s: lastMacClip, html: lastMacHTML });
   const preview = lastMacClip.replace(/\s+/g, ' ').slice(0, 60);
   toast(`Mac copied: "${preview}"`, { label: 'Copy', run: () => copyLocal(lastMacClip, lastMacHTML) }, 6000);
 });
@@ -1175,12 +1240,12 @@ async function openAppsSheet() {
         stream.send({ t: 'openApp', path: a.path });
         toast(`Opening ${a.name}`);
         closeSheet();
-      } })) : [el('div', { className: 'empty' }, icon('magnifying-glass'), el('span', { textContent: 'No app by that name.' }))]));
+      } })) : [emptyState('magnifying-glass', apps.length ? 'No app by that name.' : 'No apps found on the Mac.')]));
     };
     field.addEventListener('input', render);
     field.addEventListener('keydown', (e) => { if (e.key === 'Enter') list.querySelector('button')?.click(); });
     fetch('apps').then((r) => r.json()).then((d) => { apps = d.apps || []; render(); })
-      .catch(() => list.replaceChildren(el('p', { className: 'muted', textContent: 'Couldn\'t load the Mac\'s apps.' })));
+      .catch(() => list.replaceChildren(emptyState('warning-circle', 'Couldn\'t load the Mac\'s apps.', { label: 'Try again', run: () => { closeSheet(); openAppsSheet(); } })));
     if (!isTouch) setTimeout(() => field.focus(), 50);
   });
 }
@@ -1203,7 +1268,8 @@ function openWindowsSheet() {
     windowsReply = (wins) => {
       windowsReply = null;
       list.replaceChildren();
-      if (!wins.length) { list.append(el('div', { className: 'empty' }, icon('app-window'), el('span', { textContent: 'No windows are open on the Mac.' }))); return; }
+      clearTimeout(windowsTimer);
+      if (!wins.length) { list.append(emptyState('app-window', 'No windows are open on the Mac.')); return; }
       for (const w of wins) {
         const img = w.icon ? el('img', { className: 'app-icon', src: `data:image/png;base64,${w.icon}`, alt: '' }) : icon('app-window');
         list.append(el('div', { className: 'window-row' },
@@ -1216,6 +1282,12 @@ function openWindowsSheet() {
       }
     };
     stream.send({ t: 'windows' });
+    // No answer (the connection dropped, or the Mac is busy): say so instead of waiting forever.
+    const windowsTimer = setTimeout(() => {
+      if (!windowsReply) return;
+      windowsReply = null;
+      list.replaceChildren(emptyState('warning-circle', 'The Mac didn\'t send its windows.', { label: 'Try again', run: () => { closeSheet(); openWindowsSheet(); } }));
+    }, 6000);
   });
 }
 
@@ -1342,6 +1414,7 @@ async function pasteImageToMac() {
 function sendClip(text, paste) {
   if (!text) return;
   stream.send({ t: 'setclip', s: text });
+  clipHistory = addClip(clipHistory, { from: 'here', kind: 'text', s: text });
   if (paste) setTimeout(() => kb.combo(['MetaLeft', 'KeyV']), 150);
   toast(paste ? 'Pasted on the Mac' : 'Sent to the Mac\'s clipboard');
 }
@@ -1354,7 +1427,7 @@ function openClipboardSheet() {
       lastMacClip
         ? el('div', {}, el('textarea', { readOnly: true, value: lastMacClip, 'aria-label': 'Last text copied on the Mac' }),
             el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Copy to this device', onclick: () => copyLocal(lastMacClip) })))
-        : el('div', { className: 'empty' }, icon('clipboard-text'), el('span', { textContent: 'Copy something on the Mac and it shows up here.' })),
+        : emptyState('clipboard-text', 'Copy something on the Mac and it shows up here.'),
       ...(lastMacImage ? [el('h3', { textContent: 'Image from the Mac' }),
         el('img', { className: 'clip-image', src: `clipboard/image?id=${lastMacImage.id}`, alt: 'Image copied on the Mac' }),
         el('div', { className: 'row' },
@@ -1362,7 +1435,7 @@ function openClipboardSheet() {
           el('a', { className: 'secondary button-link', textContent: 'Save image', href: `clipboard/image?id=${lastMacImage.id}`, download: 'Mac clipboard.png' }))] : []),
       el('h3', { textContent: 'To the Mac' }),
       area,
-      el('div', { className: 'row' },
+      el('div', { className: 'row wrap' },
         el('button', { className: 'secondary', textContent: 'Paste here', onclick: async () => {
           try { area.value = await navigator.clipboard.readText(); } catch { toast('Clipboard access was blocked. Paste into the box instead.'); }
         } }),
@@ -1370,8 +1443,32 @@ function openClipboardSheet() {
         el('button', { className: 'secondary', textContent: 'Paste image', onclick: pasteImageToMac }),
         el('button', { className: 'secondary', textContent: 'Type it on the Mac', onclick: () => typeOnMac(area) }),
         el('button', { className: 'primary', textContent: 'Send and paste', onclick: () => { sendClip(area.value, true); closeSheet(); } })),
+      ...clipHistoryList(),
     );
   });
+}
+
+// Recent items both ways, newest first. Copy brings a Mac item here; Send puts one of yours back on the Mac.
+function clipHistoryList() {
+  const older = clipHistory.filter((a) => !(a.from === 'mac' && a.kind === 'text' && a.s === lastMacClip)
+    && !(a.from === 'mac' && a.kind === 'image' && a.id === lastMacImage?.id));
+  if (!older.length) return [];
+  const when = (t) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const row = (a) => el('li', { className: 'clip-row' },
+    icon(a.from === 'mac' ? 'download-simple' : 'upload-simple'),
+    a.kind === 'image'
+      ? el('img', { className: 'clip-thumb', src: `clipboard/image?id=${a.id}`, alt: 'Image copied on the Mac' })
+      : el('span', { className: 'clip-text', textContent: clipPreview(a.s) }),
+    el('small', { textContent: when(a.at) }),
+    a.from === 'mac'
+      ? el('button', { className: 'secondary', textContent: 'Copy', onclick: () => (a.kind === 'image' ? copyMacImage(a.id) : copyLocal(a.s, a.html)) })
+      : el('button', { className: 'secondary', textContent: 'Send', onclick: () => sendClip(a.s, false) }));
+  return [
+    el('div', { className: 'section-head' }, el('h3', { textContent: 'Recent' }),
+      el('button', { className: 'link', textContent: 'Clear', onclick: () => { clipHistory = []; closeSheet(); openClipboardSheet(); } })),
+    el('ul', { className: 'clip-history' }, ...older.map(row)),
+    el('p', { className: 'muted', textContent: 'Kept only while this page is open, never saved.' }),
+  ];
 }
 
 // Types this device's clipboard (or the box) on the Mac as keystrokes: for password managers and
@@ -1513,8 +1610,13 @@ function openConnectionSheet() {
 
 // Your Macs: this one, other Macs running Tether (with a picture), and ones that are offline.
 async function loadMacs(container, cards = false) {
-  let peers = [];
-  try { peers = (await (await fetch('peers')).json()).peers || []; } catch { /* offline */ }
+  let peers = [], failed = false;
+  try { peers = (await (await fetch('peers')).json()).peers || []; } catch { failed = true; }
+  if (failed) {
+    container.replaceChildren(emptyState('warning-circle', 'Couldn\'t get the list of your Macs.',
+      { label: 'Try again', run: () => loadMacs(container, cards) }));
+    return;
+  }
   const probe = async (p) => {
     if (p.self) return { ...p, state: 'online' };
     if (p.online === false) return { ...p, state: 'offline' };
@@ -1523,6 +1625,7 @@ async function loadMacs(container, cards = false) {
     try {
       const r = await fetch(`${p.url}/healthz`, { mode: 'cors', signal: ctl.signal, credentials: 'omit' });
       const h = await r.json();
+      if (h.wake) setPref('macsWake', rememberWake(pref('macsWake', {}), p.url, h.wake));
       return { ...p, state: h.ok ? (h.paused ? 'paused' : 'online') : 'quiet', label: h.name };
     } catch { return { ...p, state: 'quiet' }; } finally { clearTimeout(t); }
   };
@@ -1531,8 +1634,7 @@ async function loadMacs(container, cards = false) {
   if (!cards) {
     const up = all.filter((p) => p.state === 'online');
     if (up.length <= 1) {
-      container.append(el('div', { className: 'empty' }, icon('desktop'),
-        el('span', { textContent: 'Only this Mac has Tether. Set it up on another Mac and it shows up here.' })));
+      container.append(emptyState('desktop', 'Only this Mac has Tether. Set it up on another Mac and it shows up here.'));
     }
     if (all.length > 1) container.append(el('button', { className: 'secondary', textContent: 'Show your Macs', onclick: openMacsSheet }));
     return;
@@ -1555,9 +1657,14 @@ async function loadMacs(container, cards = false) {
         el('small', {}, el('span', { className: 'dot', 'data-q': p.state === 'online' ? 'good' : p.state === 'offline' ? '' : 'fair' }), ` ${p.self ? 'This one' : seen}`)));
     if (!p.self && p.state !== 'offline') card.addEventListener('click', () => { location.href = `${p.url}/`; });
     else if (p.self) card.addEventListener('click', () => closeSheet());
-    container.append(card);
+    const asleep = p.state === 'offline' || p.state === 'quiet';
+    const waker = asleep && pickWaker(p.url, all.map((m) => ({ url: m.url, online: m.state === 'online' || m.state === 'paused' })), pref('macsWake', {}));
+    container.append(waker
+      ? el('div', { className: 'mac-slot' }, card,
+          el('button', { className: 'secondary', textContent: `Wake ${p.label || p.name}`, onclick: () => wakeMac(p.label || p.name, p.url, waker) }))
+      : card);
   }
-  if (all.length <= 1) container.append(el('p', { className: 'muted', textContent: 'Set up Tether on your other Macs and they show up here.' }));
+  if (all.length <= 1) container.append(emptyState('desktop', 'Only this Mac has Tether. Set it up on another Mac and it shows up here.'));
 }
 
 // ---------- Compose (autocorrect, predictive text, dictation) ----------
@@ -1607,8 +1714,8 @@ function openFilesSheet(root, path) {
     body.append(el('h3', { textContent: 'On the Mac' }), crumbs, list);
     fetch(`files?root=${root}&path=${encodeURIComponent(path)}`).then((r) => r.json()).then((data) => {
       list.replaceChildren();
-      if (data.error) { list.append(el('div', { className: 'empty' }, icon('warning-circle'), el('span', { textContent: data.error }))); return; }
-      if (!data.items.length) { list.append(el('div', { className: 'empty' }, icon('folder-simple'), el('span', { textContent: 'This folder is empty.' }))); return; }
+      if (data.error) { list.append(emptyState('lock-simple', data.error)); return; }
+      if (!data.items.length) { list.append(emptyState('folder-simple', 'This folder is empty.')); return; }
       for (const it of data.items.slice(0, 300)) {
         const sub = path ? `${path}/${it.name}` : it.name;
         const meta = it.dir ? 'Folder' : `${fmtSize(it.size)}, ${new Date(it.mtime * 1000).toLocaleDateString()}`;
@@ -1622,7 +1729,7 @@ function openFilesSheet(root, path) {
         });
         list.append(row);
       }
-    }).catch(() => list.replaceChildren(el('div', { className: 'empty' }, icon('warning-circle'), el('span', { textContent: 'Couldn\'t load the folder.' }))));
+    }).catch(() => list.replaceChildren(emptyState('warning-circle', 'Couldn\'t load the folder.', { label: 'Try again', run: () => openFilesSheet(root, path) })));
   });
 }
 
@@ -1630,6 +1737,7 @@ function openFilesSheet(root, path) {
 let toastTimer;
 function toast(text, action = null, ms = 2500) {
   const t = $('#toast');
+  t.className = '';
   t.replaceChildren(el('span', { className: 'text', textContent: text }));
   if (action) t.append(el('button', { textContent: action.label, onclick: () => { action.run(); t.hidden = true; } }));
   t.hidden = false;
@@ -1644,13 +1752,22 @@ function uploadFiles(files, target = { root: 'downloads', path: '', label: 'Down
   for (const file of files) {
     const xhr = new XMLHttpRequest();
     const bar = el('progress', { max: 1, value: 0 });
-    const t = toast(`Sending ${file.name} to ${target.label}`, null, 0);
-    t.append(bar);
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.value = e.loaded / e.total; };
+    const t = toast(`Sending ${file.name} to ${target.label}`, { label: 'Cancel', run: () => xhr.abort() }, 0);
+    const rate = el('span', { className: 'rate' });
+    t.classList.add('transfer');
+    t.append(el('div', { className: 'meter' }, bar, rate));
+    const started = performance.now();
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      bar.value = e.loaded / e.total;
+      rate.textContent = transferText(e.loaded, e.total, performance.now() - started);
+    };
+    xhr.onabort = () => toast(`Stopped sending ${file.name}.`, null, 3000);
     xhr.onload = () => {
       if (xhr.status === 200) {
-        const saved = JSON.parse(xhr.responseText).saved;
-        toast(`Saved to ${target.label}: ${saved}`, null, 4000);
+        const { saved, root, path } = JSON.parse(xhr.responseText);
+        const reveal = root && !stream.observe ? { label: 'Show on Mac', run: () => revealOnMac(root, path) } : null;
+        toast(`Saved to ${target.label}: ${saved}`, reveal, 6000);
       } else {
         let msg = `Upload failed (${xhr.status})`;
         try { msg = JSON.parse(xhr.responseText).error || msg; } catch { /* not JSON */ }
@@ -1661,6 +1778,11 @@ function uploadFiles(files, target = { root: 'downloads', path: '', label: 'Down
     xhr.open('POST', `upload?name=${encodeURIComponent(file.name)}&root=${target.root}&path=${encodeURIComponent(target.path)}`);
     xhr.send(file);
   }
+}
+// Selects the file in a Finder window on the Mac (only inside the shared folders).
+async function revealOnMac(root, path) {
+  const r = await fetch(`reveal?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`, { method: 'POST' }).catch(() => null);
+  if (!r?.ok) toast("Couldn't show it on the Mac.", null, 3000);
 }
 $('#file-input').addEventListener('change', (e) => { uploadFiles(e.target.files, uploadTarget); e.target.value = ''; });
 

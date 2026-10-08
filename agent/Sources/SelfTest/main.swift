@@ -379,6 +379,39 @@ do {
     expect(!StillPolicy.isMotion(frameBytes: 5_000, pixels: 3840 * 2160), "still: the bar rises with the picture size")
 }
 
+// Wake-on-LAN
+do {
+    let mac = WakeOnLAN.parseMAC("A4:83:e7:12:34:56")
+    expect(mac == [0xa4, 0x83, 0xe7, 0x12, 0x34, 0x56], "wake: reads a MAC address")
+    expect(WakeOnLAN.parseMAC("a4-83-e7-12-34-56") == mac, "wake: dashes are fine too")
+    expect(WakeOnLAN.parseMAC("a4:83:e7:12:34") == nil && WakeOnLAN.parseMAC("zz:83:e7:12:34:56") == nil
+           && WakeOnLAN.parseMAC("00:00:00:00:00:00") == nil, "wake: rejects bad addresses")
+    let packet = WakeOnLAN.packet(mac: mac ?? [])
+    expect(packet.count == 102 && packet.prefix(6).allSatisfy { $0 == 0xFF } && Array(packet[96...]) == mac, "wake: magic packet is 6×FF then the address 16 times")
+    let ip: UInt32 = 192 << 24 | 168 << 16 | 1 << 8 | 20, mask: UInt32 = 0xFFFF_FF00
+    expect(WakeOnLAN.network(ip: ip, mask: mask) == "192.168.1.0/24", "wake: network for comparing Macs")
+    expect(WakeOnLAN.isRandomized([0x62, 0xd4, 0x68, 0xef, 0x84, 0xf4]) && !WakeOnLAN.isRandomized([0x68, 0xe5, 0x80, 0x99, 0x81, 0xfb]),
+           "wake: tells a Private Wi-Fi address from a real one")
+    expect(WakeOnLAN.broadcast(ip: ip, mask: mask) == "192.168.1.255", "wake: broadcast address")
+
+    // Send to a UDP listener on a test port (not 9) on this Mac, and check what arrives.
+    let fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+    var addr = sockaddr_in()
+    addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size); addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_port = 0; addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+    var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+    let bound = withUnsafeMutablePointer(to: &addr) { p in p.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+        bind(fd, $0, len) == 0 && getsockname(fd, $0, &len) == 0 } }
+    var tv = timeval(tv_sec: 2, tv_usec: 0)
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+    let port = UInt16(bigEndian: addr.sin_port)
+    let sent = bound && WakeOnLAN.send(packet, to: "127.0.0.1", port: port)
+    var buf = [UInt8](repeating: 0, count: 200)
+    let n = recv(fd, &buf, buf.count, 0)
+    close(fd)
+    expect(sent && n == 102 && Array(buf[..<102]) == packet, "wake: the packet arrives intact at a listener (port \(port))")
+}
+
 // Trackpad moves start from where Tether put the pointer
 do {
     let posted = CGPoint(x: 500, y: 300), stale = CGPoint(x: 480, y: 300)

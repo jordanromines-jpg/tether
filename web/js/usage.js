@@ -21,3 +21,15 @@ export function crossedLimit(before, after, limitMB) {
 }
 
 export const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Upload progress in words: "2.1 MB/s · about 12 s left". Empty until there's enough to go on. */
+export function transferText(loaded, total, elapsedMs) {
+  if (elapsedMs < 500 || loaded <= 0) return '';
+  const perSec = loaded / (elapsedMs / 1000);
+  const speed = perSec < 1e6 ? `${Math.max(1, Math.round(perSec / 1e3))} KB/s` : `${(perSec / 1e6).toFixed(1)} MB/s`;
+  const left = Math.max(0, (total - loaded) / perSec);
+  const leftText = left < 1 ? 'almost done'
+    : left < 60 ? `about ${Math.ceil(left)} s left`
+    : `about ${Math.ceil(left / 60)} min left`;
+  return `${speed} · ${leftText}`;
+}
