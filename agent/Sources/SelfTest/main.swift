@@ -379,5 +379,22 @@ do {
     expect(!StillPolicy.isMotion(frameBytes: 5_000, pixels: 3840 * 2160), "still: the bar rises with the picture size")
 }
 
+// Trackpad moves start from where Tether put the pointer
+do {
+    let posted = CGPoint(x: 500, y: 300), stale = CGPoint(x: 480, y: 300)
+    expect(PointerBase.choose(posted: posted, postedAt: 10.0, now: 10.05, system: stale) == posted, "pointer: a stale reading doesn't eat the last move")
+    expect(PointerBase.choose(posted: posted, postedAt: 10.0, now: 11.0, system: stale) == stale, "pointer: after a pause, the Mac's own reading wins (someone used the mouse)")
+    expect(PointerBase.choose(posted: nil, postedAt: 0, now: 1, system: stale) == stale, "pointer: nothing posted yet")
+    // Ten quick moves of 10 px each, with the system reading always one move behind.
+    var p = CGPoint(x: 100, y: 100), lastPosted: CGPoint? = nil, systemReading = p
+    for i in 0..<10 {
+        let base = PointerBase.choose(posted: lastPosted, postedAt: Double(i) * 0.016, now: Double(i) * 0.016 + 0.008, system: systemReading)
+        systemReading = lastPosted ?? p      // macOS shows the previous move only
+        p = CGPoint(x: base.x + 10, y: base.y)
+        lastPosted = p
+    }
+    expect(p.x == 200, "pointer: quick moves all count (ended at \(p.x), expected 200)")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

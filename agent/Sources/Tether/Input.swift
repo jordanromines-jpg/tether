@@ -25,6 +25,13 @@ final class InputInjector {
 
     var cursorLocation: CGPoint { CGEvent(source: nil)?.location ?? .zero }
 
+    /// Where Tether last put the pointer, and when (see PointerBase).
+    private var posted: CGPoint?
+    private var postedAt: TimeInterval = 0
+    private var pointer: CGPoint {
+        PointerBase.choose(posted: posted, postedAt: postedAt, now: ProcessInfo.processInfo.systemUptime, system: cursorLocation)
+    }
+
     /// Cursor position normalized to the current display, or nil when it is on another display.
     var normalizedCursor: CGPoint? {
         let b = bounds, p = cursorLocation
@@ -41,14 +48,14 @@ final class InputInjector {
 
     func moveRelative(dx: Double, dy: Double) {
         let b = bounds
-        let p = cursorLocation
+        let p = pointer
         let nx = min(max(p.x + dx * b.width, b.minX), b.maxX - 1)
         let ny = min(max(p.y + dy * b.height, b.minY), b.maxY - 1)
         postMove(to: CGPoint(x: nx, y: ny))
     }
 
     func button(_ index: Int, down: Bool) {
-        let p = cursorLocation
+        let p = pointer
         let (type, cgButton): (CGEventType, CGMouseButton) = switch index {
         case 2: (down ? .rightMouseDown : .rightMouseUp, .right)
         case 1: (down ? .otherMouseDown : .otherMouseUp, .center)
@@ -86,6 +93,8 @@ final class InputInjector {
         guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p, mouseButton: button) else { return }
         e.flags = currentFlags
         e.post(tap: .cghidEventTap)
+        posted = p
+        postedAt = ProcessInfo.processInfo.systemUptime
     }
 
     // MARK: Keyboard

@@ -13,6 +13,7 @@ export class RemoteCursor {
     this.shape = null;
     this.pos = null;            // normalized position currently drawn
     this.lastLocal = 0;         // time of last locally predicted move
+    this.remote = null;         // the Mac's latest reported position
     this.scale = 1;             // "Bigger pointer" on touch screens
     view.onChange = () => this.render();
   }
@@ -33,24 +34,45 @@ export class RemoteCursor {
     this.render();
   }
 
-  /** Authoritative position from the Mac. */
+  /**
+   * Authoritative position from the Mac. While a finger is moving, the local guess is drawn instead
+   * (no lag); the Mac's latest position is kept and takes over as soon as the finger pauses. The Mac
+   * only reports changes, so without that, a guess that drifted stayed drawn: clicks went to the real
+   * pointer, somewhere else.
+   */
   setRemote(x, y) {
-    if (performance.now() - this.lastLocal < 150 && this.pos) return; // trust local prediction briefly
+    this.remote = { x, y };
+    const wait = PREDICT_MS - (performance.now() - this.lastLocal);
+    if (wait > 0 && this.pos) { this.settleLater(wait); return; }
     this.pos = { x, y };
     this.render();
+  }
+
+  settleLater(ms) {
+    clearTimeout(this.settleTimer);
+    this.settleTimer = setTimeout(() => {
+      // Timers can fire a little early: wait out only what's left of the guess, not a whole new spell.
+      const left = PREDICT_MS - (performance.now() - this.lastLocal);
+      if (left > 2) { this.settleLater(left); return; }
+      if (this.remote) { this.pos = { ...this.remote }; this.render(); }
+    }, ms);
   }
 
   /** Immediate local prediction (trackpad deltas or direct touches). */
   predictDelta(dx, dy) {
     if (!this.pos) return;
     this.pos = { x: clamp(this.pos.x + dx), y: clamp(this.pos.y + dy) };
-    this.lastLocal = performance.now();
-    this.render();
+    this.predicted();
   }
 
   predictAt(x, y) {
     this.pos = { x: clamp(x), y: clamp(y) };
+    this.predicted();
+  }
+
+  predicted() {
     this.lastLocal = performance.now();
+    this.settleLater(PREDICT_MS);
     this.render();
   }
 
@@ -69,3 +91,5 @@ export class RemoteCursor {
 }
 
 const clamp = (v) => Math.min(1, Math.max(0, v));
+/** How long a local guess is drawn before the Mac's own position takes over again. */
+export const PREDICT_MS = 150;

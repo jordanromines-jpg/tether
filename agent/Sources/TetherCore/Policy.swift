@@ -84,3 +84,16 @@ public enum TetherMarker {
     public static let eventUserData: Int64 = 0x7E7_4E52   // "~tNR"
     public static func isRemote(eventUserData: Int64) -> Bool { eventUserData == Self.eventUserData }
 }
+
+/// Where a relative (trackpad) move starts from. macOS reports the pointer's location a step behind
+/// while moves are still arriving, so adding a move to that reading drops the moves in between: the
+/// Mac's pointer then travels less than the one drawn on the phone, and clicks land short of it.
+/// Right after Tether moved the pointer, start from where Tether put it instead.
+public enum PointerBase {
+    public static let trustPostedFor: TimeInterval = 0.5
+
+    public static func choose(posted: CGPoint?, postedAt: TimeInterval, now: TimeInterval, system: CGPoint) -> CGPoint {
+        guard let posted, now - postedAt < trustPostedFor else { return system }
+        return posted
+    }
+}
