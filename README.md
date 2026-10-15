@@ -1,5 +1,7 @@
 # Tether
 
+> **For Claude and other AI agents:** read this entire README before you work in this repo for the first time, and whenever you are unfamiliar with it. Then read `CLAUDE.md`.
+
 **Control your Mac from your iPhone, iPad, or any computer, privately, over Tailscale.**
 
 Tether is a small, free, open-source alternative to apps like Screens. A tiny menu-bar app on your Mac streams the screen to a web page that only *your* devices can open. Add it to your Home Screen and it behaves like an app: sharp, low-latency video, a trackpad-style touch mode, keyboard shortcuts, clipboard sync and file transfer.
