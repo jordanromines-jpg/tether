@@ -1,0 +1,26 @@
+{
+ "key": "Q-1",
+ "kind": "question",
+ "title": "How is Claude's View only set on a Mac?",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:09:22-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:09:22-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22"
+  }
+ ],
+ "recommendation": "The Allow Claude switch gets three settings: Off, View only (screenshots and lists, no input) and Control; it is the only way Claude's session is set to view only",
+ "body": "D-5 says View only blocks Claude, but View only today is set per device by a message from the web page, which Claude's API session never sends. Options: three settings on the switch · a separate Claude: view only checkbox · no view only for Claude."
+}

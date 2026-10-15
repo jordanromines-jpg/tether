@@ -11,9 +11,7 @@
    "REQ-4"
   ],
   "depends_on": [
-   "S-6",
-   "S-4",
-   "S-5"
+   "S-6"
   ]
  },
  "created": {
@@ -85,6 +83,107 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-10-15T17:09:05-05:00",
+   "by": "claude",
+   "what": "removed depends_on S-6",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ],
+     "depends_on": [
+      "S-6",
+      "S-4",
+      "S-5"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:05-05:00",
+   "by": "claude",
+   "what": "removed depends_on S-4",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ],
+     "depends_on": [
+      "S-4",
+      "S-5"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:05-05:00",
+   "by": "claude",
+   "what": "removed depends_on S-5",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ],
+     "depends_on": [
+      "S-5"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:12-05:00",
+   "by": "claude",
+   "what": "depends_on S-6",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:42-05:00",
+   "by": "claude",
+   "what": "set done_when, estimate_h",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "done_when": "the routes answer JSON (info: name, version, displays, permissions) and PNG or JPEG screenshots of a display or one window, reusing Thumbnails.capture and the window list; SelfTest covers the request and response shapes",
+    "estimate_h": 3.0
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:42-05:00",
+   "by": "claude",
+   "what": "set body",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "body": "Screenshot coordinates are in the image's own pixels, and info gives the scale back to display points, so a client can click where it sees."
+   }
   }
  ],
  "files": [
@@ -93,8 +192,8 @@
   "agent/Sources/TetherCore/APIProtocol.swift",
   "agent/Sources/SelfTest/main.swift"
  ],
- "estimate_h": 3.0,
- "done_when": "the routes answer JSON (info: name, version, displays, permissions) and PNG or JPEG screenshots of a display or one window, reusing Thumbnails.capture and the window list; SelfTest covers the request and response shapes",
+ "estimate_h": 4.0,
+ "done_when": "the routes answer JSON (info: name, version, displays with size in points and pixels and their scale, permissions) and PNG or JPEG screenshots of a display or one window at full or a requested size, through a new capture function next to Thumbnails.capture (which only does JPEG of a display); one documented coordinate contract: screenshot pixels → points → the normalized 0…1 that ClientMessage.move takes (via WindowGeometry); SelfTest covers the shapes and the mapping for a display and a window at scale 1 and 2",
  "command": "swift run --package-path agent SelfTest",
- "body": "Screenshot coordinates are in the image's own pixels, and info gives the scale back to display points, so a client can click where it sees."
+ "body": "Thumbnails.capture returns JPEG of a whole display, capped by its caller, so window and full-resolution capture are new code. If the mapping is wrong, every click misses, so it is tested on its own."
 }

@@ -19,9 +19,21 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:09:43-05:00",
+   "by": "claude",
+   "what": "set body",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {},
+   "before_absent": [
+    "body"
+   ]
   }
  ],
  "likelihood": "low",
  "impact": "high",
- "trigger": "a device signed in to Jordan's tailnet is lost or compromised"
+ "trigger": "a device signed in to Jordan's tailnet is lost or compromised",
+ "body": "Jordan accepted this in D-4 (Tailscale login is the gate, no separate key). What limits it: a Mac only answers Claude while its Allow Claude switch is on (D-6), and switching it off or pausing cuts Claude off at once (S-17). Remove a lost device from the tailnet at login.tailscale.com (SECURITY.md)."
 }

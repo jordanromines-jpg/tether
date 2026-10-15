@@ -15,6 +15,15 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:10:11-05:00",
+   "by": "claude",
+   "what": "reviewed (11 findings): Reviewer found 10 (2 blocking) plus the open review gap. Added S-20, an API client per device in the Hub that starts no video, keeps drags across calls and expires after 2 min; Q-1 on how Claude's View only is set; S-17 now adds /api to Pause, a 403 Allow Claude check in a stated order, instant cut-off, Disconnect, tests for all three refusals and the CHANGELOG line; S-15 gains window and full-size capture and one tested coordinate contract; S-16 gains numeric limits and all-or-nothing checking; S-19 tests the docs against the routes; V-5 names the Studio and the bench; R-7 and R-8 reworded; cross-plan edges cut to S-6 and S-7 (check needs them for shared files), with P-1's 12.5 h lead stated",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "event": "review",
+   "findings": 11
   }
  ],
  "doc": "plans/2026-10-15-claude-api.md",

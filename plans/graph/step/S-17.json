@@ -10,8 +10,8 @@
   "depends_on": [
    "S-16",
    "D-6",
-   "S-4",
-   "S-7"
+   "S-7",
+   "Q-1"
   ],
   "implements": [
    "REQ-5"
@@ -156,6 +156,121 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-10-15T17:09:05-05:00",
+   "by": "claude",
+   "what": "removed depends_on S-4",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-16",
+      "D-6",
+      "S-4",
+      "S-7"
+     ],
+     "implements": [
+      "REQ-5"
+     ],
+     "mitigates": [
+      "R-7",
+      "R-8"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:05-05:00",
+   "by": "claude",
+   "what": "removed depends_on S-7",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-16",
+      "D-6",
+      "S-7"
+     ],
+     "implements": [
+      "REQ-5"
+     ],
+     "mitigates": [
+      "R-7",
+      "R-8"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:12-05:00",
+   "by": "claude",
+   "what": "depends_on S-7",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-16",
+      "D-6"
+     ],
+     "implements": [
+      "REQ-5"
+     ],
+     "mitigates": [
+      "R-7",
+      "R-8"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:42-05:00",
+   "by": "claude",
+   "what": "set done_when, estimate_h",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "done_when": "with the switch off every /api route answers 403 with a plain reason; on, the Mac shows a Claude is connected banner and Recent activity lists each action; the passkey gate skips /api only while the switch is on (D-4); Snapshots render the switch",
+    "estimate_h": 2.5
+   }
+  },
+  {
+   "at": "2026-10-15T17:09:42-05:00",
+   "by": "claude",
+   "what": "depends_on Q-1",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-16",
+      "D-6",
+      "S-7"
+     ],
+     "implements": [
+      "REQ-5"
+     ],
+     "mitigates": [
+      "R-7",
+      "R-8"
+     ]
+    }
+   }
   }
  ],
  "files": [
@@ -166,7 +281,7 @@
   "agent/Sources/TetherUI/StatusPanel.swift",
   "agent/Sources/Snapshots/main.swift"
  ],
- "estimate_h": 2.5,
- "done_when": "with the switch off every /api route answers 403 with a plain reason; on, the Mac shows a Claude is connected banner and Recent activity lists each action; the passkey gate skips /api only while the switch is on (D-4); Snapshots render the switch",
+ "estimate_h": 3.0,
+ "done_when": "a new AllowClaudeMiddleware answers 403 with a plain reason on every /api route while the switch is Off; /api is added to PauseMiddleware's list, so Pause refuses it; order is Tailscale login check, then pause, then Allow Claude; /api stays off the passkey gate's list (D-4); turning the switch Off or Pause mid-session removes the API client at once (releaseAll) and refuses calls already waiting; Claude's API client is listed under connected devices with Disconnect; while it is connected the Mac shows a Claude is connected banner and Recent activity lists each action; SelfTest or an HTTP-level test covers the three refusals (switch off, paused, view only); Snapshots render the switch in light and dark; CHANGELOG has an Unreleased line",
  "command": "swift run --package-path agent SelfTest && swift run --package-path agent Snapshots snaps/"
 }
