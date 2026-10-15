@@ -1,5 +1,7 @@
 # Tether — guide for Claude
 
+- **Read the README first.** Read the entire `README.md` before you work in this repo for the first time, and again whenever you are unfamiliar with it: it holds rules and context this file does not repeat.
+
 Tether lets someone see and control a Mac from their iPhone, iPad or another computer, privately over Tailscale.
 People will often open this repo in Claude Code and say something like *"set this up on my Mac"*.
 Assume they are **not technical**. This file tells you how to take them from zero to working.
