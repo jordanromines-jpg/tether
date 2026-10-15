@@ -15,6 +15,15 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:00:41-05:00",
+   "by": "claude",
+   "what": "reviewed (10 findings): Reviewer found 3 blockers, 4 gaps, 3 minor. Fixed: S-3 numbers release builds from the tag so Sparkle orders rc1 < rc2 < v6.1.0, and --feed picks the test or real feed (S-9 per tag, V-4 checks the real feed live); new S-13/S-14 cut and approve rc1 and rc2; S-10 gains --withdraw with new risk R-6; S-6 keeps existing installs, compares against install-agent.sh itself and names its failure paths; T-3 probes Gatekeeper on macOS 26 before PR-2; S-8 proves the key export restores (R-3); R-4 says what a leak can do; V-1 covers REQ-1 to REQ-3. Not changed: Package.resolved is tracked; plangraph has no decider field (decisions are Jordan's). 28.75 h of 30.",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "event": "review",
+   "findings": 10
   }
  ],
  "doc": "plans/2026-10-15-downloadable-release.md",

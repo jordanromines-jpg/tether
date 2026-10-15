@@ -30,10 +30,20 @@
    "before_absent": [
     "body"
    ]
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "review: mitigation",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "body": "Mitigated by G-1: the update key is backed up in Jordan's password manager."
+   }
   }
  ],
  "likelihood": "low",
  "impact": "high",
  "trigger": "the Studio keychain is lost and no backup exists",
- "body": "Mitigated by G-1: the update key is backed up in Jordan's password manager."
+ "body": "Mitigated by G-1 (the exported update key in Jordan's password manager) and S-8, which proves the export restores and signs before it is trusted."
 }

@@ -20,7 +20,7 @@ What comes now, next and later, derived from the plans and what each waits on.
 <!-- graph: roadmap -->
 | Column | Plan | Title | State | Waits on | Work done | Hours (est) |
 |---|---|---|---|---|---|---|
-| Next | P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | awaiting approval | — | 0/16 | 24.75 |
+| Next | P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | awaiting approval | — | 0/20 | 28.75 |
 <!-- /graph -->
 
 ## Plans
@@ -29,7 +29,7 @@ What comes now, next and later, derived from the plans and what each waits on.
 | Plan | Title | State | Work done | Next | Waiting on Jordan |
 |---|---|---|---|---|---|
 | P-2 | Inbox | inbox | 0/1 | — | — |
-| P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | awaiting approval | 0/16 | — | 5 |
+| P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | awaiting approval | 0/20 | — | 4 |
 <!-- /graph -->
 
 ## How we work with Jordan

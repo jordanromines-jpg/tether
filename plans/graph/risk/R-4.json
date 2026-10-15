@@ -19,9 +19,21 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "review: what a leak can and can't do",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {},
+   "before_absent": [
+    "body"
+   ]
   }
  ],
  "likelihood": "low",
  "impact": "medium",
- "trigger": "the GitHub secret is exposed"
+ "trigger": "the GitHub secret is exposed",
+ "body": "A leaked signing identity can't push an update: Sparkle also needs the update key, which never leaves the Studio. It could sign a look-alike app someone downloads by hand. Response: delete the GitHub secret, make a new identity with make-release-keys.sh, ship the next release with it (each Mac re-grants the permissions once), and say so in SECURITY.md. S-10 refuses any zip not signed with the expected identity."
 }

@@ -13,7 +13,9 @@
    "PR-3"
   ],
   "verifies": [
-   "REQ-2"
+   "REQ-2",
+   "REQ-1",
+   "REQ-3"
   ]
  },
  "created": {
@@ -27,9 +29,65 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "verifies REQ-1",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "P-1"
+     ],
+     "depends_on": [
+      "PR-1",
+      "PR-2",
+      "PR-3"
+     ],
+     "verifies": [
+      "REQ-2"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "verifies REQ-3",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "P-1"
+     ],
+     "depends_on": [
+      "PR-1",
+      "PR-2",
+      "PR-3"
+     ],
+     "verifies": [
+      "REQ-2",
+      "REQ-1"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "review: five suites",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "command": "swift run --package-path agent SelfTest && node --test web/tests/*.test.mjs && bash scripts/tests/update.test.sh && bash scripts/tests/release-approve.test.sh",
+    "done_when": "all four pass"
+   }
   }
  ],
  "estimate_h": 0.25,
- "command": "swift run --package-path agent SelfTest && node --test web/tests/*.test.mjs && bash scripts/tests/update.test.sh && bash scripts/tests/release-approve.test.sh",
- "done_when": "all four pass"
+ "command": "swift run --package-path agent SelfTest && node --test web/tests/*.test.mjs && bash scripts/tests/update.test.sh && bash scripts/tests/build-version.test.sh && bash scripts/tests/release-approve.test.sh",
+ "done_when": "all five pass"
 }

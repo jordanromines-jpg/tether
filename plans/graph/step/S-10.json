@@ -14,7 +14,8 @@
    "REQ-3"
   ],
   "mitigates": [
-   "R-4"
+   "R-4",
+   "R-6"
   ]
  },
  "created": {
@@ -48,13 +49,51 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-10-15T16:58:56-05:00",
+   "by": "claude",
+   "what": "review: withdraw",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "done_when": "the script refuses a zip without a valid attestation or with the wrong signing identity, and otherwise writes the appcast item with sign_update and publishes the release",
+    "estimate_h": 2.0
+   },
+   "before_absent": [
+    "body"
+   ]
+  },
+  {
+   "at": "2026-10-15T16:58:56-05:00",
+   "by": "claude",
+   "what": "mitigates R-6",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-3"
+     ],
+     "depends_on": [
+      "S-9"
+     ],
+     "implements": [
+      "REQ-3"
+     ],
+     "mitigates": [
+      "R-4"
+     ]
+    }
+   }
   }
  ],
  "files": [
   "scripts/release-approve.sh",
   "scripts/tests/release-approve.test.sh"
  ],
- "estimate_h": 2.0,
- "done_when": "the script refuses a zip without a valid attestation or with the wrong signing identity, and otherwise writes the appcast item with sign_update and publishes the release",
- "command": "bash scripts/tests/release-approve.test.sh"
+ "estimate_h": 2.5,
+ "done_when": "the script refuses a zip without a valid attestation or with the wrong signing identity, and otherwise writes the appcast item with sign_update and publishes it to the feed the tag names; --withdraw <tag> removes that item from the feed; the test covers refuse, publish and withdraw",
+ "command": "bash scripts/tests/release-approve.test.sh",
+ "body": "Recovery from a bad release: --withdraw stops Macs that haven't installed it yet. Macs that already have it get a fixed release with a higher number; a build that can't start can't fetch its fix, so those Macs reinstall from the download (the README says how)."
 }

@@ -1,0 +1,56 @@
+{
+ "key": "T-3",
+ "kind": "test",
+ "title": "Gatekeeper probe: a hand-made zip opens on macOS 26 with Open Anyway",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "S-3"
+  ],
+  "verifies": [
+   "REQ-1"
+  ],
+  "mitigates": [
+   "R-2"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:59:31-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296"
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "mitigates R-2",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "P-1"
+     ],
+     "depends_on": [
+      "S-3"
+     ],
+     "verifies": [
+      "REQ-1"
+     ]
+    }
+   }
+  }
+ ],
+ "estimate_h": 0.25,
+ "body": "Early check for R-2, before PR-2's 7.5 h: zip the --release build from S-3, send it to a Mac on macOS 26 through a browser download (so it is quarantined), and open it. If there is no Open Anyway, the plan stops for Jordan.",
+ "done_when": "the downloaded zip's app opens after System Settings → Privacy and Security → Open Anyway"
+}

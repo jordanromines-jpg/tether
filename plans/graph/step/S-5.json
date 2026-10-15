@@ -8,7 +8,8 @@
    "PR-2"
   ],
   "depends_on": [
-   "S-4"
+   "S-4",
+   "T-3"
   ],
   "implements": [
    "REQ-1"
@@ -25,6 +26,26 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "depends_on T-3",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-2"
+     ],
+     "depends_on": [
+      "S-4"
+     ],
+     "implements": [
+      "REQ-1"
+     ]
+    }
+   }
   }
  ],
  "files": [

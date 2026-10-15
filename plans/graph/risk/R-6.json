@@ -1,0 +1,28 @@
+{
+ "key": "R-6",
+ "kind": "risk",
+ "title": "A published release is broken and every installed Tether takes it",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:58:56-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:58:56-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296"
+  }
+ ],
+ "likelihood": "low",
+ "impact": "high",
+ "trigger": "after a release is published, a Mac's Tether doesn't start or loses its permissions",
+ "body": "Withdraw it (release-approve.sh --withdraw), then publish a fixed release with a higher number; Macs that can't start reinstall from the download."
+}

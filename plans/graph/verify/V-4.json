@@ -1,0 +1,33 @@
+{
+ "key": "V-4",
+ "kind": "verify",
+ "title": "v6.1.0 on Jordan's Macs reads the production feed",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "T-2"
+  ],
+  "verifies": [
+   "REQ-2"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:58:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:58:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296"
+  }
+ ],
+ "estimate_h": 0.25,
+ "done_when": "on each of Jordan's Macs the installed app's SUFeedURL is appcast.xml (not appcast-test.xml) and Sparkle's last check in Tether.log reached it without an error",
+ "command": "plutil -extract SUFeedURL raw ~/Applications/Tether.app/Contents/Info.plist && grep -i sparkle ~/Library/Logs/Tether.log | tail -5"
+}
