@@ -41,7 +41,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         popover.behavior = .transient
         popover.animates = true
-        popover.contentViewController = NSHostingController(rootView: StatusPanelView(model: panel))
+        let host = NSHostingController(rootView: StatusPanelView(model: panel))
+        // Report SwiftUI's size to the popover, so it resizes from its anchor under the menu-bar icon.
+        // Without this the hosting view resizes the popover's window itself, and a window grows from its
+        // bottom edge: when the panel's content grew after opening, its top ran off above the menu bar.
+        host.sizingOptions = .preferredContentSize
+        popover.contentViewController = host
         panel.actions = panelActions()
 
         updateIcon()

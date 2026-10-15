@@ -13,6 +13,9 @@ and tag the commit.
 - **The menu-bar panel fits on the screen.** With several devices, recent activity and passkeys, the panel used to grow
   taller than a laptop screen and its top ran off above the menu bar. Now the middle of the panel scrolls, and the
   switch at the top and the buttons at the bottom always stay in view.
+- **The menu-bar panel opens in the right place.** When the panel's contents changed just after it opened (for example
+  a new entry in Recent activity), it could grow upward and hide its top above the menu bar. It now stays attached
+  under the Tether icon and grows downward.
 
 ## 6.0.1, 8 October 2026
 
