@@ -140,6 +140,13 @@ public final class PanelModel: ObservableObject {
     /// When Tether last quit unexpectedly (shown once, until dismissed).
     @Published public var crashedAt: Date?
     @Published public var checkUpdates = true
+    /// Tallest the panel may be on the screen it opens on (set from that screen each time it opens). Past it,
+    /// the middle of the panel scrolls, so the panel never runs off the top of the screen.
+    @Published public var maxPanelHeight: CGFloat = .greatestFiniteMagnitude
+    // Measured heights of the panel's parts (kept here, not in @State: see Hover below).
+    @Published var headerHeight: CGFloat = 0
+    @Published var footerHeight: CGFloat = 0
+    @Published var bodyHeight: CGFloat = 0
     public var actions = PanelActions()
     public init() {}
 
@@ -170,23 +177,39 @@ public struct StatusPanelView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
+            header.measuredHeight { if abs(model.headerHeight - $0) > 0.5 { model.headerHeight = $0 } }
             Divider()
-            VStack(alignment: .leading, spacing: 14) {
-                if let banner = model.update { update(banner) }
-                if let crashedAt = model.crashedAt { crash(crashedAt) }
-                if model.curtainOn { curtain }
-                if !model.screenAllowed || !model.inputAllowed { permissions }
-                if let url = model.url, !model.paused { link(url) }
-                devices
-                if !model.activity.isEmpty { activity }
-                passkeys
-            }
-            .padding(14)
+            middle
             Divider()
-            footer
+            footer.measuredHeight { if abs(model.footerHeight - $0) > 0.5 { model.footerHeight = $0 } }
         }
         .frame(width: 330)
+    }
+
+    /// The part between header and footer. It scrolls when the whole panel would be taller than the screen.
+    @ViewBuilder private var middle: some View {
+        let cap = CGFloat(PanelFit.maxBodyHeight(maxPanelHeight: Double(model.maxPanelHeight),
+                                                 header: Double(model.headerHeight), footer: Double(model.footerHeight)))
+        let measured = content.measuredHeight { if abs(model.bodyHeight - $0) > 0.5 { model.bodyHeight = $0 } }
+        if model.bodyHeight > cap {
+            ScrollView(.vertical) { measured }.frame(height: cap)
+        } else {
+            measured
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let banner = model.update { update(banner) }
+            if let crashedAt = model.crashedAt { crash(crashedAt) }
+            if model.curtainOn { curtain }
+            if !model.screenAllowed || !model.inputAllowed { permissions }
+            if let url = model.url, !model.paused { link(url) }
+            devices
+            if !model.activity.isEmpty { activity }
+            passkeys
+        }
+        .padding(14)
     }
 
     private var header: some View {
@@ -493,6 +516,19 @@ struct FooterButton: View {
 }
 
 final class Hover: ObservableObject { @Published var on = false }
+
+private struct HeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+extension View {
+    /// Reports this view's laid-out height whenever it changes.
+    func measuredHeight(_ report: @escaping (CGFloat) -> Void) -> some View {
+        background(GeometryReader { g in Color.clear.preference(key: HeightKey.self, value: g.size.height) })
+            .onPreferenceChange(HeightKey.self, perform: report)
+    }
+}
 
 /// One line of the activity list: device, when, how long.
 public struct ActivityRowView: View {

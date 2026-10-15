@@ -97,6 +97,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if popover.isShown { popover.performClose(nil); return }
         guard let button = statusItem.button else { return }
         refreshPanel()
+        // Fit the panel on the screen this menu bar is on: past that height its middle scrolls.
+        if let screen = button.window?.screen ?? NSScreen.main {
+            panel.maxPanelHeight = CGFloat(PanelFit.maxPanelHeight(visibleHeight: Double(screen.visibleFrame.height)))
+        }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // Keep "idle 12 min" labels fresh while the panel is open.
         panelTimer?.invalidate()
