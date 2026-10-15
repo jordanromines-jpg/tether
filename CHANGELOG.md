@@ -10,7 +10,9 @@ and tag the commit.
 
 ## Unreleased
 
-Nothing yet.
+- **The menu-bar panel fits on the screen.** With several devices, recent activity and passkeys, the panel used to grow
+  taller than a laptop screen and its top ran off above the menu bar. Now the middle of the panel scrolls, and the
+  switch at the top and the buttons at the bottom always stay in view.
 
 ## 6.0.1, 8 October 2026
 

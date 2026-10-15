@@ -14,7 +14,7 @@ func render<V: View>(_ view: V, _ name: String) {
     for (suffix, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
         let host = NSHostingView(rootView: view)
         host.appearance = NSAppearance(named: appearance)
-        let size = host.fittingSize
+        var size = host.fittingSize
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: appearance)
         window.backgroundColor = appearance == .aqua ? .windowBackgroundColor : NSColor(white: 0.16, alpha: 1)
@@ -22,6 +22,15 @@ func render<V: View>(_ view: V, _ name: String) {
         host.frame = NSRect(origin: .zero, size: size)
         host.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        // Views that measure themselves (the panel's scrolling middle) settle after the first pass.
+        let settled = host.fittingSize
+        if settled != size {
+            window.setContentSize(settled)
+            host.frame = NSRect(origin: .zero, size: settled)
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        }
+        size = host.bounds.size
         guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
         rep.size = size
         host.cacheDisplay(in: host.bounds, to: rep)
@@ -78,6 +87,20 @@ busy.activity = [
                   end: Date().addingTimeInterval(-86400 + 20)),
 ]
 render(StatusPanelView(model: busy).background(.background), "panel-activity-passkeys-update")
+
+// A crowded panel on a short screen: the middle scrolls and the panel stays within the screen.
+let crowded = PanelModel()
+crowded.url = sampleURL
+crowded.maxPanelHeight = 560
+crowded.update = .availableManual
+crowded.passkeyRequired = true
+crowded.passkeys = busy.passkeys
+crowded.activity = busy.activity
+crowded.sessions = (1...5).map { i in
+    SessionRow(id: UUID(), device: i % 2 == 0 ? "iPad" : "iPhone", login: "owner@example.com",
+               since: Date().addingTimeInterval(Double(-60 * i)))
+}
+render(StatusPanelView(model: crowded).background(.background), "panel-crowded-short-screen")
 
 // Live update check: SNAPSHOT_UPDATE_PLIST=<built Tether.app/Contents/Info.plist> asks GitHub for the
 // newest commit, exactly as the app does, and renders the panel with the real answer.

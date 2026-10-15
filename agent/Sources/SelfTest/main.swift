@@ -428,5 +428,13 @@ do {
     expect(other.kind == "capture" && other.message.contains("No display to capture"), "no picture: anything else keeps the error")
 }
 
+// Status panel fits on the screen
+do {
+    expect(PanelFit.maxPanelHeight(visibleHeight: 900) == 876, "panel: screen height minus the margin")
+    expect(PanelFit.maxPanelHeight(visibleHeight: 10) == 0, "panel: never negative")
+    expect(PanelFit.maxBodyHeight(maxPanelHeight: 876, header: 70, footer: 330) == 476, "panel: middle gets what header and footer leave")
+    expect(PanelFit.maxBodyHeight(maxPanelHeight: 300, header: 70, footer: 330) == PanelFit.minBodyHeight, "panel: middle keeps a minimum on tiny screens")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)
