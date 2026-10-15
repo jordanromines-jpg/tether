@@ -1,0 +1,100 @@
+{
+ "key": "S-15",
+ "kind": "step",
+ "title": "Read routes: /api/v1/info, screenshot, windows and apps",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-5"
+  ],
+  "implements": [
+   "REQ-4"
+  ],
+  "depends_on": [
+   "S-6",
+   "S-4",
+   "S-5"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:05:12-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:05:12-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:05:21-05:00",
+   "by": "claude",
+   "what": "depends_on S-6",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:05:21-05:00",
+   "by": "claude",
+   "what": "depends_on S-4",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ],
+     "depends_on": [
+      "S-6"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:05:21-05:00",
+   "by": "claude",
+   "what": "depends_on S-5",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ],
+     "depends_on": [
+      "S-6",
+      "S-4"
+     ]
+    }
+   }
+  }
+ ],
+ "files": [
+  "agent/Sources/Tether/API.swift",
+  "agent/Sources/Tether/Server.swift",
+  "agent/Sources/TetherCore/APIProtocol.swift",
+  "agent/Sources/SelfTest/main.swift"
+ ],
+ "estimate_h": 3.0,
+ "done_when": "the routes answer JSON (info: name, version, displays, permissions) and PNG or JPEG screenshots of a display or one window, reusing Thumbnails.capture and the window list; SelfTest covers the request and response shapes",
+ "command": "swift run --package-path agent SelfTest",
+ "body": "Screenshot coordinates are in the image's own pixels, and info gives the scale back to display points, so a client can click where it sees."
+}

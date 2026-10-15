@@ -1,0 +1,23 @@
+{
+ "key": "P-3",
+ "kind": "plan",
+ "title": "An API so Claude can control Macs through Tether",
+ "status": "draft",
+ "edges": {},
+ "created": {
+  "at": "2026-10-15T17:04:34-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:04:34-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "doc": "plans/2026-10-15-claude-api.md",
+ "time_box_h": 20.0,
+ "body": "Jordan, 15 Oct 2026: \"Is there also an MCP where Claude can connect to Tether to control my other Macs?\" Then: \"I want this. It would be an entirely separate tool, right it would be tether CLI/API/MCP\", \"Basically, the MCP would allow you to use Tether to connect to anyone of your devices on the Tailscale network\" and \"D-A: new repo mcp-tether for the MCP server and the tether command. Write the plans.\""
+}

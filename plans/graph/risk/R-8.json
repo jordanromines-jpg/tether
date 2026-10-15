@@ -1,0 +1,27 @@
+{
+ "key": "R-8",
+ "kind": "risk",
+ "title": "Claude acts on instructions it reads on a remote screen",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:05:13-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:05:13-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "likelihood": "medium",
+ "impact": "medium",
+ "trigger": "an action Jordan didn't ask for shows in Recent activity"
+}

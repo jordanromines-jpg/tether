@@ -2,7 +2,7 @@
  "key": "S-1",
  "kind": "step",
  "title": "An MCP server so Claude can see and control Jordan's other Macs through Tether",
- "status": "parked",
+ "status": "dropped",
  "edges": {
   "part_of": [
    "P-2"
@@ -30,6 +30,18 @@
    "was": "open",
    "before": {
     "status": "open"
+   }
+  },
+  {
+   "at": "2026-10-15T17:05:37-05:00",
+   "by": "claude",
+   "what": "Planned: the API is P-3 in this repo, and the MCP server and tether command are the new repo mcp-tether (Jordan chose D-A)",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "dropped",
+   "was": "parked",
+   "before": {
+    "status": "parked"
    }
   }
  ],

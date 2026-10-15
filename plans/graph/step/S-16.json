@@ -1,0 +1,109 @@
+{
+ "key": "S-16",
+ "kind": "step",
+ "title": "POST /api/v1/actions: click, drag, scroll, type, keys, open app or link, through the Hub",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-5"
+  ],
+  "depends_on": [
+   "S-15",
+   "S-6",
+   "S-4",
+   "S-5"
+  ],
+  "implements": [
+   "REQ-4",
+   "REQ-5"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:05:12-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:05:12-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:05:21-05:00",
+   "by": "claude",
+   "what": "depends_on S-6",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-15"
+     ],
+     "implements": [
+      "REQ-4",
+      "REQ-5"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:05:21-05:00",
+   "by": "claude",
+   "what": "depends_on S-4",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-15",
+      "S-6"
+     ],
+     "implements": [
+      "REQ-4",
+      "REQ-5"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T17:05:21-05:00",
+   "by": "claude",
+   "what": "depends_on S-5",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "depends_on": [
+      "S-15",
+      "S-6",
+      "S-4"
+     ],
+     "implements": [
+      "REQ-4",
+      "REQ-5"
+     ]
+    }
+   }
+  }
+ ],
+ "files": [
+  "agent/Sources/Tether/API.swift",
+  "agent/Sources/Tether/Hub.swift",
+  "agent/Sources/TetherCore/APIProtocol.swift",
+  "agent/Sources/SelfTest/main.swift"
+ ],
+ "estimate_h": 3.0,
+ "done_when": "each action becomes the same ClientMessage the web page sends, from a Hub client named for the calling device, so View only and Pause refuse it like any device; SelfTest maps every action and rejects bad input",
+ "command": "swift run --package-path agent SelfTest"
+}

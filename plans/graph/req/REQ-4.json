@@ -1,0 +1,25 @@
+{
+ "key": "REQ-4",
+ "kind": "req",
+ "title": "Claude can see and control any Mac on the tailnet that runs Tether",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:04:55-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:04:55-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "acceptance": "WHEN a client on Jordan's tailnet calls the API of a Mac with Claude allowed THEN it gets a screenshot, the window list, and its clicks, keys and text arrive on that Mac"
+}

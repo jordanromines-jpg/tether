@@ -1,0 +1,26 @@
+{
+ "key": "D-6",
+ "kind": "decision",
+ "title": "Add an Allow Claude switch on each Mac, off until turned on there?",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:04:55-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:04:55-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "recommendation": "Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel",
+ "body": "Options: a switch per Mac, off by default · on for every Mac that runs Tether, with no switch."
+}
