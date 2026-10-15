@@ -1,0 +1,64 @@
+{
+ "key": "S-3",
+ "kind": "step",
+ "title": "build-app.sh --release: embed and sign Sparkle, set the feed address and the public update key",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-1"
+  ],
+  "depends_on": [
+   "S-2",
+   "D-2"
+  ],
+  "implements": [
+   "REQ-2",
+   "REQ-3"
+  ],
+  "mitigates": [
+   "R-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:43-05:00",
+   "by": "claude",
+   "what": "mitigates R-1",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-1"
+     ],
+     "depends_on": [
+      "S-2",
+      "D-2"
+     ],
+     "implements": [
+      "REQ-2",
+      "REQ-3"
+     ]
+    }
+   }
+  }
+ ],
+ "files": [
+  "scripts/build-app.sh"
+ ],
+ "estimate_h": 2.5,
+ "done_when": "build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, and passes a deep signature check",
+ "command": "scripts/build-app.sh --release && codesign --verify --deep --strict build/Tether.app && plutil -extract SUPublicEDKey raw build/Tether.app/Contents/Info.plist",
+ "body": "Signs nested code inside out (Sparkle's helpers first) with the same identity. The feed is a permanent release named appcast: .../releases/download/appcast/appcast.xml; --feed test points at appcast-test.xml for trial releases."
+}

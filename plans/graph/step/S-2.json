@@ -1,0 +1,34 @@
+{
+ "key": "S-2",
+ "kind": "step",
+ "title": "Add Sparkle 2.x, pinned, to the Swift package",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-1"
+  ],
+  "implements": [
+   "REQ-2"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:41-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:41-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  "agent/Package.swift",
+  "agent/Package.resolved"
+ ],
+ "estimate_h": 1.0,
+ "done_when": "the release build links Sparkle",
+ "command": "swift build -c release --package-path agent"
+}

@@ -1,0 +1,37 @@
+{
+ "key": "S-1",
+ "kind": "step",
+ "title": "An MCP server so Claude can see and control Jordan's other Macs through Tether",
+ "status": "parked",
+ "edges": {
+  "part_of": [
+   "P-2"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:09-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:09-05:00",
+   "by": "claude",
+   "what": "held",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:09-05:00",
+   "by": "claude",
+   "what": "held: Asked during the download plan; not part of it. Needs its own plan: screenshots, clicks and typing via Tether's existing input and capture, behind the same Tailscale login check",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "parked",
+   "was": "open",
+   "before": {
+    "status": "open"
+   }
+  }
+ ],
+ "body": "Jordan, 2026-10-15: “Is there also an MCP where Claude can connect to Tether to control my other Macs?”\nHeld: Asked during the download plan; not part of it. Needs its own plan: screenshots, clicks and typing via Tether's existing input and capture, behind the same Tailscale login check"
+}

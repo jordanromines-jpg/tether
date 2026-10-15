@@ -1,0 +1,37 @@
+{
+ "key": "S-8",
+ "kind": "step",
+ "title": "Make the keys: one release signing identity, and the update key in the Studio keychain",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-3"
+  ],
+  "depends_on": [
+   "D-1"
+  ],
+  "implements": [
+   "REQ-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  "scripts/make-release-keys.sh"
+ ],
+ "estimate_h": 1.5,
+ "done_when": "the Studio keychain holds the update key; the script prints the public key and the one gh secret set command Jordan runs for the signing identity",
+ "command": "manual: run on the Studio; generate_keys -p prints the public key",
+ "body": "The private keys never pass through chat or a file in the repo."
+}

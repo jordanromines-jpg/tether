@@ -1,0 +1,31 @@
+{
+ "key": "G-2",
+ "kind": "gate",
+ "title": "First public release, v6.1.0",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "V-2",
+   "V-3",
+   "S-11"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "approver": "jordan",
+ "recommendation": "Go once V-2 and V-3 have passed"
+}

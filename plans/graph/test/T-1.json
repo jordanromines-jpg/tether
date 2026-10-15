@@ -1,0 +1,32 @@
+{
+ "key": "T-1",
+ "kind": "test",
+ "title": "Jordan installs rc1 from the download on one Mac",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "S-10"
+  ],
+  "verifies": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "estimate_h": 0.5,
+ "done_when": "after Open Anyway and the two permissions, his phone shows that Mac's screen"
+}

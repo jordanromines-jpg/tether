@@ -1,0 +1,26 @@
+{
+ "key": "D-3",
+ "kind": "decision",
+ "title": "Keep the build-from-source route for developers?",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "recommendation": "Yes: setup.sh and git-based Update now stay for people who change Tether; the download becomes the main way in, and Jordan's three Macs move to it",
+ "body": "Options: keep both · download only (removes setup.sh, update.sh, deploy.sh and the per-Mac signing; simpler, but no way to run local changes as an installed app)."
+}

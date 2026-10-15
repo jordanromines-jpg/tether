@@ -1,0 +1,37 @@
+{
+ "key": "S-7",
+ "kind": "step",
+ "title": "Setup Assistant covers a download install: Tailscale, HTTPS certificates, permissions",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-2"
+  ],
+  "depends_on": [
+   "S-6"
+  ],
+  "implements": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  "agent/Sources/TetherUI/SetupAssistant.swift",
+  "agent/Sources/Snapshots/main.swift"
+ ],
+ "estimate_h": 2.0,
+ "done_when": "Snapshots render the new Tailscale and HTTPS steps in light and dark",
+ "command": "swift run --package-path agent Snapshots snaps/"
+}

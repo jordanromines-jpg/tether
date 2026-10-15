@@ -1,0 +1,38 @@
+{
+ "key": "S-6",
+ "kind": "step",
+ "title": "First run does what install-agent.sh does: config, start at login, tailscale serve",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-2"
+  ],
+  "depends_on": [
+   "S-5"
+  ],
+  "implements": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  "agent/Sources/Tether/FirstRun.swift",
+  "agent/Sources/TetherCore/Setup.swift",
+  "agent/Sources/SelfTest/main.swift"
+ ],
+ "estimate_h": 3.0,
+ "done_when": "with no config.json, Tether reads the signed-in login from tailscale status, writes config.json, installs the same LaunchAgent and runs tailscale serve; SelfTest checks the config and plist text match install-agent.sh's",
+ "command": "swift run --package-path agent SelfTest"
+}

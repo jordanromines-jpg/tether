@@ -1,0 +1,23 @@
+{
+ "key": "P-1",
+ "kind": "plan",
+ "title": "Tether as a download that updates itself",
+ "status": "draft",
+ "edges": {},
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "doc": "plans/2026-10-15-downloadable-release.md",
+ "time_box_h": 30.0,
+ "body": "Jordan, 15 Oct 2026, choosing the updater: \"Yes\" to \"Use Sparkle for the updater\". Then: \"Back to the plan for Tether\"."
+}

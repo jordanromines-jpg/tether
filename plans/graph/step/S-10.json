@@ -1,0 +1,60 @@
+{
+ "key": "S-10",
+ "kind": "step",
+ "title": "release-approve.sh: verify the build, sign it with the update key, publish the feed",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-3"
+  ],
+  "depends_on": [
+   "S-9"
+  ],
+  "implements": [
+   "REQ-3"
+  ],
+  "mitigates": [
+   "R-4"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:58-05:00",
+   "by": "claude",
+   "what": "mitigates R-4",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-3"
+     ],
+     "depends_on": [
+      "S-9"
+     ],
+     "implements": [
+      "REQ-3"
+     ]
+    }
+   }
+  }
+ ],
+ "files": [
+  "scripts/release-approve.sh",
+  "scripts/tests/release-approve.test.sh"
+ ],
+ "estimate_h": 2.0,
+ "done_when": "the script refuses a zip without a valid attestation or with the wrong signing identity, and otherwise writes the appcast item with sign_update and publishes the release",
+ "command": "bash scripts/tests/release-approve.test.sh"
+}

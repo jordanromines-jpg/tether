@@ -1,0 +1,41 @@
+{
+ "key": "S-11",
+ "kind": "step",
+ "title": "README, CLAUDE.md, SECURITY.md and CHANGELOG for the download",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-4"
+  ],
+  "depends_on": [
+   "S-7",
+   "S-10",
+   "D-3"
+  ],
+  "implements": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  "README.md",
+  "CLAUDE.md",
+  "SECURITY.md",
+  "CHANGELOG.md"
+ ],
+ "estimate_h": 2.0,
+ "done_when": "README leads with Download; building from source is the developer route; SECURITY.md explains the two keys and the attestation; CLAUDE.md's runbook covers a download install",
+ "command": "manual: read the four files against REQ-1's acceptance"
+}

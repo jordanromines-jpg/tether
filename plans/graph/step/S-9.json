@@ -1,0 +1,39 @@
+{
+ "key": "S-9",
+ "kind": "step",
+ "title": "GitHub workflow: on a tag, build, sign, attest, attach to a draft release",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-3"
+  ],
+  "depends_on": [
+   "S-3",
+   "G-1"
+  ],
+  "implements": [
+   "REQ-1",
+   "REQ-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  ".github/workflows/release.yml"
+ ],
+ "estimate_h": 2.5,
+ "done_when": "a pushed rc tag produces a draft release with Tether.zip and a build attestation, and the workflow has no update-key secret",
+ "command": "manual: push tag v6.1.0-rc1; gh release view v6.1.0-rc1 lists Tether.zip; gh attestation verify passes",
+ "body": "Rollback: delete the draft release and the rc tag."
+}
