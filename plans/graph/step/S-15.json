@@ -9,9 +9,6 @@
   ],
   "implements": [
    "REQ-4"
-  ],
-  "depends_on": [
-   "S-6"
   ]
  },
  "created": {
@@ -184,6 +181,34 @@
    "before": {
     "body": "Screenshot coordinates are in the image's own pixels, and info gives the scale back to display points, so a client can click where it sees."
    }
+  },
+  {
+   "at": "2026-10-16T15:05:16-05:00",
+   "by": "claude",
+   "what": "removed depends_on S-6",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-5"
+     ],
+     "implements": [
+      "REQ-4"
+     ],
+     "depends_on": [
+      "S-6"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-16T15:05:16-05:00",
+   "by": "claude",
+   "what": "D-8 (Jordan, 16 Oct): P-3 builds alongside P-1, so S-15 no longer waits on S-6; SelfTest/main.swift is shared, so merge main before each PR",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "note"
   }
  ],
  "files": [

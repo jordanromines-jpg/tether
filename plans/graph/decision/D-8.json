@@ -2,7 +2,7 @@
  "key": "D-8",
  "kind": "decision",
  "title": "Build P-3 alongside P-1 instead of after it?",
- "status": "open",
+ "status": "answered",
  "edges": {
   "part_of": [
    "P-3"
@@ -19,8 +19,29 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-16T15:05:07-05:00",
+   "by": "jordan",
+   "what": "answered: “plangraph P-12, D-25, D-26, D-27, D-28, G-14, G-15, Tether D-7, D-8, mcp-tether ”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
   }
  ],
  "recommendation": "Yes: a second Tether session builds PR-5 in its own worktree; S-15 and S-16 stop waiting on S-4, S-5 and S-6 (they only share SelfTest/main.swift, a small merge fix); S-17 still waits on S-4 and S-7",
- "body": "Options: in parallel (up to about 17 h sooner) · in order, after P-1's PR-2. (N-2 in chat, 16 Oct.)"
+ "body": "Options: in parallel (up to about 17 h sooner) · in order, after P-1's PR-2. (N-2 in chat, 16 Oct.)",
+ "answer": {
+  "text": "Yes: a second Tether session builds PR-5 in its own worktree; S-15 and S-16 stop waiting on S-4, S-5 and S-6 (they only share SelfTest/main.swift, a small merge fix); S-17 still waits on S-4 and S-7",
+  "quote": "plangraph P-12, D-25, D-26, D-27, D-28, G-14, G-15, Tether D-7, D-8, mcp-tether D-4: all rec",
+  "by": "jordan",
+  "at": "2026-10-16T15:05:07-05:00"
+ }
 }

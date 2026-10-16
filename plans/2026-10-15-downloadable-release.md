@@ -15,7 +15,7 @@ Status: in progress (approved 2026-10-16 by jordan: “all rec”)
   - S-5 waits on T-3
   - S-6 waits on S-5
   - … and 7 more (`plangraph status P-1`)
-- Waiting on Jordan: D-7, G-1, G-2
+- Waiting on Jordan: G-1, G-2
 - Estimates: done work took 0.027× its estimate (0.19 h of 7 h over 3 items)
 - Critical path: T-3 → S-5 → S-6 → S-7 → … 2 more … → S-12 → T-2 → V-4 (12.25 h left)
 <!-- /graph -->
@@ -68,7 +68,7 @@ Choices made without asking, all easy to reverse:
 | D-1 | Where does the update key live, and who approves each release? | The Mac Studio's keychain. After a release build passes, a Claude session runs scripts/release-approve.sh there (releasing is already a routine call) | The Mac Studio's keychain; a Claude session approves each release after its build passes — jordan, 2026-10-15: “This is good with me.” | answered |
 | D-2 | Build for Apple silicon and Intel, or Apple silicon only? | Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs | Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs — jordan, 2026-10-16: “all rec” | answered |
 | D-3 | Keep the build-from-source route for developers? | Yes: setup.sh and git-based Update now stay for people who change Tether; the download becomes the main way in, and Jordan's three Macs move to it | Yes: setup.sh and git-based Update now stay for people who change Tether; the download becomes the main way in, and Jordan's three Macs move to it — jordan, 2026-10-16: “all rec” | answered |
-| D-7 | Make the release keys now, in a separate session on the Studio? | Yes: S-8 only touches scripts/make-release-keys.sh, so it can run beside the build, and G-1 reaches Jordan hours sooner | — | open |
+| D-7 | Make the release keys now, in a separate session on the Studio? | Yes: S-8 only touches scripts/make-release-keys.sh, so it can run beside the build, and G-1 reaches Jordan hours sooner | Yes: S-8 only touches scripts/make-release-keys.sh, so it can run beside the build, and G-1 reaches Jordan hours sooner — jordan, 2026-10-16: “plangraph P-12, D-25, D-26, D-27, D-28, G-14, G-15, Tether D-7, D-8, mcp-tether D-4: all rec” | answered |
 <!-- /graph -->
 
 ## Pull requests and keys
@@ -241,6 +241,8 @@ Choices made without asking, all easy to reverse:
 | 2026-10-16 14:49 | S-8 | Script built and tested (commit 25b0fb6, branch feat/release-pipeline): in a throwaway HOME it makes the update key, proves the backup restores (scratch keychain, sign_update, CryptoKit verify), exits 1 on a mismatched backup, keeps existing keys on re-run, and the secret imports as a code-signing identity. Uses a dedicated keychain on the Studio (tether-release.keychain-db, password in ~/.config/tether/release), because the login keychain is locked to SSH. Running it on the Studio over SSH was refused by the permission check, so Jordan runs it there himself as part of G-1. Studio checkout: ~/projects/tether on feat/release-pipeline. | claude | — |
 | 2026-10-16 14:50 | S-8 | released (claimed 0.1 h) | claude | — |
 | 2026-10-16 15:04 | T-3 | Probe ready (not the real Tether, so it can't clash with the running one): TetherGatekeeperProbe.app, bundle id com.tether.gatekeeper-probe, universal, Sparkle.framework embedded and signed inside out with a self-signed 'Tether Release'-style identity, the same codesign flags as build-app.sh --release (no hardened runtime, --timestamp=none), zipped with ditto; spctl rejects it as expected. On draft release https://github.com/jordanromines-jpg/tether/releases/tag/untagged-91ce7af59446643f91a6 (asset TetherGatekeeperProbe.zip, only visible signed in to GitHub). Pass = the window 'Gatekeeper probe OK' opens after Open Anyway. | claude | — |
+| 2026-10-16 15:05 | D-7 | answered: “plangraph P-12, D-25, D-26, D-27, D-28, G-14, G-15, Tether D-7, D-8, mcp-tether ” | jordan | — |
+| 2026-10-16 15:05 | S-8 | D-7 (Jordan, 16 Oct): built now, in its own session on the Studio | claude | — |
 <!-- /graph -->
 
 ## Results
