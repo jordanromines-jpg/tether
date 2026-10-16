@@ -48,6 +48,14 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-10-16T15:04:17-05:00",
+   "by": "claude",
+   "what": "Probe ready (not the real Tether, so it can't clash with the running one): TetherGatekeeperProbe.app, bundle id com.tether.gatekeeper-probe, universal, Sparkle.framework embedded and signed inside out with a self-signed 'Tether Release'-style identity, the same codesign flags as build-app.sh --release (no hardened runtime, --timestamp=none), zipped with ditto; spctl rejects it as expected. On draft release https://github.com/jordanromines-jpg/tether/releases/tag/untagged-91ce7af59446643f91a6 (asset TetherGatekeeperProbe.zip, only visible signed in to GitHub). Pass = the window 'Gatekeeper probe OK' opens after Open Anyway.",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "note"
   }
  ],
  "estimate_h": 0.25,
