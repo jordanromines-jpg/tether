@@ -29,9 +29,9 @@ What comes now, next and later, derived from the plans and what each waits on.
 <!-- graph: index -->
 | Plan | Title | State | Work done | Next | Waiting on Jordan |
 |---|---|---|---|---|---|
-| P-3 | [An API so Claude can control Macs through Tether](2026-10-15-claude-api.md) | approved | 0/8 | — | 1 |
+| P-3 | [An API so Claude can control Macs through Tether](2026-10-15-claude-api.md) | approved | 0/8 | S-15 | — |
 | P-2 | Inbox | inbox | 0/0 | — | — |
-| P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | in progress | 3/20 | S-8 | 3 |
+| P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | in progress | 3/20 | S-8 | 2 |
 <!-- /graph -->
 
 ## How we work with Jordan

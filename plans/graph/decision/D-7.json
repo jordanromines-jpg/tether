@@ -2,7 +2,7 @@
  "key": "D-7",
  "kind": "decision",
  "title": "Make the release keys now, in a separate session on the Studio?",
- "status": "open",
+ "status": "answered",
  "edges": {
   "part_of": [
    "P-1"
@@ -19,8 +19,29 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-16T15:05:07-05:00",
+   "by": "jordan",
+   "what": "answered: “plangraph P-12, D-25, D-26, D-27, D-28, G-14, G-15, Tether D-7, D-8, mcp-tether ”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
   }
  ],
  "recommendation": "Yes: S-8 only touches scripts/make-release-keys.sh, so it can run beside the build, and G-1 reaches Jordan hours sooner",
- "body": "Options: now, in its own session (the Tether build skips S-8) · in order, after PR-2. (N-1 in chat, 16 Oct.)"
+ "body": "Options: now, in its own session (the Tether build skips S-8) · in order, after PR-2. (N-1 in chat, 16 Oct.)",
+ "answer": {
+  "text": "Yes: S-8 only touches scripts/make-release-keys.sh, so it can run beside the build, and G-1 reaches Jordan hours sooner",
+  "quote": "plangraph P-12, D-25, D-26, D-27, D-28, G-14, G-15, Tether D-7, D-8, mcp-tether D-4: all rec",
+  "by": "jordan",
+  "at": "2026-10-16T15:05:07-05:00"
+ }
 }
