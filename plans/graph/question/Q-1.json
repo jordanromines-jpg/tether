@@ -2,7 +2,7 @@
  "key": "Q-1",
  "kind": "question",
  "title": "How is Claude's View only set on a Mac?",
- "status": "open",
+ "status": "answered",
  "edges": {
   "part_of": [
    "P-3"
@@ -19,8 +19,29 @@
    "what": "added",
    "door": "cli",
    "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22"
+  },
+  {
+   "at": "2026-10-16T14:25:45-05:00",
+   "by": "jordan",
+   "what": "answered: “all rec”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
   }
  ],
  "recommendation": "The Allow Claude switch gets three settings: Off, View only (screenshots and lists, no input) and Control; it is the only way Claude's session is set to view only",
- "body": "D-5 says View only blocks Claude, but View only today is set per device by a message from the web page, which Claude's API session never sends. Options: three settings on the switch · a separate Claude: view only checkbox · no view only for Claude."
+ "body": "D-5 says View only blocks Claude, but View only today is set per device by a message from the web page, which Claude's API session never sends. Options: three settings on the switch · a separate Claude: view only checkbox · no view only for Claude.",
+ "answer": {
+  "text": "The Allow Claude switch gets three settings: Off, View only (screenshots and lists, no input) and Control; it is the only way Claude's session is set to view only",
+  "quote": "all rec",
+  "by": "jordan",
+  "at": "2026-10-16T14:25:45-05:00"
+ }
 }

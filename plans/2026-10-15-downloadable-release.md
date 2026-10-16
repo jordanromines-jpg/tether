@@ -1,21 +1,21 @@
 # Tether as a download that updates itself
 
 <!-- graph: status P-1 -->
-Status: awaiting approval
+Status: approved (approved 2026-10-16 by jordan: “all rec”)
 
 - Work: 0 of 20 done; hours 28.75 of a 30 h box
-- Doing: — · Ready: — · Next: —
-- Blocked (20):
-  - T-1 waits on S-13, P-1 approval
-  - T-2 waits on S-12, P-1 approval
-  - T-3 waits on S-3, P-1 approval
-  - V-1 waits on PR-1, PR-2, PR-3, P-1 approval
-  - V-2 waits on S-14, P-1 approval
-  - V-3 waits on T-1, P-1 approval
-  - V-4 waits on T-2, P-1 approval
-  - S-2 waits on P-1 approval
-  - … and 12 more (`plangraph status P-1`)
-- Waiting on Jordan: D-2, D-3, G-1, G-2
+- Doing: — · Ready: S-2, S-8 · Next: S-2
+- Blocked (18):
+  - T-1 waits on S-13
+  - T-2 waits on S-12
+  - T-3 waits on S-3
+  - V-1 waits on PR-1, PR-2, PR-3
+  - V-2 waits on S-14
+  - V-3 waits on T-1
+  - V-4 waits on T-2
+  - S-3 waits on S-2
+  - … and 10 more (`plangraph status P-1`)
+- Waiting on Jordan: G-1, G-2
 - Critical path: S-2 → S-3 → S-4 → S-5 → … 4 more … → S-12 → T-2 → V-4 (19 h left)
 <!-- /graph -->
 
@@ -65,8 +65,8 @@ Choices made without asking, all easy to reverse:
 | Key | Question | Recommendation | Answer | State |
 |---|---|---|---|---|
 | D-1 | Where does the update key live, and who approves each release? | The Mac Studio's keychain. After a release build passes, a Claude session runs scripts/release-approve.sh there (releasing is already a routine call) | The Mac Studio's keychain; a Claude session approves each release after its build passes — jordan, 2026-10-15: “This is good with me.” | answered |
-| D-2 | Build for Apple silicon and Intel, or Apple silicon only? | Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs | — | open |
-| D-3 | Keep the build-from-source route for developers? | Yes: setup.sh and git-based Update now stay for people who change Tether; the download becomes the main way in, and Jordan's three Macs move to it | — | open |
+| D-2 | Build for Apple silicon and Intel, or Apple silicon only? | Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs | Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs — jordan, 2026-10-16: “all rec” | answered |
+| D-3 | Keep the build-from-source route for developers? | Yes: setup.sh and git-based Update now stay for people who change Tether; the download becomes the main way in, and Jordan's three Macs move to it | Yes: setup.sh and git-based Update now stay for people who change Tether; the download becomes the main way in, and Jordan's three Macs move to it — jordan, 2026-10-16: “all rec” | answered |
 <!-- /graph -->
 
 ## Pull requests and keys
@@ -85,7 +85,7 @@ Choices made without asking, all easy to reverse:
 
 | Key | What | Files | Done when | Hours (est · used) | Waits on | State |
 |---|---|---|---|---|---|---|
-| S-2 | Add Sparkle 2.x, pinned, to the Swift package | agent/Package.swift, agent/Package.resolved | the release build links Sparkle | 1 | — | blocked |
+| S-2 | Add Sparkle 2.x, pinned, to the Swift package | agent/Package.swift, agent/Package.resolved | the release build links Sparkle | 1 | — | ready |
 | S-3 | build-app.sh --release: embed and sign Sparkle, set the feed address and the public update key | scripts/build-app.sh, scripts/tests/build-version.test.sh | build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, passes a deep signature check, and CFBundleVersion is the number from the tag; a script test checks rc1 < rc2 < final and that --feed test and --feed prod give the two feed addresses | 3 | S-2, D-2 | blocked |
 | S-4 | Release builds update through Sparkle: download in the background, install while nobody is connected | agent/Sources/Tether/ReleaseUpdater.swift, agent/Sources/Tether/Updater.swift, agent/Sources/Tether/Updates.swift, agent/Sources/TetherCore/Update.swift, agent/Sources/SelfTest/main.swift, agent/Sources/TetherUI/StatusPanel.swift | UpdateMode has a release case chosen when the app carries SUFeedURL; the SelfTest cases for it pass; the panel shows Sparkle's status for release builds and the git route for source builds | 3 | S-3 | blocked |
 
@@ -101,7 +101,7 @@ Choices made without asking, all easy to reverse:
 
 | Key | What | Files | Done when | Hours (est · used) | Waits on | State |
 |---|---|---|---|---|---|---|
-| S-8 | Make the keys: one release signing identity, and the update key in the Studio keychain | scripts/make-release-keys.sh | the Studio keychain holds the update key; the script exports it to a file for G-1's backup, re-imports that export into a scratch keychain and signs a test file with it, prints the public key, and exits non-zero if the two public keys differ; it prints the one gh secret set command Jordan runs for the signing identity | 1.75 | D-1 | blocked |
+| S-8 | Make the keys: one release signing identity, and the update key in the Studio keychain | scripts/make-release-keys.sh | the Studio keychain holds the update key; the script exports it to a file for G-1's backup, re-imports that export into a scratch keychain and signs a test file with it, prints the public key, and exits non-zero if the two public keys differ; it prints the one gh secret set command Jordan runs for the signing identity | 1.75 | D-1 | ready |
 | S-9 | GitHub workflow: on a tag, build, sign, attest, attach to a draft release | .github/workflows/release.yml | a pushed rc tag produces a draft release with Tether.zip and a build attestation, and the workflow has no update-key secret | 2.5 | S-3, G-1 | blocked |
 | S-10 | release-approve.sh: verify the build, sign it with the update key, publish the feed | scripts/release-approve.sh, scripts/tests/release-approve.test.sh | the script refuses a zip without a valid attestation or with the wrong signing identity, and otherwise writes the appcast item with sign_update and publishes it to the feed the tag names; --withdraw <tag> removes that item from the feed; the test covers refuse, publish and withdraw | 2.5 | S-9 | blocked |
 | S-12 | Publish v6.1.0 | VERSION, CHANGELOG.md | the v6.1.0 release has Tether.zip and the live appcast lists it | 0.5 | G-2, S-10, S-11, S-14 | blocked |
@@ -224,6 +224,9 @@ Choices made without asking, all easy to reverse:
 | 2026-10-15 17:00 | S-12 | depends_on S-14 | claude | — |
 | 2026-10-15 17:00 | S-11 | depends_on S-13 | claude | — |
 | 2026-10-15 17:00 | P-1 | reviewed (10 findings): Reviewer found 3 blockers, 4 gaps, 3 minor. Fixed: S-3 numbers release builds from the tag so Sparkle orders rc1 < rc2 < v6.1.0, and --feed picks the test or real feed (S-9 per tag, V-4 checks the real feed live); new S-13/S-14 cut and approve rc1 and rc2; S-10 gains --withdraw with new risk R-6; S-6 keeps existing installs, compares against install-agent.sh itself and names its failure paths; T-3 probes Gatekeeper on macOS 26 before PR-2; S-8 proves the key export restores (R-3); R-4 says what a leak can do; V-1 covers REQ-1 to REQ-3. Not changed: Package.resolved is tracked; plangraph has no decider field (decisions are Jordan's). 28.75 h of 30. | claude | — |
+| 2026-10-16 14:25 | D-2 | answered: “all rec” | jordan | — |
+| 2026-10-16 14:25 | D-3 | answered: “all rec” | jordan | — |
+| 2026-10-16 14:25 | P-1 | approved: “all rec” | jordan | — |
 <!-- /graph -->
 
 ## Results

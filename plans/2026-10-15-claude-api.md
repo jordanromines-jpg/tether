@@ -1,20 +1,20 @@
 # An API so Claude can control Macs through Tether
 
 <!-- graph: status P-3 -->
-Status: awaiting approval
+Status: approved (approved 2026-10-16 by jordan: “all rec”)
 
 - Work: 0 of 8 done; hours 16.75 of a 20 h box
 - Doing: — · Ready: — · Next: —
 - Blocked (8):
-  - T-4 waits on V-5, P-3 approval
-  - V-5 waits on PR-5, P-3 approval
-  - S-15 waits on S-6, P-3 approval
-  - S-16 waits on S-15, S-20, P-3 approval
-  - S-17 waits on S-16, D-6, S-7, Q-1, P-3 approval
-  - S-18 waits on S-17, P-3 approval
-  - S-19 waits on S-18, S-11, P-3 approval
-  - S-20 waits on S-15, Q-1, P-3 approval
-- Waiting on Jordan: D-6, Q-1
+  - T-4 waits on V-5
+  - V-5 waits on PR-5
+  - S-15 waits on S-6
+  - S-16 waits on S-15, S-20
+  - S-17 waits on S-16, S-7
+  - S-18 waits on S-17
+  - S-19 waits on S-18, S-11
+  - S-20 waits on S-15
+- Waiting on Jordan: —
 - Critical path: S-15 → S-20 → S-16 → S-17 → S-18 → S-19 → V-5 → T-4 (16.75 h left)
 <!-- /graph -->
 
@@ -61,7 +61,7 @@ The routes are versioned (`/api/v1`) so mcp-tether can say which version it need
 |---|---|---|---|---|
 | D-4 | How does Claude get past the passkey lock? | Being on Jordan's Tailscale network, with his login, is the gate; no separate key | Tailscale identity is the gate; no separate key — jordan, 2026-10-15: “This is based on the Mac or device in question being on the same Tailscale network” | answered |
 | D-5 | Show a banner, log Claude's actions, and let View only and Pause block Claude? | Yes | “yes” — jordan, 2026-10-15 | answered |
-| D-6 | Add an Allow Claude switch on each Mac, off until turned on there? | Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel | — | open |
+| D-6 | Add an Allow Claude switch on each Mac, off until turned on there? | Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel | Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel — jordan, 2026-10-16: “all rec” | answered |
 <!-- /graph -->
 
 ## Pull requests and keys
@@ -163,6 +163,9 @@ None.
 | 2026-10-15 17:09 | S-19 | set command, done_when, files | claude | — |
 | 2026-10-15 17:09 | V-5 | set command, done_when | claude | — |
 | 2026-10-15 17:10 | P-3 | reviewed (11 findings): Reviewer found 10 (2 blocking) plus the open review gap. Added S-20, an API client per device in the Hub that starts no video, keeps drags across calls and expires after 2 min; Q-1 on how Claude's View only is set; S-17 now adds /api to Pause, a 403 Allow Claude check in a stated order, instant cut-off, Disconnect, tests for all three refusals and the CHANGELOG line; S-15 gains window and full-size capture and one tested coordinate contract; S-16 gains numeric limits and all-or-nothing checking; S-19 tests the docs against the routes; V-5 names the Studio and the bench; R-7 and R-8 reworded; cross-plan edges cut to S-6 and S-7 (check needs them for shared files), with P-1's 12.5 h lead stated | claude | — |
+| 2026-10-16 14:25 | D-6 | answered: “all rec” | jordan | — |
+| 2026-10-16 14:25 | P-3 | approved: “all rec” | jordan | — |
+| 2026-10-16 14:25 | Q-1 | answered: “all rec” | jordan | — |
 <!-- /graph -->
 
 ## Results
