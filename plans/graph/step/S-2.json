@@ -2,7 +2,7 @@
  "key": "S-2",
  "kind": "step",
  "title": "Add Sparkle 2.x, pinned, to the Swift package",
- "status": "open",
+ "status": "done",
  "edges": {
   "part_of": [
    "PR-1"
@@ -22,6 +22,47 @@
    "what": "added",
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-16T14:30:21-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-16T14:32:15-05:00",
+   "by": "claude",
+   "what": "done: swift build -c release: Build complete; otool -L Tether: @rpath/Sparkle.framework/Versions/B/Sparkle",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "done",
+   "was": "doing",
+   "commit": "bde5f74",
+   "used_h": 0.03,
+   "measured": true,
+   "before": {
+    "claimed": {
+     "by": "claude",
+     "at": "2026-10-16T14:30:21-05:00",
+     "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355"
+    },
+    "status": "doing"
+   },
+   "before_absent": [
+    "elapsed_h",
+    "evidence",
+    "links",
+    "used_h"
+   ]
   }
  ],
  "files": [
@@ -30,5 +71,13 @@
  ],
  "estimate_h": 1.0,
  "done_when": "the release build links Sparkle",
- "command": "swift build -c release --package-path agent"
+ "command": "swift build -c release --package-path agent",
+ "evidence": "swift build -c release: Build complete; otool -L Tether: @rpath/Sparkle.framework/Versions/B/Sparkle (current version 2.10.0); rpath @executable_path/../Frameworks",
+ "elapsed_h": 0.03,
+ "used_h": 0.03,
+ "links": {
+  "commits": [
+   "bde5f74"
+  ]
+ }
 }

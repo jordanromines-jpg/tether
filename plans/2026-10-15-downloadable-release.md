@@ -1,22 +1,23 @@
 # Tether as a download that updates itself
 
 <!-- graph: status P-1 -->
-Status: approved (approved 2026-10-16 by jordan: “all rec”)
+Status: in progress (approved 2026-10-16 by jordan: “all rec”)
 
-- Work: 0 of 20 done; hours 28.75 of a 30 h box
-- Doing: — · Ready: S-2, S-8 · Next: S-2
-- Blocked (18):
+- Work: 3 of 20 done; hours 28.75 · 0.19 of a 30 h box
+- Doing: — · Ready: S-8, T-3 · Next: S-8
+- Blocked (15):
   - T-1 waits on S-13
   - T-2 waits on S-12
-  - T-3 waits on S-3
-  - V-1 waits on PR-1, PR-2, PR-3
+  - V-1 waits on PR-2, PR-3
   - V-2 waits on S-14
   - V-3 waits on T-1
   - V-4 waits on T-2
-  - S-3 waits on S-2
-  - … and 10 more (`plangraph status P-1`)
+  - S-5 waits on T-3
+  - S-6 waits on S-5
+  - … and 7 more (`plangraph status P-1`)
 - Waiting on Jordan: G-1, G-2
-- Critical path: S-2 → S-3 → S-4 → S-5 → … 4 more … → S-12 → T-2 → V-4 (19 h left)
+- Estimates: done work took 0.027× its estimate (0.19 h of 7 h over 3 items)
+- Critical path: T-3 → S-5 → S-6 → S-7 → … 2 more … → S-12 → T-2 → V-4 (12.25 h left)
 <!-- /graph -->
 
 What started it: Jordan, 15 Oct 2026, choosing the updater: "Yes" to "Use Sparkle for the updater". Then: "Back to the plan for Tether". It came from the question of whether Tether could be a download instead of a build on every Mac, without paying Apple. Jordan chose F-1 to F-3 from the options: two keys with different jobs, Sparkle as the updater, and GitHub's build attestation. The skill that teaches this pattern is a separate plan in hub-claude-skills.
@@ -75,19 +76,19 @@ Choices made without asking, all easy to reverse:
 |---|---|---|---|---|---|---|
 | T-1 | Jordan installs rc1 from the download on one Mac | — | after Open Anyway and the two permissions, his phone shows that Mac's screen | 0.5 | S-13 | blocked |
 | T-2 | Jordan's three Macs run the download | — | each Mac shows v6.1.0 in the panel after one last permission re-grant | 1 | S-12 | blocked |
-| T-3 | Gatekeeper probe: a hand-made zip opens on macOS 26 with Open Anyway | — | the downloaded zip's app opens after System Settings → Privacy and Security → Open Anyway | 0.25 | S-3 | blocked |
+| T-3 | Gatekeeper probe: a hand-made zip opens on macOS 26 with Open Anyway | — | the downloaded zip's app opens after System Settings → Privacy and Security → Open Anyway | 0.25 | S-3 | ready |
 | V-1 | Logic tests pass | — | all five pass | 0.25 | PR-1, PR-2, PR-3 | blocked |
 | V-2 | rc2 updates rc1 by itself and the permissions stay on | — | after rc2 is approved to the test feed, the Mac runs rc2 within a day without a prompt, and healthz shows screen and input true; an rc signed with a wrong update key is refused | 1 | S-14 | blocked |
 | V-3 | Download install works on a Mac without developer tools | — | Tether serves its link there | 0.5 | T-1 | blocked |
 | V-4 | v6.1.0 on Jordan's Macs reads the production feed | — | on each of Jordan's Macs the installed app's SUFeedURL is appcast.xml (not appcast-test.xml) and Sparkle's last check in Tether.log reached it without an error | 0.25 | T-2 | blocked |
 
-**PR-1 · Sparkle inside Tether** · branch `feat/sparkle` · open
+**PR-1 · Sparkle inside Tether** · branch `feat/sparkle` · done
 
 | Key | What | Files | Done when | Hours (est · used) | Waits on | State |
 |---|---|---|---|---|---|---|
-| S-2 | Add Sparkle 2.x, pinned, to the Swift package | agent/Package.swift, agent/Package.resolved | the release build links Sparkle | 1 | — | ready |
-| S-3 | build-app.sh --release: embed and sign Sparkle, set the feed address and the public update key | scripts/build-app.sh, scripts/tests/build-version.test.sh | build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, passes a deep signature check, and CFBundleVersion is the number from the tag; a script test checks rc1 < rc2 < final and that --feed test and --feed prod give the two feed addresses | 3 | S-2, D-2 | blocked |
-| S-4 | Release builds update through Sparkle: download in the background, install while nobody is connected | agent/Sources/Tether/ReleaseUpdater.swift, agent/Sources/Tether/Updater.swift, agent/Sources/Tether/Updates.swift, agent/Sources/TetherCore/Update.swift, agent/Sources/SelfTest/main.swift, agent/Sources/TetherUI/StatusPanel.swift | UpdateMode has a release case chosen when the app carries SUFeedURL; the SelfTest cases for it pass; the panel shows Sparkle's status for release builds and the git route for source builds | 3 | S-3 | blocked |
+| S-2 | Add Sparkle 2.x, pinned, to the Swift package | agent/Package.swift, agent/Package.resolved | the release build links Sparkle | 1 · 0.03 | — | done |
+| S-3 | build-app.sh --release: embed and sign Sparkle, set the feed address and the public update key | scripts/build-app.sh, scripts/tests/build-version.test.sh | build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, passes a deep signature check, and CFBundleVersion is the number from the tag; a script test checks rc1 < rc2 < final and that --feed test and --feed prod give the two feed addresses | 3 · 0.1 | S-2, D-2 | done |
+| S-4 | Release builds update through Sparkle: download in the background, install while nobody is connected | agent/Sources/Tether/ReleaseUpdater.swift, agent/Sources/Tether/Updater.swift, agent/Sources/Tether/Updates.swift, agent/Sources/TetherCore/Update.swift, agent/Sources/SelfTest/main.swift, agent/Sources/TetherUI/StatusPanel.swift, agent/Sources/Tether/MenuBar.swift | UpdateMode has a release case chosen when the app carries SUFeedURL; the SelfTest cases for it pass; the panel shows Sparkle's status for release builds and the git route for source builds | 3 · 0.06 | S-3 | done |
 
 **PR-2 · First run without setup.sh** · branch `feat/first-run` · open
 
@@ -141,7 +142,7 @@ Choices made without asking, all easy to reverse:
 |---|---|---|---|---|---|
 | T-1 | Jordan installs rc1 from the download on one Mac | after Open Anyway and the two permissions, his phone shows that Mac's screen | — | REQ-1 | blocked |
 | T-2 | Jordan's three Macs run the download | each Mac shows v6.1.0 in the panel after one last permission re-grant | — | REQ-1 | blocked |
-| T-3 | Gatekeeper probe: a hand-made zip opens on macOS 26 with Open Anyway | the downloaded zip's app opens after System Settings → Privacy and Security → Open Anyway | — | REQ-1 | blocked |
+| T-3 | Gatekeeper probe: a hand-made zip opens on macOS 26 with Open Anyway | the downloaded zip's app opens after System Settings → Privacy and Security → Open Anyway | — | REQ-1 | ready |
 | V-1 | Logic tests pass | all five pass | `swift run --package-path agent SelfTest && node --test web/tests/*.test.mjs && bash scripts/tests/update.test.sh && bash scripts/tests/build-version.test.sh && bash scripts/tests/release-approve.test.sh` | REQ-2, REQ-1, REQ-3 | blocked |
 | V-2 | rc2 updates rc1 by itself and the permissions stay on | after rc2 is approved to the test feed, the Mac runs rc2 within a day without a prompt, and healthz shows screen and input true; an rc signed with a wrong update key is refused | `curl -s -H 'Tailscale-User-Login: <login>' http://127.0.0.1:7400/healthz` | REQ-2, REQ-3 | blocked |
 | V-3 | Download install works on a Mac without developer tools | Tether serves its link there | `manual: on a Mac where xcode-select -p fails, install rc1 and open the link` | REQ-1 | blocked |
@@ -227,6 +228,13 @@ Choices made without asking, all easy to reverse:
 | 2026-10-16 14:25 | D-2 | answered: “all rec” | jordan | — |
 | 2026-10-16 14:25 | D-3 | answered: “all rec” | jordan | — |
 | 2026-10-16 14:25 | P-1 | approved: “all rec” | jordan | — |
+| 2026-10-16 14:30 | S-2 | claimed | claude | — |
+| 2026-10-16 14:32 | S-2 | done: swift build -c release: Build complete; otool -L Tether: @rpath/Sparkle.framework/Versions/B/Sparkle | claude | bde5f74 |
+| 2026-10-16 14:32 | S-3 | claimed | claude | — |
+| 2026-10-16 14:38 | S-3 | done: build-version.test.sh: 17 passed, 0 failed. --release --tag v6.1.0-rc1 (throwaway identity, random k | claude | d42640f |
+| 2026-10-16 14:38 | S-4 | claimed | claude | — |
+| 2026-10-16 14:38 | S-4 | files: MenuBar.swift builds the banner from UpdateMode, so the new case needs it | claude | — |
+| 2026-10-16 14:42 | S-4 | done: SelfTest 221/221 (new: mode release wins over checkout, empty feed is source, install waits while a | claude | 2a61287 |
 <!-- /graph -->
 
 ## Results
