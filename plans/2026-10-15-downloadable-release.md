@@ -4,7 +4,7 @@
 Status: in progress (approved 2026-10-16 by jordan: “all rec”)
 
 - Work: 3 of 20 done; hours 28.75 · 0.19 of a 30 h box
-- Doing: S-8 · Ready: T-3 · Next: S-8
+- Doing: — · Ready: S-8, T-3 · Next: S-8
 - Blocked (15):
   - T-1 waits on S-13
   - T-2 waits on S-12
@@ -99,11 +99,11 @@ Choices made without asking, all easy to reverse:
 | S-6 | First run does what install-agent.sh does: config, start at login, tailscale serve | agent/Sources/Tether/FirstRun.swift, agent/Sources/TetherCore/Setup.swift, agent/Sources/SelfTest/main.swift | with no config.json, Tether reads the signed-in login from tailscale status, writes config.json, installs the same LaunchAgent and runs tailscale serve; with an existing config.json it keeps it and clears updateFrom; SelfTest compares against install-agent.sh itself and covers the four failure paths and the existing-config case | 4 | S-5 | blocked |
 | S-7 | Setup Assistant covers a download install: Tailscale, HTTPS certificates, permissions | agent/Sources/TetherUI/SetupAssistant.swift, agent/Sources/Snapshots/main.swift | Snapshots render the new Tailscale and HTTPS steps in light and dark | 2 | S-6 | blocked |
 
-**PR-3 · Release pipeline and the update key** · branch `feat/release-pipeline` · in progress
+**PR-3 · Release pipeline and the update key** · branch `feat/release-pipeline` · open
 
 | Key | What | Files | Done when | Hours (est · used) | Waits on | State |
 |---|---|---|---|---|---|---|
-| S-8 | Make the keys: one release signing identity, and the update key in the Studio keychain | scripts/make-release-keys.sh | the Studio keychain holds the update key; the script exports it to a file for G-1's backup, re-imports that export into a scratch keychain and signs a test file with it, prints the public key, and exits non-zero if the two public keys differ; it prints the one gh secret set command Jordan runs for the signing identity | 1.75 | D-1 | doing |
+| S-8 | Make the keys: one release signing identity, and the update key in the Studio keychain | scripts/make-release-keys.sh | the Studio keychain holds the update key; the script exports it to a file for G-1's backup, re-imports that export into a scratch keychain and signs a test file with it, prints the public key, and exits non-zero if the two public keys differ; it prints the one gh secret set command Jordan runs for the signing identity | 1.75 | D-1 | ready |
 | S-9 | GitHub workflow: on a tag, build, sign, attest, attach to a draft release | .github/workflows/release.yml | a pushed rc tag produces a draft release with Tether.zip and a build attestation, and the workflow has no update-key secret | 2.5 | S-3, G-1 | blocked |
 | S-10 | release-approve.sh: verify the build, sign it with the update key, publish the feed | scripts/release-approve.sh, scripts/tests/release-approve.test.sh | the script refuses a zip without a valid attestation or with the wrong signing identity, and otherwise writes the appcast item with sign_update and publishes it to the feed the tag names; --withdraw <tag> removes that item from the feed; the test covers refuse, publish and withdraw | 2.5 | S-9 | blocked |
 | S-12 | Publish v6.1.0 | VERSION, CHANGELOG.md | the v6.1.0 release has Tether.zip and the live appcast lists it | 0.5 | G-2, S-10, S-11, S-14 | blocked |
@@ -239,6 +239,7 @@ Choices made without asking, all easy to reverse:
 | 2026-10-16 14:43 | D-7 | added | claude | — |
 | 2026-10-16 14:44 | S-8 | claimed | claude | — |
 | 2026-10-16 14:49 | S-8 | Script built and tested (commit 25b0fb6, branch feat/release-pipeline): in a throwaway HOME it makes the update key, proves the backup restores (scratch keychain, sign_update, CryptoKit verify), exits 1 on a mismatched backup, keeps existing keys on re-run, and the secret imports as a code-signing identity. Uses a dedicated keychain on the Studio (tether-release.keychain-db, password in ~/.config/tether/release), because the login keychain is locked to SSH. Running it on the Studio over SSH was refused by the permission check, so Jordan runs it there himself as part of G-1. Studio checkout: ~/projects/tether on feat/release-pipeline. | claude | — |
+| 2026-10-16 14:50 | S-8 | released (claimed 0.1 h) | claude | — |
 <!-- /graph -->
 
 ## Results
