@@ -299,6 +299,20 @@ do {
            "mode: a remote install names its Mac")
     expect(UpdateMode.decide(sourceDir: nil, isCheckout: false, hasTools: false, updateFrom: nil) == .manual,
            "mode: an old install gets instructions")
+    let feed = "https://github.com/o/t/releases/download/appcast/appcast.xml"
+    expect(UpdateMode.decide(feedURL: feed, sourceDir: "/src", isCheckout: true, hasTools: true, updateFrom: "MacBook") == .release(feed: feed),
+           "mode: a release build updates through Sparkle, even with a checkout")
+    expect(UpdateMode.decide(feedURL: "", sourceDir: "/src", isCheckout: true, hasTools: true, updateFrom: "") == .here(sourceDir: "/src"),
+           "mode: an empty feed address is a source build")
+    expect(UpdateMode.decide(feedURL: nil, sourceDir: nil, isCheckout: false, hasTools: false, updateFrom: "MacBook") == .elsewhere("MacBook"),
+           "mode: no feed keeps the git route")
+
+    expect(ReleaseInstall.shouldInstall(updateReady: true, connectedDevices: 0, askedOnMac: false), "release: installs when nobody is connected")
+    expect(!ReleaseInstall.shouldInstall(updateReady: true, connectedDevices: 1, askedOnMac: false), "release: waits while a device is connected")
+    expect(ReleaseInstall.shouldInstall(updateReady: true, connectedDevices: 2, askedOnMac: true), "release: Install now on the Mac doesn't wait")
+    expect(!ReleaseInstall.shouldInstall(updateReady: false, connectedDevices: 0, askedOnMac: true), "release: nothing downloaded, nothing to install")
+    expect(ReleaseInstall.whatsNew("- One\n\n* Two\n• Three  \n", limit: 2) == ["One", "Two"], "release: what's new from plain-text notes")
+    expect(ReleaseInstall.whatsNew(nil).isEmpty, "release: no notes, no list")
 
     let progress = UpdateProgress.parse(Data(#"{"state":"running","step":"building","message":"Building","from":"a","to":"b","at":"2026-10-07T18:00:00Z"}"#.utf8))
     expect(progress?.state == .running && progress?.step == "building" && progress?.finished == false, "progress: running parsed")

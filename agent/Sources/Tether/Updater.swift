@@ -23,6 +23,7 @@ final class Updater {
     private lazy var hasTools: Bool = Self.run("/usr/bin/xcode-select", ["-p"]) == 0
 
     var mode: UpdateMode {
+        if let feed = ReleaseUpdater.feedURL, !feed.isEmpty { return .release(feed: feed) }
         let config = AppConfig.load()
         let fm = FileManager.default
         let isCheckout = config.sourceDir.map { fm.fileExists(atPath: $0 + "/.git") && fm.fileExists(atPath: $0 + "/scripts/update.sh") } ?? false
@@ -33,7 +34,13 @@ final class Updater {
 
     /// At launch: follow an update that is still installing (it restarted Tether), or show how it ended.
     func resume() {
-        guard let p = read() else { return }
+        guard var p = read() else { return }
+        // A release install restarts Tether: if this copy isn't the version it was installing, it didn't take.
+        if case .release = mode, p.state == .done, !p.to.isEmpty, p.to != BuildInfo.release {
+            p = UpdateProgress(state: .failed, step: "install", message: "Tether \(p.to) didn't install. Tether tries again at the next check.",
+                               from: p.from, to: p.to, at: p.at)
+            write(p)
+        }
         progress = p
         if p.state == .running {
             if jobLoaded { poll() } else { fail("The update was interrupted. Try again.") }
@@ -48,7 +55,7 @@ final class Updater {
     /// The newest commit subjects of the update that just finished, for 24 hours (the web page shows them once).
     var recentUpdate: (version: String, whatsNew: [String])? {
         guard let p = progress, p.state == .done, let at = p.at, Date().timeIntervalSince(at) < 86_400,
-              let commit = BuildInfo.commit, p.to == commit else { return nil }
+              Self.isThisCopy(p.to) else { return nil }
         return (BuildInfo.version, savedWhatsNew)
     }
 
@@ -62,11 +69,25 @@ final class Updater {
         let key = "\(p.state.rawValue)-\(p.to)-\(p.at.map { "\($0.timeIntervalSince1970)" } ?? "")"
         guard UserDefaults.standard.string(forKey: "announcedUpdate") != key, p.state == .done || p.state == .failed else { return }
         UserDefaults.standard.set(key, forKey: "announcedUpdate")
-        Notifier.updateFinished(ok: p.state == .done, version: p.to == BuildInfo.commit ? BuildInfo.label : String(p.to.prefix(7)),
+        Notifier.updateFinished(ok: p.state == .done, version: Self.isThisCopy(p.to) ? BuildInfo.label : String(p.to.prefix(7)),
                                 message: p.message, whatsNew: savedWhatsNew)
     }
 
+    /// Does an update's `to` (a commit for source builds, a version for release builds) name this copy?
+    static func isThisCopy(_ to: String) -> Bool {
+        !to.isEmpty && (to == BuildInfo.commit || to == BuildInfo.release)
+    }
+
+    /// A release update is about to install and restart Tether: leave the result for the new copy to announce.
+    func recordReleaseInstall(to version: String, whatsNew: [String]) {
+        if let d = try? JSONSerialization.data(withJSONObject: ["whatsNew": whatsNew, "at": ISO8601DateFormatter().string(from: Date())]) {
+            try? d.write(to: whatsNewURL, options: .atomic)
+        }
+        write(UpdateProgress(state: .done, step: "done", message: "Updated", from: BuildInfo.release ?? "", to: version, at: Date()))
+    }
+
     func start() {
+        if case .release = mode { ReleaseUpdater.shared.installOrCheck(); return }
         guard case .here(let source) = mode, !running else { return }
         Self.run("/bin/launchctl", ["bootout", "\(domain)/\(label)"])
         write(UpdateProgress(state: .running, step: "starting", message: "Starting", at: Date()))
@@ -96,6 +117,7 @@ final class Updater {
 
     /// Clears a finished result from the panel.
     func dismiss() {
+        ReleaseUpdater.shared.dismiss()
         try? FileManager.default.removeItem(at: statusURL)
         progress = nil
         onChange()

@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         updateIcon()
         Hub.shared.onClientsChanged = { [weak self] list in
+            ReleaseUpdater.shared.devicesChanged(list.count)
             self?.sessions = list
             self?.updateIcon()
             self?.refreshPanel()
@@ -60,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Updates.shared.onChange = { [weak self] in self?.refreshPanel() }
         Updates.shared.start()
         Updater.shared.onChange = { [weak self] in self?.refreshPanel() }
+        ReleaseUpdater.shared.onChange = { [weak self] in self?.refreshPanel() }
         Updater.shared.resume()
         CrashWatch.shared.onChange = { [weak self] in self?.refreshPanel() }
         CrashWatch.shared.check()
@@ -128,7 +130,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.activity = Array(ActivityStore.shared.recent.prefix(3))
         panel.passkeys = store.credentials.map { PasskeyRow(id: $0.id, device: $0.device, created: $0.created) }
         panel.update = updateBanner()
-        panel.whatsNew = Updater.shared.progress?.state == .done ? Updater.shared.savedWhatsNew : (Updates.shared.info?.whatsNew ?? [])
+        panel.whatsNew = Updater.shared.progress?.state == .done ? Updater.shared.savedWhatsNew
+            : Updater.shared.mode.isRelease ? ReleaseUpdater.shared.whatsNew : (Updates.shared.info?.whatsNew ?? [])
         panel.crashedAt = CrashWatch.shared.latest.map { $0.date ?? Date() }
         panel.checkUpdates = AppState.shared.checkUpdates
         panel.screenAllowed = Permissions.screenRecording
@@ -194,16 +197,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let p = Updater.shared.progress {
             switch p.state {
             case .running: return .updating(message: p.message)
-            case .done: return .updated(version: p.to.isEmpty || p.to == BuildInfo.commit ? BuildInfo.label : String(p.to.prefix(7)))
+            case .done: return .updated(version: p.to.isEmpty || Updater.isThisCopy(p.to) ? BuildInfo.label : String(p.to.prefix(7)))
             case .current: return .updated(version: BuildInfo.label)
             case .failed: return .failed(message: p.message)
             }
         }
+        if Updater.shared.mode.isRelease { return releaseBanner() }
         guard let info = Updates.shared.info, info.available else { return nil }
         switch Updater.shared.mode {
+        case .release: return nil
         case .here: return .availableHere(count: info.count, whatsNew: info.whatsNew)
         case .elsewhere(let name): return .availableElsewhere(from: name)
         case .manual: return .availableManual
+        }
+    }
+
+    /// A download from GitHub Releases: Sparkle's progress.
+    private func releaseBanner() -> UpdateBanner? {
+        switch ReleaseUpdater.shared.state {
+        case .idle, .checking: return nil
+        case .downloading(let version): return .updating(message: "Downloading Tether \(version).")
+        case .ready(let version): return .releaseReady(version: version)
+        case .installing(let version): return .updating(message: "Installing Tether \(version). Tether restarts by itself.")
+        case .failed(let message): return .failed(message: message)
         }
     }
 
@@ -278,7 +294,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         if Curtain.shared.isOn { menu.addItem(item("Turn off curtain", #selector(curtainOff))) }
         menu.addItem(item("Setup Assistant…", #selector(showSetup)))
-        if Updates.shared.available, case .here = Updater.shared.mode, !Updater.shared.running {
+        if case .ready = ReleaseUpdater.shared.state {
+            menu.addItem(item("Install update now", #selector(updateNow)))
+        } else if Updates.shared.available, case .here = Updater.shared.mode, !Updater.shared.running {
             menu.addItem(item("Update now", #selector(updateNow)))
         }
         menu.addItem(item("Help and docs", #selector(openHelp)))

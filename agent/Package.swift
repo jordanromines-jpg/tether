@@ -8,6 +8,8 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird-websocket.git", from: "2.0.0"),
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
+        // The updater for release builds (downloads from GitHub Releases). Pinned: update it on purpose.
+        .package(url: "https://github.com/sparkle-project/Sparkle.git", exact: "2.10.0"),
     ],
     targets: [
         .target(name: "TetherCore"),
@@ -23,7 +25,10 @@ let package = Package(
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "HummingbirdWebSocket", package: "hummingbird-websocket"),
                 .product(name: "HTTPTypes", package: "swift-http-types"),
-            ]
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
+            // Sparkle.framework sits in Contents/Frameworks of the app (scripts/build-app.sh).
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         // Command Line Tools ship without XCTest/Swift Testing macros, so tests are a plain executable:
         // `swift run SelfTest`
