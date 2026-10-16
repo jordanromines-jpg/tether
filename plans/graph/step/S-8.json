@@ -2,7 +2,7 @@
  "key": "S-8",
  "kind": "step",
  "title": "Make the keys: one release signing identity, and the update key in the Studio keychain",
- "status": "open",
+ "status": "doing",
  "edges": {
   "part_of": [
    "PR-3"
@@ -60,6 +60,29 @@
     "done_when": "the Studio keychain holds the update key; the script prints the public key and the one gh secret set command Jordan runs for the signing identity",
     "estimate_h": 1.5
    }
+  },
+  {
+   "at": "2026-10-16T14:44:50-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-16T14:49:20-05:00",
+   "by": "claude",
+   "what": "Script built and tested (commit 25b0fb6, branch feat/release-pipeline): in a throwaway HOME it makes the update key, proves the backup restores (scratch keychain, sign_update, CryptoKit verify), exits 1 on a mismatched backup, keeps existing keys on re-run, and the secret imports as a code-signing identity. Uses a dedicated keychain on the Studio (tether-release.keychain-db, password in ~/.config/tether/release), because the login keychain is locked to SSH. Running it on the Studio over SSH was refused by the permission check, so Jordan runs it there himself as part of G-1. Studio checkout: ~/projects/tether on feat/release-pipeline.",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "note"
   }
  ],
  "files": [
@@ -68,5 +91,10 @@
  "estimate_h": 1.75,
  "done_when": "the Studio keychain holds the update key; the script exports it to a file for G-1's backup, re-imports that export into a scratch keychain and signs a test file with it, prints the public key, and exits non-zero if the two public keys differ; it prints the one gh secret set command Jordan runs for the signing identity",
  "command": "scripts/make-release-keys.sh --check",
- "body": "The private keys never pass through chat or a file in the repo."
+ "body": "The private keys never pass through chat or a file in the repo.",
+ "claimed": {
+  "by": "claude",
+  "at": "2026-10-16T14:44:50-05:00",
+  "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355"
+ }
 }

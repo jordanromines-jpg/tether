@@ -1,0 +1,26 @@
+{
+ "key": "D-7",
+ "kind": "decision",
+ "title": "Make the release keys now, in a separate session on the Studio?",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-16T14:43:23-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-16T14:43:23-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "recommendation": "Yes: S-8 only touches scripts/make-release-keys.sh, so it can run beside the build, and G-1 reaches Jordan hours sooner",
+ "body": "Options: now, in its own session (the Tether build skips S-8) · in order, after PR-2. (N-1 in chat, 16 Oct.)"
+}

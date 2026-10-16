@@ -1,0 +1,26 @@
+{
+ "key": "D-8",
+ "kind": "decision",
+ "title": "Build P-3 alongside P-1 instead of after it?",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-16T14:43:23-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-16T14:43:23-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "recommendation": "Yes: a second Tether session builds PR-5 in its own worktree; S-15 and S-16 stop waiting on S-4, S-5 and S-6 (they only share SelfTest/main.swift, a small merge fix); S-17 still waits on S-4 and S-7",
+ "body": "Options: in parallel (up to about 17 h sooner) · in order, after P-1's PR-2. (N-2 in chat, 16 Oct.)"
+}

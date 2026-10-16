@@ -14,7 +14,7 @@ Status: approved (approved 2026-10-16 by jordan: “all rec”)
   - S-18 waits on S-17
   - S-19 waits on S-18, S-11
   - S-20 waits on S-15
-- Waiting on Jordan: —
+- Waiting on Jordan: D-8
 - Critical path: S-15 → S-20 → S-16 → S-17 → S-18 → S-19 → V-5 → T-4 (16.75 h left)
 <!-- /graph -->
 
@@ -62,6 +62,7 @@ The routes are versioned (`/api/v1`) so mcp-tether can say which version it need
 | D-4 | How does Claude get past the passkey lock? | Being on Jordan's Tailscale network, with his login, is the gate; no separate key | Tailscale identity is the gate; no separate key — jordan, 2026-10-15: “This is based on the Mac or device in question being on the same Tailscale network” | answered |
 | D-5 | Show a banner, log Claude's actions, and let View only and Pause block Claude? | Yes | “yes” — jordan, 2026-10-15 | answered |
 | D-6 | Add an Allow Claude switch on each Mac, off until turned on there? | Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel | Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel — jordan, 2026-10-16: “all rec” | answered |
+| D-8 | Build P-3 alongside P-1 instead of after it? | Yes: a second Tether session builds PR-5 in its own worktree; S-15 and S-16 stop waiting on S-4, S-5 and S-6 (they only share SelfTest/main.swift, a small merge fix); S-17 still waits on S-4 and S-7 | — | open |
 <!-- /graph -->
 
 ## Pull requests and keys
@@ -166,6 +167,7 @@ None.
 | 2026-10-16 14:25 | D-6 | answered: “all rec” | jordan | — |
 | 2026-10-16 14:25 | P-3 | approved: “all rec” | jordan | — |
 | 2026-10-16 14:25 | Q-1 | answered: “all rec” | jordan | — |
+| 2026-10-16 14:43 | D-8 | added | claude | — |
 <!-- /graph -->
 
 ## Results
