@@ -2,7 +2,7 @@
  "key": "S-4",
  "kind": "step",
  "title": "Release builds update through Sparkle: download in the background, install while nobody is connected",
- "status": "open",
+ "status": "done",
  "edges": {
   "part_of": [
    "PR-1"
@@ -48,6 +48,64 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-10-16T14:38:28-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-16T14:38:55-05:00",
+   "by": "claude",
+   "what": "files: MenuBar.swift builds the banner from UpdateMode, so the new case needs it",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "before": {
+    "files": [
+     "agent/Sources/Tether/ReleaseUpdater.swift",
+     "agent/Sources/Tether/Updater.swift",
+     "agent/Sources/Tether/Updates.swift",
+     "agent/Sources/TetherCore/Update.swift",
+     "agent/Sources/SelfTest/main.swift",
+     "agent/Sources/TetherUI/StatusPanel.swift"
+    ]
+   }
+  },
+  {
+   "at": "2026-10-16T14:42:11-05:00",
+   "by": "claude",
+   "what": "done: SelfTest 221/221 (new: mode release wins over checkout, empty feed is source, install waits while a",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "done",
+   "was": "doing",
+   "commit": "2a61287",
+   "used_h": 0.06,
+   "measured": true,
+   "before": {
+    "claimed": {
+     "by": "claude",
+     "at": "2026-10-16T14:38:28-05:00",
+     "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355"
+    },
+    "status": "doing"
+   },
+   "before_absent": [
+    "elapsed_h",
+    "evidence",
+    "links",
+    "used_h"
+   ]
   }
  ],
  "files": [
@@ -56,10 +114,19 @@
   "agent/Sources/Tether/Updates.swift",
   "agent/Sources/TetherCore/Update.swift",
   "agent/Sources/SelfTest/main.swift",
-  "agent/Sources/TetherUI/StatusPanel.swift"
+  "agent/Sources/TetherUI/StatusPanel.swift",
+  "agent/Sources/Tether/MenuBar.swift"
  ],
  "estimate_h": 3.0,
  "done_when": "UpdateMode has a release case chosen when the app carries SUFeedURL; the SelfTest cases for it pass; the panel shows Sparkle's status for release builds and the git route for source builds",
  "command": "swift run --package-path agent SelfTest",
- "body": "Sparkle checks daily, downloads silently and, through its delegate, installs at once only when no device is connected (else at the next idle moment). Sparkle itself refuses an update whose update-key signature or code-signing identity doesn't match."
+ "body": "Sparkle checks daily, downloads silently and, through its delegate, installs at once only when no device is connected (else at the next idle moment). Sparkle itself refuses an update whose update-key signature or code-signing identity doesn't match.",
+ "evidence": "SelfTest 221/221 (new: mode release wins over checkout, empty feed is source, install waits while a device is connected, Install now on the Mac doesn't wait, what's new from plain-text notes); node 55/55; update.test 11/11; release app loads Contents/Frameworks/Sparkle.framework at launch (DYLD_PRINT_LIBRARIES). Panel: releaseReady banner + Install now for release builds, git route unchanged for source builds. Sparkle's live check waits on rc1.",
+ "elapsed_h": 0.06,
+ "used_h": 0.06,
+ "links": {
+  "commits": [
+   "2a61287"
+  ]
+ }
 }

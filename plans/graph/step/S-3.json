@@ -2,7 +2,7 @@
  "key": "S-3",
  "kind": "step",
  "title": "build-app.sh --release: embed and sign Sparkle, set the feed address and the public update key",
- "status": "open",
+ "status": "done",
  "edges": {
   "part_of": [
    "PR-1"
@@ -68,6 +68,47 @@
      "scripts/build-app.sh"
     ]
    }
+  },
+  {
+   "at": "2026-10-16T14:32:15-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-16T14:38:26-05:00",
+   "by": "claude",
+   "what": "done: build-version.test.sh: 17 passed, 0 failed. --release --tag v6.1.0-rc1 (throwaway identity, random k",
+   "door": "cli",
+   "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355",
+   "event": "done",
+   "was": "doing",
+   "commit": "d42640f",
+   "used_h": 0.1,
+   "measured": true,
+   "before": {
+    "claimed": {
+     "by": "claude",
+     "at": "2026-10-16T14:32:15-05:00",
+     "session": "2dbd2cc2-bf16-4b42-b185-0e7a6728c355"
+    },
+    "status": "doing"
+   },
+   "before_absent": [
+    "elapsed_h",
+    "evidence",
+    "links",
+    "used_h"
+   ]
   }
  ],
  "files": [
@@ -77,5 +118,13 @@
  "estimate_h": 3.0,
  "done_when": "build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, passes a deep signature check, and CFBundleVersion is the number from the tag; a script test checks rc1 < rc2 < final and that --feed test and --feed prod give the two feed addresses",
  "command": "scripts/build-app.sh --release --feed test && codesign --verify --deep --strict build/Tether.app && plutil -extract SUPublicEDKey raw build/Tether.app/Contents/Info.plist && bash scripts/tests/build-version.test.sh",
- "body": "Signs nested code inside out (Sparkle's helpers first) with the same identity. Version numbers: today CFBundleVersion is git describe (e.g. 6132e30), which Sparkle can't order. --release sets CFBundleVersion to a number that only grows, from the tag: major*1000000 + minor*10000 + patch*100 + rc (rc1 = 1, rc2 = 2, final = 99), so v6.1.0-rc1 < v6.1.0-rc2 < v6.1.0; CFBundleShortVersionString stays the VERSION file. Feed address: --feed prod (default) bakes .../releases/download/appcast/appcast.xml into SUFeedURL; --feed test bakes appcast-test.xml, for rc tags only."
+ "body": "Signs nested code inside out (Sparkle's helpers first) with the same identity. Version numbers: today CFBundleVersion is git describe (e.g. 6132e30), which Sparkle can't order. --release sets CFBundleVersion to a number that only grows, from the tag: major*1000000 + minor*10000 + patch*100 + rc (rc1 = 1, rc2 = 2, final = 99), so v6.1.0-rc1 < v6.1.0-rc2 < v6.1.0; CFBundleShortVersionString stays the VERSION file. Feed address: --feed prod (default) bakes .../releases/download/appcast/appcast.xml into SUFeedURL; --feed test bakes appcast-test.xml, for rc tags only.",
+ "evidence": "build-version.test.sh: 17 passed, 0 failed. --release --tag v6.1.0-rc1 (throwaway identity, random key): Contents/Frameworks/Sparkle.framework, SUFeedURL=.../appcast-test.xml, SUPublicEDKey set, CFBundleVersion=6010001, lipo x86_64 arm64, codesign --verify --deep --strict: valid on disk. Source build: no SUFeedURL, Sparkle embedded, signed Tether Signing.",
+ "elapsed_h": 0.1,
+ "used_h": 0.1,
+ "links": {
+  "commits": [
+   "d42640f"
+  ]
+ }
 }
