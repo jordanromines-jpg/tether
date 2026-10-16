@@ -450,5 +450,73 @@ do {
     expect(PanelFit.maxBodyHeight(maxPanelHeight: 300, header: 70, footer: 330) == PanelFit.minBodyHeight, "panel: middle keeps a minimum on tiny screens")
 }
 
+// API (P-3): shapes and the coordinate contract
+do {
+    func json(_ d: Data) -> String { String(decoding: d, as: UTF8.self) }
+    let info = APIInfo(name: "Studio", version: "6.0 (abc1234)",
+                       displays: [.init(id: 1, name: "Studio Display", main: true, points: APIRect(CGRect(x: 0, y: 0, width: 2560, height: 1440)),
+                                        pixels: APISize(w: 5120, h: 2880), scale: 2)],
+                       permissions: .init(screenRecording: true, accessibility: false), paused: false)
+    expect(json(APIJSON.encode(info)) == #"{"api":1,"displays":[{"id":1,"main":true,"name":"Studio Display","pixels":{"h":2880,"w":5120},"points":{"h":1440,"w":2560,"x":0,"y":0},"scale":2}],"name":"Studio","paused":false,"permissions":{"accessibility":false,"screenRecording":true},"version":"6.0 (abc1234)"}"#,
+           "api: info shape")
+    let win = APIWindow(id: 42, title: "Notes", app: "Notes", bundle: "com.apple.Notes", pid: 7,
+                        frame: APIRect(CGRect(x: 10, y: 20, width: 300, height: 200)), display: 1)
+    expect(json(APIJSON.encode(win)) == #"{"app":"Notes","bundle":"com.apple.Notes","display":1,"frame":{"h":200,"w":300,"x":10,"y":20},"id":42,"pid":7,"title":"Notes"}"#,
+           "api: window shape")
+    expect(json(APIJSON.encode(APIApp(name: "Safari", path: "/Applications/Safari.app", running: true))) == #"{"name":"Safari","path":"\/Applications\/Safari.app","running":true}"#,
+           "api: app shape")
+    expect(json(APIJSON.encode(APIError("Nope"))) == #"{"error":"Nope"}"#, "api: error leaves out a missing index")
+    expect(json(APIJSON.encode(APIError("Paused", index: 3))) == #"{"error":"Paused","index":3}"#, "api: error with index")
+    expect((try? JSONDecoder().decode(APIInfo.self, from: APIJSON.encode(info))) == info, "api: info round-trips")
+
+    // Screenshot query
+    func shot(_ q: [String: String]) -> APIScreenshotRequest? { try? APIScreenshotRequest.parse(q).get() }
+    expect(shot([:]) == APIScreenshotRequest(target: .display(nil), format: .png, width: nil, quality: 0.8), "api: screenshot defaults")
+    expect(shot(["window": "9", "format": "jpeg", "width": "800", "quality": "0.5"])
+           == APIScreenshotRequest(target: .window(9), format: .jpeg, width: 800, quality: 0.5), "api: screenshot of a window")
+    expect(shot(["display": "2"])?.target == .display(2), "api: screenshot of a display")
+    expect(shot(["display": "1", "window": "2"]) == nil, "api: display and window refused")
+    expect(shot(["window": "abc"]) == nil, "api: bad window id refused")
+    expect(shot(["format": "gif"]) == nil, "api: unknown format refused")
+    expect(shot(["width": "0"]) == nil && shot(["width": "99999"]) == nil, "api: width out of range refused")
+    expect(shot(["quality": "0"]) == nil && shot(["quality": "2"]) == nil, "api: quality out of range refused")
+    expect(APITarget.window(5).header(resolvedDisplay: 1) == "window 5" && APITarget.display(nil).header(resolvedDisplay: 3) == "display 3",
+           "api: target header")
+
+    // Image size: full size is points × scale, a requested width keeps the aspect, never upscales
+    let full2 = APIGeometry.imageSize(points: CGSize(width: 2560, height: 1440), scale: 2, requestedWidth: nil)
+    expect(full2 == APISize(w: 5120, h: 2880), "api: full size at scale 2")
+    expect(APIGeometry.imageSize(points: CGSize(width: 1920, height: 1080), scale: 1, requestedWidth: nil) == APISize(w: 1920, h: 1080), "api: full size at scale 1")
+    expect(APIGeometry.imageSize(points: CGSize(width: 2560, height: 1440), scale: 2, requestedWidth: 1280) == APISize(w: 1280, h: 720), "api: requested width")
+    expect(APIGeometry.imageSize(points: CGSize(width: 800, height: 600), scale: 1, requestedWidth: 4000) == APISize(w: 800, h: 600), "api: never upscales")
+
+    // Pixels → points → normalized: a display at scale 2, full size and half size
+    let main = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+    let p1 = APIGeometry.toPoint(x: 2560, y: 1440, image: APISize(w: 5120, h: 2880), target: main)
+    expect(p1 == CGPoint(x: 1280, y: 720), "api: display scale 2, full size pixel → point")
+    let p2 = APIGeometry.toPoint(x: 640, y: 360, image: APISize(w: 1280, h: 720), target: main)
+    expect(p2 == CGPoint(x: 1280, y: 720), "api: display scale 2, scaled screenshot → same point")
+    expect(p1.flatMap { APIGeometry.toNormalized($0, display: main) } == CGPoint(x: 0.5, y: 0.5), "api: point → normalized")
+    // A display at scale 1, to the right of the main one
+    let side = CGRect(x: 2560, y: 0, width: 1920, height: 1080)
+    let p3 = APIGeometry.toPoint(x: 960, y: 270, image: APISize(w: 1920, h: 1080), target: side)
+    expect(p3 == CGPoint(x: 3520, y: 270), "api: display scale 1 pixel → global point")
+    expect(p3.flatMap { APIGeometry.toNormalized($0, display: side) } == CGPoint(x: 0.5, y: 0.25), "api: second display normalized")
+    expect(p3.flatMap { APIGeometry.toNormalized($0, display: main) } == nil, "api: point not on that display")
+    // A window at scale 2 (600 × 400 points → 1200 × 800 pixels) and at scale 1, on the side display
+    let window2 = CGRect(x: 100, y: 200, width: 600, height: 400)
+    let p4 = APIGeometry.toPoint(x: 600, y: 400, image: APIGeometry.imageSize(points: window2.size, scale: 2, requestedWidth: nil), target: window2)
+    expect(p4 == CGPoint(x: 400, y: 400), "api: window scale 2 pixel → point")
+    expect(p4.flatMap { APIGeometry.toNormalized($0, display: main) } == CGPoint(x: 400.0 / 2560, y: 400.0 / 1440), "api: window point → display normalized")
+    let window1 = CGRect(x: 3000, y: 100, width: 400, height: 300)
+    let p5 = APIGeometry.toPoint(x: 0, y: 0, image: APISize(w: 400, h: 300), target: window1)
+    expect(p5 == CGPoint(x: 3000, y: 100), "api: window scale 1 top-left")
+    let displays: [(id: UInt32, bounds: CGRect)] = [(1, main), (2, side)]
+    expect(p5.flatMap { APIGeometry.display(containing: $0, in: displays) } == 2, "api: window is on the side display")
+    expect(APIGeometry.display(containing: CGPoint(x: -50, y: 10), in: displays) == 1, "api: off-screen point → nearest display")
+    expect(APIGeometry.toPoint(x: -1, y: 0, image: APISize(w: 10, h: 10), target: main) == nil, "api: negative pixel refused")
+    expect(APIGeometry.toPoint(x: 11, y: 0, image: APISize(w: 10, h: 10), target: main) == nil, "api: pixel past the image refused")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

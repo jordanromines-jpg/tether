@@ -29,7 +29,7 @@ struct PauseMiddleware<Context: RequestContext>: RouterMiddleware {
         let path = request.uri.path
         let api = path == "/ws" || path == "/upload" || path == "/files" || path == "/download" || path == "/apps"
             || path == "/thumbnail" || path == "/clipboard/image" || path == "/reveal"
-            || path == "/peers" || path.hasPrefix("/auth/")
+            || path == "/peers" || path.hasPrefix("/auth/") || path.hasPrefix("/api/")
         if AppState.shared.paused, api {
             let body = #"{"paused":true,"msg":"Remote access is paused on the Mac. Resume it from the Tether menu-bar icon."}"#
             return Response(status: .serviceUnavailable, headers: [.contentType: "application/json; charset=utf-8"],
@@ -247,6 +247,10 @@ enum Server {
         }
 
         router.get("apps") { _, _ -> Response in json(["apps": AppCatalog.list()]) }
+
+        // The API for programs (Claude through mcp-tether): docs/API.md. Off the passkey gate's
+        // list on purpose: the Tailscale login is its gate (P-3 D-4).
+        API.register(on: router, policy: policy)
 
         // A small picture of a display, for the Macs picker (also from your other Macs' pages)
         // and the displays overview. At most two a second per login.
