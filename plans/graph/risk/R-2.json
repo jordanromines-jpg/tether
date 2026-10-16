@@ -1,0 +1,50 @@
+{
+ "key": "R-2",
+ "kind": "risk",
+ "title": "macOS 26 blocks unnotarized apps more tightly than Open Anyway",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:43-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:43-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:43-05:00",
+   "by": "claude",
+   "what": "set body",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {},
+   "before_absent": [
+    "body"
+   ]
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "review: earlier trigger",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "body": "Found early: T-1 runs on rc1 before any docs or public release. If it happens, the plan stops for Jordan.",
+    "trigger": "T-1 finds no Open Anyway button"
+   }
+  }
+ ],
+ "likelihood": "low",
+ "impact": "high",
+ "trigger": "T-3 (right after S-3) finds no Open Anyway button",
+ "body": "Found early: T-3 probes it with a hand-made zip before PR-2 is built. If it happens, the plan stops for Jordan."
+}

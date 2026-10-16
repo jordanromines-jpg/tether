@@ -1,0 +1,57 @@
+{
+ "key": "D-6",
+ "kind": "decision",
+ "title": "Add an Allow Claude switch on each Mac, off until turned on there?",
+ "status": "answered",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:04:55-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:04:55-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:09:43-05:00",
+   "by": "claude",
+   "what": "set body",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "body": "Options: a switch per Mac, off by default · on for every Mac that runs Tether, with no switch."
+   }
+  },
+  {
+   "at": "2026-10-16T14:25:45-05:00",
+   "by": "jordan",
+   "what": "answered: “all rec”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
+  }
+ ],
+ "recommendation": "Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel",
+ "body": "Options: a switch per Mac, off by default · on for every Mac that runs Tether, with no switch. If the answer is no switch, S-17 and Q-1 change: refusals come only from Pause, and R-7 gets no opt-in per Mac.",
+ "answer": {
+  "text": "Yes: since the passkey lock doesn't stop Claude, this switch is how a Mac opts in; it's one click per Mac, in the Tether panel",
+  "quote": "all rec",
+  "by": "jordan",
+  "at": "2026-10-16T14:25:45-05:00"
+ }
+}

@@ -1,0 +1,59 @@
+{
+ "key": "S-19",
+ "kind": "step",
+ "title": "docs/API.md, README, SECURITY.md and CHANGELOG",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-5"
+  ],
+  "depends_on": [
+   "S-18",
+   "S-11"
+  ],
+  "implements": [
+   "REQ-4",
+   "REQ-5"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:05:12-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:05:12-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:09:43-05:00",
+   "by": "claude",
+   "what": "set command, done_when, files",
+   "door": "cli",
+   "session": "dfa32458-c256-4e78-bc0b-12c32c0ade22",
+   "before": {
+    "command": "manual: read docs/API.md against the routes in API.swift",
+    "done_when": "docs/API.md lists every route with an example; SECURITY.md says what the switch allows and that the passkey lock does not cover the API",
+    "files": [
+     "docs/API.md",
+     "README.md",
+     "SECURITY.md",
+     "CHANGELOG.md"
+    ]
+   }
+  }
+ ],
+ "files": [
+  "docs/API.md",
+  "README.md",
+  "SECURITY.md",
+  "CHANGELOG.md",
+  "agent/Sources/SelfTest/main.swift"
+ ],
+ "estimate_h": 1.5,
+ "done_when": "docs/API.md lists every route with an example, and a SelfTest case fails if a route registered in API.swift is missing from docs/API.md; SECURITY.md says what the switch allows and quotes D-4: the passkey lock does not cover the API",
+ "command": "swift run --package-path agent SelfTest"
+}

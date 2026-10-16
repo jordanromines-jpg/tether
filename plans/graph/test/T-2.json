@@ -1,0 +1,44 @@
+{
+ "key": "T-2",
+ "kind": "test",
+ "title": "Jordan's three Macs run the download",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "S-12"
+  ],
+  "verifies": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "review: migration steps",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {},
+   "before_absent": [
+    "body"
+   ]
+  }
+ ],
+ "estimate_h": 1.0,
+ "done_when": "each Mac shows v6.1.0 in the panel after one last permission re-grant",
+ "body": "On each Mac: download v6.1.0, open it, let it move to ~/Applications over the old app (S-6 keeps config.json and the LaunchAgent), then re-grant the two permissions once, because the signing identity changes. The source checkout stays for the developer route."
+}

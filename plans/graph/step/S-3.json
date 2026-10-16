@@ -1,0 +1,81 @@
+{
+ "key": "S-3",
+ "kind": "step",
+ "title": "build-app.sh --release: embed and sign Sparkle, set the feed address and the public update key",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-1"
+  ],
+  "depends_on": [
+   "S-2",
+   "D-2"
+  ],
+  "implements": [
+   "REQ-2",
+   "REQ-3"
+  ],
+  "mitigates": [
+   "R-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:43-05:00",
+   "by": "claude",
+   "what": "mitigates R-1",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-1"
+     ],
+     "depends_on": [
+      "S-2",
+      "D-2"
+     ],
+     "implements": [
+      "REQ-2",
+      "REQ-3"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T16:58:56-05:00",
+   "by": "claude",
+   "what": "review: comparable CFBundleVersion",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "body": "Signs nested code inside out (Sparkle's helpers first) with the same identity. The feed is a permanent release named appcast: .../releases/download/appcast/appcast.xml; --feed test points at appcast-test.xml for trial releases.",
+    "command": "scripts/build-app.sh --release && codesign --verify --deep --strict build/Tether.app && plutil -extract SUPublicEDKey raw build/Tether.app/Contents/Info.plist",
+    "done_when": "build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, and passes a deep signature check",
+    "estimate_h": 2.5,
+    "files": [
+     "scripts/build-app.sh"
+    ]
+   }
+  }
+ ],
+ "files": [
+  "scripts/build-app.sh",
+  "scripts/tests/build-version.test.sh"
+ ],
+ "estimate_h": 3.0,
+ "done_when": "build/Tether.app has Contents/Frameworks/Sparkle.framework, SUFeedURL and SUPublicEDKey only in --release builds, passes a deep signature check, and CFBundleVersion is the number from the tag; a script test checks rc1 < rc2 < final and that --feed test and --feed prod give the two feed addresses",
+ "command": "scripts/build-app.sh --release --feed test && codesign --verify --deep --strict build/Tether.app && plutil -extract SUPublicEDKey raw build/Tether.app/Contents/Info.plist && bash scripts/tests/build-version.test.sh",
+ "body": "Signs nested code inside out (Sparkle's helpers first) with the same identity. Version numbers: today CFBundleVersion is git describe (e.g. 6132e30), which Sparkle can't order. --release sets CFBundleVersion to a number that only grows, from the tag: major*1000000 + minor*10000 + patch*100 + rc (rc1 = 1, rc2 = 2, final = 99), so v6.1.0-rc1 < v6.1.0-rc2 < v6.1.0; CFBundleShortVersionString stays the VERSION file. Feed address: --feed prod (default) bakes .../releases/download/appcast/appcast.xml into SUFeedURL; --feed test bakes appcast-test.xml, for rc tags only."
+}

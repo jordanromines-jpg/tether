@@ -1,0 +1,72 @@
+{
+ "key": "S-8",
+ "kind": "step",
+ "title": "Make the keys: one release signing identity, and the update key in the Studio keychain",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-3"
+  ],
+  "depends_on": [
+   "D-1"
+  ],
+  "implements": [
+   "REQ-3"
+  ],
+  "mitigates": [
+   "R-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "mitigates R-3",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-3"
+     ],
+     "depends_on": [
+      "D-1"
+     ],
+     "implements": [
+      "REQ-3"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T16:59:31-05:00",
+   "by": "claude",
+   "what": "review: checkable export",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "command": "manual: run on the Studio; generate_keys -p prints the public key",
+    "done_when": "the Studio keychain holds the update key; the script prints the public key and the one gh secret set command Jordan runs for the signing identity",
+    "estimate_h": 1.5
+   }
+  }
+ ],
+ "files": [
+  "scripts/make-release-keys.sh"
+ ],
+ "estimate_h": 1.75,
+ "done_when": "the Studio keychain holds the update key; the script exports it to a file for G-1's backup, re-imports that export into a scratch keychain and signs a test file with it, prints the public key, and exits non-zero if the two public keys differ; it prints the one gh secret set command Jordan runs for the signing identity",
+ "command": "scripts/make-release-keys.sh --check",
+ "body": "The private keys never pass through chat or a file in the repo."
+}

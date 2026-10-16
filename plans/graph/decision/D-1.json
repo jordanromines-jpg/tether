@@ -1,0 +1,47 @@
+{
+ "key": "D-1",
+ "kind": "decision",
+ "title": "Where does the update key live, and who approves each release?",
+ "status": "answered",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:51-05:00",
+   "by": "jordan",
+   "what": "answered: “This is good with me.”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
+  }
+ ],
+ "recommendation": "The Mac Studio's keychain. After a release build passes, a Claude session runs scripts/release-approve.sh there (releasing is already a routine call)",
+ "body": "Options: Mac Studio, approved by a session (no busywork for Jordan) · Jordan's laptop, approved by Jordan running one command · approved automatically by a job on the Studio (no human in the loop: a hacked main branch would ship).",
+ "answer": {
+  "text": "The Mac Studio's keychain; a Claude session approves each release after its build passes",
+  "quote": "This is good with me.",
+  "by": "jordan",
+  "at": "2026-10-15T16:59:51-05:00"
+ }
+}

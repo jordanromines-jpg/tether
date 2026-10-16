@@ -1,0 +1,65 @@
+{
+ "key": "S-4",
+ "kind": "step",
+ "title": "Release builds update through Sparkle: download in the background, install while nobody is connected",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-1"
+  ],
+  "depends_on": [
+   "S-3"
+  ],
+  "implements": [
+   "REQ-2"
+  ],
+  "mitigates": [
+   "R-5"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:42-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:42-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:43-05:00",
+   "by": "claude",
+   "what": "mitigates R-5",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-1"
+     ],
+     "depends_on": [
+      "S-3"
+     ],
+     "implements": [
+      "REQ-2"
+     ]
+    }
+   }
+  }
+ ],
+ "files": [
+  "agent/Sources/Tether/ReleaseUpdater.swift",
+  "agent/Sources/Tether/Updater.swift",
+  "agent/Sources/Tether/Updates.swift",
+  "agent/Sources/TetherCore/Update.swift",
+  "agent/Sources/SelfTest/main.swift",
+  "agent/Sources/TetherUI/StatusPanel.swift"
+ ],
+ "estimate_h": 3.0,
+ "done_when": "UpdateMode has a release case chosen when the app carries SUFeedURL; the SelfTest cases for it pass; the panel shows Sparkle's status for release builds and the git route for source builds",
+ "command": "swift run --package-path agent SelfTest",
+ "body": "Sparkle checks daily, downloads silently and, through its delegate, installs at once only when no device is connected (else at the next idle moment). Sparkle itself refuses an update whose update-key signature or code-signing identity doesn't match."
+}

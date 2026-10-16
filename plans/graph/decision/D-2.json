@@ -1,0 +1,47 @@
+{
+ "key": "D-2",
+ "kind": "decision",
+ "title": "Build for Apple silicon and Intel, or Apple silicon only?",
+ "status": "answered",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-16T14:25:45-05:00",
+   "by": "jordan",
+   "what": "answered: “all rec”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
+  }
+ ],
+ "recommendation": "Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs",
+ "body": "Options: universal · Apple silicon only (smaller download, a little faster to build).",
+ "answer": {
+  "text": "Both (a universal app): one extra flag on the build, and Tether stays usable on older Intel Macs",
+  "quote": "all rec",
+  "by": "jordan",
+  "at": "2026-10-16T14:25:45-05:00"
+ }
+}

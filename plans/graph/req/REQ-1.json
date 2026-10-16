@@ -1,0 +1,25 @@
+{
+ "key": "REQ-1",
+ "kind": "req",
+ "title": "Install from a download, with no developer tools and no copy of the source",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "acceptance": "WHEN someone downloads Tether.zip from a GitHub Release and opens it on a Mac without Apple's developer tools THEN after Open Anyway, Tailscale and the two permissions, Tether serves its link"
+}

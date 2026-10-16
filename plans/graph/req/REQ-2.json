@@ -1,0 +1,25 @@
+{
+ "key": "REQ-2",
+ "kind": "req",
+ "title": "Updates install themselves and keep the permissions",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "acceptance": "WHEN a newer release is approved THEN within a day each installed Tether downloads it, swaps it in while nobody is connected, restarts, and /healthz still reports screen and input permission true"
+}

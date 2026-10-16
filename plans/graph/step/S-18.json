@@ -1,0 +1,37 @@
+{
+ "key": "S-18",
+ "kind": "step",
+ "title": "/peers says which Macs allow Claude",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-5"
+  ],
+  "depends_on": [
+   "S-17"
+  ],
+  "implements": [
+   "REQ-4"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:05:12-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:05:12-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "files": [
+  "agent/Sources/Tether/Peers.swift",
+  "agent/Sources/Tether/Server.swift"
+ ],
+ "estimate_h": 1.0,
+ "done_when": "each peer in /peers carries claude: true or false, so a client can list the Macs it may use",
+ "command": "swift run --package-path agent SelfTest"
+}

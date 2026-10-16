@@ -1,0 +1,94 @@
+{
+ "key": "S-12",
+ "kind": "step",
+ "title": "Publish v6.1.0",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-3"
+  ],
+  "depends_on": [
+   "G-2",
+   "S-10",
+   "S-11",
+   "S-14"
+  ],
+  "implements": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:55:58-05:00",
+   "by": "claude",
+   "what": "depends_on S-11",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-3"
+     ],
+     "depends_on": [
+      "G-2",
+      "S-10"
+     ],
+     "implements": [
+      "REQ-1"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T16:59:36-05:00",
+   "by": "claude",
+   "what": "review: withdraw",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "body": "Rollback: remove the item from appcast.xml (installs stop seeing it) and mark the release as a pre-release."
+   }
+  },
+  {
+   "at": "2026-10-15T17:00:00-05:00",
+   "by": "claude",
+   "what": "depends_on S-14",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "PR-3"
+     ],
+     "depends_on": [
+      "G-2",
+      "S-10",
+      "S-11"
+     ],
+     "implements": [
+      "REQ-1"
+     ]
+    }
+   }
+  }
+ ],
+ "files": [
+  "VERSION",
+  "CHANGELOG.md"
+ ],
+ "estimate_h": 0.5,
+ "done_when": "the v6.1.0 release has Tether.zip and the live appcast lists it",
+ "command": "gh release view v6.1.0 -R jordanromines-jpg/tether",
+ "body": "Rollback: release-approve.sh --withdraw v6.1.0 (installs stop seeing it) and mark the release as a pre-release; see R-6."
+}

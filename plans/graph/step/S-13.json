@@ -1,0 +1,53 @@
+{
+ "key": "S-13",
+ "kind": "step",
+ "title": "Cut rc1: tag, build, approve to the test feed",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "PR-3"
+  ],
+  "depends_on": [
+   "S-10",
+   "PR-1",
+   "PR-2"
+  ],
+  "implements": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:59:14-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:59:14-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296"
+  },
+  {
+   "at": "2026-10-15T16:59:54-05:00",
+   "by": "claude",
+   "what": "review: files",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "body": "After PR-1, PR-2 and PR-3 are merged: push tag v6.1.0-rc1, wait for the workflow, then on the Studio run release-approve.sh v6.1.0-rc1 (publishes to appcast-test.xml only). No files change."
+   },
+   "before_absent": [
+    "files"
+   ]
+  }
+ ],
+ "estimate_h": 0.75,
+ "body": "After PR-1, PR-2 and PR-3 are merged: set VERSION to 6.1.0 and head CHANGELOG's Unreleased section '6.1.0 (release candidate)' in a small PR, then push tag v6.1.0-rc1, wait for the workflow, and on the Studio run release-approve.sh v6.1.0-rc1 (publishes to appcast-test.xml only).",
+ "done_when": "the v6.1.0-rc1 release has Tether.zip, gh attestation verify passes, and appcast-test.xml lists rc1 with an update-key signature",
+ "command": "gh release view v6.1.0-rc1 -R jordanromines-jpg/tether && curl -sL https://github.com/jordanromines-jpg/tether/releases/download/appcast/appcast-test.xml | grep -c 'sparkle:edSignature'",
+ "files": [
+  "VERSION",
+  "CHANGELOG.md"
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "key": "REQ-3",
+ "kind": "req",
+ "title": "Only an update approved with the offline update key is installed",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:54:58-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:54:58-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "acceptance": "WHEN a release lacks a valid signature from the update key, or the key is absent from GitHub entirely THEN no installed Tether installs it, and the release workflow holds no update-key secret"
+}

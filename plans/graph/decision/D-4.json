@@ -1,0 +1,47 @@
+{
+ "key": "D-4",
+ "kind": "decision",
+ "title": "How does Claude get past the passkey lock?",
+ "status": "answered",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:04:55-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:04:55-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T17:04:55-05:00",
+   "by": "jordan",
+   "what": "answered: “This is based on the Mac or device in question being on the same Tailscale netwo”",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
+   "event": "answered",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "answer"
+   ]
+  }
+ ],
+ "recommendation": "Being on Jordan's Tailscale network, with his login, is the gate; no separate key",
+ "body": "Options: Tailscale identity (no key) · a per-device key approved once on the Mac.",
+ "answer": {
+  "text": "Tailscale identity is the gate; no separate key",
+  "quote": "This is based on the Mac or device in question being on the same Tailscale network",
+  "by": "jordan",
+  "at": "2026-10-15T17:04:55-05:00"
+ }
+}

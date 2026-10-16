@@ -1,0 +1,77 @@
+{
+ "key": "V-2",
+ "kind": "verify",
+ "title": "rc2 updates rc1 by itself and the permissions stay on",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "S-14"
+  ],
+  "verifies": [
+   "REQ-2",
+   "REQ-3"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  },
+  {
+   "at": "2026-10-15T16:59:14-05:00",
+   "by": "claude",
+   "what": "depends_on S-14",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "P-1"
+     ],
+     "depends_on": [
+      "T-1"
+     ],
+     "verifies": [
+      "REQ-2",
+      "REQ-3"
+     ]
+    }
+   }
+  },
+  {
+   "at": "2026-10-15T16:59:14-05:00",
+   "by": "claude",
+   "what": "removed depends_on T-1",
+   "door": "cli",
+   "session": "8687b2ad-7a48-483c-9fae-813711a51296",
+   "before": {
+    "edges": {
+     "part_of": [
+      "P-1"
+     ],
+     "depends_on": [
+      "T-1",
+      "S-14"
+     ],
+     "verifies": [
+      "REQ-2",
+      "REQ-3"
+     ]
+    }
+   }
+  }
+ ],
+ "estimate_h": 1.0,
+ "command": "curl -s -H 'Tailscale-User-Login: <login>' http://127.0.0.1:7400/healthz",
+ "done_when": "after rc2 is approved to the test feed, the Mac runs rc2 within a day without a prompt, and healthz shows screen and input true; an rc signed with a wrong update key is refused"
+}

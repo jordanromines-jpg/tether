@@ -1,0 +1,32 @@
+{
+ "key": "T-4",
+ "kind": "test",
+ "title": "Jordan sees the Claude is connected banner and the activity log on the Studio",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-3"
+  ],
+  "depends_on": [
+   "V-5"
+  ],
+  "verifies": [
+   "REQ-5"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T17:05:12-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T17:05:12-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "estimate_h": 0.25,
+ "done_when": "Jordan confirms the banner and the logged actions"
+}

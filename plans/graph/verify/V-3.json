@@ -1,0 +1,33 @@
+{
+ "key": "V-3",
+ "kind": "verify",
+ "title": "Download install works on a Mac without developer tools",
+ "status": "open",
+ "edges": {
+  "part_of": [
+   "P-1"
+  ],
+  "depends_on": [
+   "T-1"
+  ],
+  "verifies": [
+   "REQ-1"
+  ]
+ },
+ "created": {
+  "at": "2026-10-15T16:55:57-05:00",
+  "by": "claude"
+ },
+ "history": [
+  {
+   "at": "2026-10-15T16:55:57-05:00",
+   "by": "claude",
+   "what": "added",
+   "door": "cli",
+   "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08"
+  }
+ ],
+ "estimate_h": 0.5,
+ "command": "manual: on a Mac where xcode-select -p fails, install rc1 and open the link",
+ "done_when": "Tether serves its link there"
+}
