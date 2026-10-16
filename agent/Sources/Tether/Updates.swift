@@ -14,6 +14,14 @@ final class Updates {
 
     func start() {
         timer?.invalidate()
+        // A download from GitHub Releases: Sparkle checks its feed on its own schedule.
+        if case .release = Updater.shared.mode {
+            ReleaseUpdater.shared.start()
+            ReleaseUpdater.shared.setChecks(AppState.shared.checkUpdates)
+            info = nil
+            onChange()
+            return
+        }
         guard AppState.shared.checkUpdates else { info = nil; onChange(); return }
         check()
         timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
@@ -24,6 +32,7 @@ final class Updates {
 
     func check() {
         guard AppState.shared.checkUpdates else { return }
+        if case .release = Updater.shared.mode { ReleaseUpdater.shared.checkInBackground(); return }
         lastCheck = Date()
         let repo = BuildInfo.repo
         guard let commit = BuildInfo.commit,

@@ -47,6 +47,8 @@ public struct UpdateInfo: Equatable {
 
 /// Where an update for this Mac comes from.
 public enum UpdateMode: Equatable {
+    /// A download from GitHub Releases (the app carries Sparkle's feed address): Sparkle updates it.
+    case release(feed: String)
     /// This Mac has the source and the developer tools: "Update now" rebuilds it here.
     case here(sourceDir: String)
     /// Another Mac builds and installs it (named in the banner).
@@ -54,7 +56,11 @@ public enum UpdateMode: Equatable {
     /// Unknown (an install from before updates were recorded): point to the instructions.
     case manual
 
-    public static func decide(sourceDir: String?, isCheckout: Bool, hasTools: Bool, updateFrom: String?) -> UpdateMode {
+    public var isRelease: Bool { if case .release = self { return true } else { return false } }
+
+    /// `feedURL` is SUFeedURL from Info.plist: only release builds have one, and it wins over everything else.
+    public static func decide(feedURL: String? = nil, sourceDir: String?, isCheckout: Bool, hasTools: Bool, updateFrom: String?) -> UpdateMode {
+        if let feedURL, !feedURL.isEmpty { return .release(feed: feedURL) }
         if let sourceDir, !sourceDir.isEmpty, isCheckout, hasTools { return .here(sourceDir: sourceDir) }
         if let updateFrom, !updateFrom.isEmpty { return .elsewhere(updateFrom) }
         return .manual
@@ -88,5 +94,27 @@ public struct UpdateProgress: Equatable {
         let at = (o["at"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
         return UpdateProgress(state: state, step: o["step"] as? String ?? "", message: o["message"] as? String ?? "",
                               from: o["from"] as? String ?? "", to: o["to"] as? String ?? "", at: at)
+    }
+}
+
+/// Release builds: when a downloaded update may be installed. Installing restarts Tether, so it waits
+/// until no device is connected, unless someone clicks Install now on the Mac itself.
+public enum ReleaseInstall {
+    public static func shouldInstall(updateReady: Bool, connectedDevices: Int, askedOnMac: Bool) -> Bool {
+        updateReady && (askedOnMac || connectedDevices == 0)
+    }
+
+    /// What's new, from a feed item's plain-text description: one change per line, bullets removed.
+    public static func whatsNew(_ description: String?, limit: Int = 5) -> [String] {
+        guard let description else { return [] }
+        return description.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .map { line -> String in
+                var l = Substring(line)
+                while let first = l.first, "-*•·".contains(first) { l = l.dropFirst() }
+                return l.trimmingCharacters(in: .whitespaces)
+            }
+            .filter { !$0.isEmpty }
+            .prefix(limit).map { $0 }
     }
 }

@@ -42,6 +42,8 @@ public enum UpdateBanner: Equatable {
     case availableElsewhere(from: String)
     /// No record of where updates come from (an older install).
     case availableManual
+    /// A download from GitHub Releases: the update is downloaded and installs once no device is connected.
+    case releaseReady(version: String)
     case updating(message: String)
     case updated(version: String)
     case failed(message: String)
@@ -49,6 +51,7 @@ public enum UpdateBanner: Equatable {
     var title: String {
         switch self {
         case .availableHere, .availableElsewhere, .availableManual: return "Update available"
+        case .releaseReady: return "Update ready"
         case .updating: return "Updating Tether"
         case .updated: return "Tether is up to date"
         case .failed: return "The update didn't finish"
@@ -64,6 +67,8 @@ public enum UpdateBanner: Equatable {
         case .availableElsewhere(let from):
             return "Update it from \(from): open Tether Updater there, or copy the command and run it in its Tether folder."
         case .availableManual: return "A newer Tether is on GitHub."
+        case .releaseReady(let version):
+            return "Tether \(version) is downloaded. It installs by itself when no device is connected, then Tether restarts."
         case .updating(let message): return message
         case .updated(let version): return "Updated to \(version)."
         case .failed(let message): return message
@@ -378,6 +383,7 @@ public struct StatusPanelView: View {
                 if case .updating = banner { ProgressView().controlSize(.small) }
             }
             if case .updated = banner, !model.whatsNew.isEmpty { whatsNewList(model.whatsNew) }
+            if case .releaseReady = banner, !model.whatsNew.isEmpty { whatsNewList(model.whatsNew) }
             if case .availableHere(_, let whatsNew) = banner, !whatsNew.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("What's new").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -430,6 +436,8 @@ public struct StatusPanelView: View {
             HStack { Spacer(); Button("Copy command", action: model.actions.copyUpdateCommand).controlSize(.small) }
         case .availableManual:
             HStack { Spacer(); Button("How to update", action: model.actions.openUpdateHelp).controlSize(.small) }
+        case .releaseReady:
+            HStack { Spacer(); Button("Install now", action: model.actions.updateNow).buttonStyle(.borderedProminent).controlSize(.small) }
         case .updating:
             EmptyView()
         case .updated:
@@ -597,6 +605,8 @@ public struct UpdateView: View {
                     switch banner {
                     case .availableHere:
                         Button("Update now", action: model.actions.updateNow).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                    case .releaseReady:
+                        Button("Install now", action: model.actions.updateNow).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                     case .updating:
                         Text("You can keep using the Mac. Tether restarts at the end.").font(.caption).foregroundStyle(.secondary)
                     case .failed:
