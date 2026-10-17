@@ -9,8 +9,12 @@
 # Never overwrites an existing update key: losing it means installed copies can never update again.
 # Safe to re-run: it re-checks the backup export and prints the same instructions.
 #
+#   scripts/make-release-keys.sh            make what's missing, check the backup, print what Jordan does
+#   scripts/make-release-keys.sh --check    make nothing; exit 1 unless both keys exist and the backup restores
+#
 # Creates (outside the repo, never committed):
 #   ~/Library/Keychains/tether-release.keychain-db       the update key (generic password tether-update-key)
+#                                                         and the signing identity (kept here so the secret can be remade)
 #   ~/.config/tether/release/keychain-password           that keychain's password (chmod 600)
 #   ~/.config/tether/release/update-public-key.txt       the update key's public half (goes in Info.plist)
 #   ~/.config/tether/release/update-key-backup.txt       the update key, for your password manager (chmod 600)
@@ -18,6 +22,12 @@
 #   ~/.config/tether/release/release-cert.sha256         its fingerprint, which release-approve.sh checks
 #   ~/.config/tether/release/github-secret.txt           the signing identity for the GitHub secret (chmod 600)
 set -euo pipefail
+CHECK=0
+case "${1:-}" in
+  "") ;;
+  --check) CHECK=1 ;;
+  *) echo "usage: $0 [--check]" >&2; exit 2 ;;
+esac
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONF="$HOME/.config/tether/release"
 KC="$HOME/Library/Keychains/tether-release.keychain-db"
@@ -32,6 +42,7 @@ REPO="$(git -C "$ROOT" remote get-url origin 2>/dev/null | sed -E 's#\.git$##; s
 [[ "$REPO" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || REPO="jordanromines-jpg/tether"
 
 die() { echo "✗ $*" >&2; exit 1; }
+missing() { [[ $CHECK -eq 0 ]] || die "$* (run scripts/make-release-keys.sh without --check to make it)"; }
 umask 077
 mkdir -p "$CONF"; chmod 700 "$CONF"
 TMP="$(mktemp -d)"
@@ -75,6 +86,7 @@ ED="$TMP/ed"
 
 # --- The dedicated keychain (unlocked from its password file, so approvals work over SSH too).
 if [[ ! -f "$KC" ]]; then
+  missing "no release keychain at $KC"
   [[ ! -f "$PWFILE" ]] || die "$PWFILE exists without its keychain: check before going on"
   openssl rand -hex 24 | tr -d '\n' > "$PWFILE"
   security create-keychain -p "$(cat "$PWFILE")" "$KC"
@@ -96,6 +108,7 @@ store_key() {   # $1 = keychain; the key on stdin
 if read_key "$KC" >/dev/null; then
   echo "✓ the update key is already in $KC (kept as it is)"
 else
+  missing "no update key in $KC"
   "$ED" new | store_key "$KC"
   echo "✓ made the update key in $KC"
 fi
@@ -104,11 +117,18 @@ printf '%s\n' "$PUBLIC" > "$CONF/update-public-key.txt"; chmod 644 "$CONF/update
 
 # --- The backup export, proved restorable: import it into a scratch keychain, sign with it there,
 # and check the signature against the public key of the key in the real keychain.
-read_key "$KC" > "$CONF/update-key-backup.txt"
-chmod 600 "$CONF/update-key-backup.txt"
+# After G-1 the file is gone (it's in the password manager), so --check then rebuilds it in $TMP only.
+BACKUP="$CONF/update-key-backup.txt"
+if [[ $CHECK -eq 0 ]]; then
+  read_key "$KC" > "$BACKUP"
+  chmod 600 "$BACKUP"
+elif [[ ! -f "$BACKUP" ]]; then
+  BACKUP="$TMP/update-key-backup.txt"
+  read_key "$KC" > "$BACKUP"
+fi
 SCRATCH_PW="$(openssl rand -hex 16)"
 security create-keychain -p "$SCRATCH_PW" "$SCRATCH_KC"
-store_key "$SCRATCH_KC" < "$CONF/update-key-backup.txt"
+store_key "$SCRATCH_KC" < "$BACKUP"
 restore_list
 RESTORED_PUBLIC="$(read_key "$SCRATCH_KC" | "$ED" public)" || die "couldn't read the key back from the scratch keychain"
 echo "Tether update key restore check $(date -u +%FT%TZ)" > "$TMP/test.txt"
@@ -123,6 +143,7 @@ echo "✓ backup export checked: restored into a scratch keychain, it signs a te
 if [[ -f "$CONF/release-cert.pem" ]]; then
   echo "✓ the release signing identity already exists (kept as it is)"
 else
+  missing "no release signing identity ($CONF/release-cert.pem)"
   cat > "$TMP/cert.cnf" <<CNF
 [req]
 distinguished_name = dn
@@ -144,12 +165,24 @@ CNF
   # The secret: the p12's password on the first line, the p12 in base64 on the second.
   { printf '%s\n' "$P12PW"; base64 -i "$TMP/id.p12" | tr -d '\n'; printf '\n'; } > "$CONF/github-secret.txt"
   chmod 600 "$CONF/github-secret.txt"
+  # Kept in the release keychain too, as setup-signing.sh keeps its own, so the secret can be remade.
+  security import "$TMP/id.p12" -k "$KC" -P "$P12PW" -T /usr/bin/codesign >/dev/null
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$(cat "$PWFILE")" "$KC" >/dev/null
+  restore_list
   cp "$TMP/cert.pem" "$CONF/release-cert.pem"; chmod 644 "$CONF/release-cert.pem"
   echo "✓ made the release signing identity \"$NAME\""
 fi
 # The fingerprint codesign reports for the leaf certificate (SHA-256 of its DER form).
 "$OPENSSL" x509 -in "$CONF/release-cert.pem" -outform DER | shasum -a 256 | awk '{print $1}' > "$CONF/release-cert.sha256"
 chmod 644 "$CONF/release-cert.sha256"
+security find-certificate -c "$NAME" -Z "$KC" 2>/dev/null | grep -qi "SHA-256 hash: $(cat "$CONF/release-cert.sha256")" \
+  || die "the release keychain doesn't hold the \"$NAME\" certificate whose fingerprint is in $CONF/release-cert.sha256"
+security find-identity -p codesigning "$KC" | grep -q "\"$NAME\"" || die "the release keychain has no \"$NAME\" signing identity"
+echo "✓ the release signing identity \"$NAME\" is in $KC"
+if [[ $CHECK -eq 1 ]]; then
+  echo "✓ check passed. Update key (public): $PUBLIC  Signing certificate SHA-256: $(cat "$CONF/release-cert.sha256")"
+  exit 0
+fi
 
 cat <<DONE
 
@@ -161,6 +194,7 @@ Release signing certificate SHA-256:
 What only you do (G-1):
   1. Store the signing identity in GitHub. Run this one command on this Mac:
        gh secret set $SECRET_NAME -R $REPO < "$CONF/github-secret.txt"
+     (If gh says you are not signed in, run gh auth login first.)
      Then you may delete $CONF/github-secret.txt.
   2. Back up the update key: open $CONF/update-key-backup.txt, save its one line in your password
      manager as "Tether update key", then delete the file.
