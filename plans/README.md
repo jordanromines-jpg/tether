@@ -21,7 +21,7 @@ What comes now, next and later, derived from the plans and what each waits on.
 | Column | Plan | Title | State | Waits on | Work done | Hours (est) |
 |---|---|---|---|---|---|---|
 | Now | P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | in progress | — | 3/20 | 28.75 |
-| Now | P-3 | [An API so Claude can control Macs through Tether](2026-10-15-claude-api.md) | in progress | — | 1/8 | 16.75 |
+| Now | P-3 | [An API so Claude can control Macs through Tether](2026-10-15-claude-api.md) | in progress | — | 3/8 | 16.75 |
 <!-- /graph -->
 
 ## Plans
@@ -29,7 +29,7 @@ What comes now, next and later, derived from the plans and what each waits on.
 <!-- graph: index -->
 | Plan | Title | State | Work done | Next | Waiting on Jordan |
 |---|---|---|---|---|---|
-| P-3 | [An API so Claude can control Macs through Tether](2026-10-15-claude-api.md) | in progress | 1/8 | S-20 | — |
+| P-3 | [An API so Claude can control Macs through Tether](2026-10-15-claude-api.md) | in progress | 3/8 | — | — |
 | P-2 | Inbox | inbox | 0/0 | — | — |
 | P-1 | [Tether as a download that updates itself](2026-10-15-downloadable-release.md) | in progress | 3/20 | S-8 | 2 |
 <!-- /graph -->

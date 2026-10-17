@@ -2,7 +2,7 @@
  "key": "S-16",
  "kind": "step",
  "title": "POST /api/v1/actions: click, drag, scroll, type, keys, open app or link, through the Hub",
- "status": "open",
+ "status": "done",
  "edges": {
   "part_of": [
    "PR-5"
@@ -194,15 +194,80 @@
     "done_when": "each action becomes the same ClientMessage the web page sends, from a Hub client named for the calling device, so View only and Pause refuse it like any device; SelfTest maps every action and rejects bad input",
     "estimate_h": 3.0
    }
+  },
+  {
+   "at": "2026-10-17T11:19:39-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-17T11:40:29-05:00",
+   "by": "claude",
+   "what": "docs/API.md's actions section moves from planned to shipped with S-16, so mcp-tether's docs stay true",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "before": {
+    "files": [
+     "agent/Sources/Tether/API.swift",
+     "agent/Sources/Tether/Hub.swift",
+     "agent/Sources/TetherCore/APIProtocol.swift",
+     "agent/Sources/SelfTest/main.swift"
+    ]
+   }
+  },
+  {
+   "at": "2026-10-17T11:41:09-05:00",
+   "by": "claude",
+   "what": "done: SelfTest 304/304: every action's ClientMessages, every rejection (body, 50 actions, 64 KB, 4,096 cha",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "event": "done",
+   "was": "doing",
+   "commit": "767955e",
+   "used_h": 0.36,
+   "measured": true,
+   "before": {
+    "claimed": {
+     "by": "claude",
+     "at": "2026-10-17T11:19:39-05:00",
+     "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6"
+    },
+    "status": "doing"
+   },
+   "before_absent": [
+    "elapsed_h",
+    "evidence",
+    "links",
+    "used_h"
+   ]
   }
  ],
  "files": [
   "agent/Sources/Tether/API.swift",
   "agent/Sources/Tether/Hub.swift",
   "agent/Sources/TetherCore/APIProtocol.swift",
-  "agent/Sources/SelfTest/main.swift"
+  "agent/Sources/SelfTest/main.swift",
+  "docs/API.md"
  ],
  "estimate_h": 3.5,
  "done_when": "each action becomes the same ClientMessage the web page sends and goes through S-20's API client, so View only and Pause refuse it like any device; coordinates are pixels of the screenshot target (a display or one window) and map through S-15's contract; limits as named constants: at most 50 actions and 64 KB per call, text at most 4,096 characters, coordinates inside the target, keys only from the existing key table; the whole list is checked before anything runs (all or nothing); actions run in order, and a refusal midway (paused, switched off) stops the list and answers {error, index}; SelfTest maps every action and tests each rejection",
- "command": "swift run --package-path agent SelfTest"
+ "command": "swift run --package-path agent SelfTest",
+ "evidence": "SelfTest 304/304: every action's ClientMessages, every rejection (body, 50 actions, 64 KB, 4,096 chars, key table, buttons, count, scroll, links, unknown type, target, image, coordinates outside for click and drag, with index). Dev copy :7471: 400 with index, 404 for missing display or window, 413 over 64 KB. Live input left to V-5. Merged as PR #14 (5852f06).",
+ "elapsed_h": 0.36,
+ "used_h": 0.36,
+ "links": {
+  "commits": [
+   "767955e"
+  ]
+ }
 }

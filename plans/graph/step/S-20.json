@@ -2,7 +2,7 @@
  "key": "S-20",
  "kind": "step",
  "title": "API session in the Hub: one reused client per calling device, no video",
- "status": "open",
+ "status": "done",
  "edges": {
   "part_of": [
    "PR-5"
@@ -58,6 +58,47 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-10-17T10:58:57-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-17T11:19:20-05:00",
+   "by": "claude",
+   "what": "done: SelfTest 269/269: reuse per login and device, expiry at 120 s and a new client after, Disconnect, vi",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "event": "done",
+   "was": "doing",
+   "commit": "dc175bc",
+   "used_h": 0.34,
+   "measured": true,
+   "before": {
+    "claimed": {
+     "by": "claude",
+     "at": "2026-10-17T10:58:57-05:00",
+     "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6"
+    },
+    "status": "doing"
+   },
+   "before_absent": [
+    "elapsed_h",
+    "evidence",
+    "links",
+    "used_h"
+   ]
   }
  ],
  "files": [
@@ -68,5 +109,13 @@
  "estimate_h": 2.5,
  "done_when": "the first API call from a device adds one Hub client for it that starts no capture session and is reused by later calls; held buttons and keys stay down between calls, so a drag can span calls; after API_IDLE_SECONDS (120) with no call, or on Disconnect, the client is removed and releaseAll runs; its view only follows the Allow Claude setting (Q-1), not a message; SelfTest covers reuse, expiry with release, and view only refusing control",
  "command": "swift run --package-path agent SelfTest",
- "body": "Hub.add starts capture when it adds the first client and Hub.remove ends it and releases input, so a client per request would start and stop capture on every click and break drags. This step adds a Hub entry for API clients that skips startSession and keeps state until it expires."
+ "body": "Hub.add starts capture when it adds the first client and Hub.remove ends it and releases input, so a client per request would start and stop capture on every click and break drags. This step adds a Hub entry for API clients that skips startSession and keeps state until it expires.",
+ "evidence": "SelfTest 269/269: reuse per login and device, expiry at 120 s and a new client after, Disconnect, view only and Off refusing input, allowed API message list. Hub release on removal is code (removeAPIClient → input.releaseAll), not unit-tested. Merged as PR #13 (e957e1a).",
+ "elapsed_h": 0.34,
+ "used_h": 0.34,
+ "links": {
+  "commits": [
+   "dc175bc"
+  ]
+ }
 }

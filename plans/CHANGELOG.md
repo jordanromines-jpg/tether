@@ -1,6 +1,7 @@
 # Plans changelog
 
 One line per change to any plan, newest first, in the same commit as the change.
+- 2026-10-17: P-3 S-20 (#13) and S-16 (#14) built and merged: API client per device in the Hub, POST /api/v1/actions; S-16 gains docs/API.md (actions section shipped); S-17 waits on P-1 S-7
 - 2026-10-17: P-3 S-15 built and merged (#11): /api/v1 read routes, shapes and coordinate contract; S-15 gains docs/API.md (read routes and the planned actions shape, so mcp-tether can start; S-19 completes it)
 - 2026-10-16: D-7 and D-8 answered (Jordan: "all rec"); S-15 no longer waits on S-6 (D-8)
 - 2026-10-16: P-1 T-3 noted: Gatekeeper probe app on a draft release, ready for Jordan
