@@ -69,7 +69,7 @@ The routes are versioned (`/api/v1`) so mcp-tether can say which version it need
 | Key | What | Files | Done when | Hours (est · used) | Waits on | State |
 |---|---|---|---|---|---|---|
 | T-4 | Jordan sees the Claude is connected banner and the activity log on the Studio | — | Jordan confirms the banner and the logged actions | 0.25 | V-5 | blocked |
-| V-5 | Live: from the M5, screenshot and click on the Studio through its tailnet link | — | from the M5 (a tailnet device, so tailscale serve adds the login header): info answers; a screenshot comes back; after asking Jordan, the API's open-link action opens a data: URL test-bench page that logs clicks on the Studio, and a click at a point from the screenshot shows up in its log; with the switch Off, then with Pause on, the same curl for actions answers 403 | 1 | PR-5 | blocked |
+| V-5 | Live: from the M5, screenshot and click on the Studio through its tailnet link | — | from the M5 (a tailnet device, so tailscale serve adds the login header): info answers; a screenshot comes back; after asking Jordan, the API's open-link action opens a test-bench page served by a throwaway local http server on the Studio (openURL opens only http(s) links), which logs clicks, and a click at a point from the screenshot shows up in its log; with the switch Off, then with Pause on, the same curl for actions answers 403 | 1 | PR-5 | blocked |
 
 **PR-5 · Claude API in Tether** · branch `feat/claude-api` · in progress
 
@@ -101,7 +101,7 @@ None.
 | Key | Check | Passes when | Command | Verifies | State |
 |---|---|---|---|---|---|
 | T-4 | Jordan sees the Claude is connected banner and the activity log on the Studio | Jordan confirms the banner and the logged actions | — | REQ-5 | blocked |
-| V-5 | Live: from the M5, screenshot and click on the Studio through its tailnet link | from the M5 (a tailnet device, so tailscale serve adds the login header): info answers; a screenshot comes back; after asking Jordan, the API's open-link action opens a data: URL test-bench page that logs clicks on the Studio, and a click at a point from the screenshot shows up in its log; with the switch Off, then with Pause on, the same curl for actions answers 403 | `curl -s https://jordans-mac-studio.taile356c2.ts.net/api/v1/info` | REQ-4, REQ-5 | blocked |
+| V-5 | Live: from the M5, screenshot and click on the Studio through its tailnet link | from the M5 (a tailnet device, so tailscale serve adds the login header): info answers; a screenshot comes back; after asking Jordan, the API's open-link action opens a test-bench page served by a throwaway local http server on the Studio (openURL opens only http(s) links), which logs clicks, and a click at a point from the screenshot shows up in its log; with the switch Off, then with Pause on, the same curl for actions answers 403 | `curl -s https://jordans-mac-studio.taile356c2.ts.net/api/v1/info` | REQ-4, REQ-5 | blocked |
 <!-- /graph -->
 
 ## Build log
@@ -178,6 +178,7 @@ None.
 | 2026-10-17 11:19 | S-16 | claimed | claude | — |
 | 2026-10-17 11:40 | S-16 | docs/API.md's actions section moves from planned to shipped with S-16, so mcp-tether's docs stay true | claude | — |
 | 2026-10-17 11:41 | S-16 | done: SelfTest 304/304: every action's ClientMessages, every rejection (body, 50 actions, 64 KB, 4,096 cha | claude | 767955e |
+| 2026-10-17 11:41 | V-5 | openURL opens only http(s) links, so the bench page is served locally on the Studio instead of a data: URL (found building S-16) | claude | — |
 <!-- /graph -->
 
 ## Results
