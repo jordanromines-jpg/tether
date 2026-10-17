@@ -2,7 +2,7 @@
  "key": "S-15",
  "kind": "step",
  "title": "Read routes: /api/v1/info, screenshot, windows and apps",
- "status": "open",
+ "status": "done",
  "edges": {
   "part_of": [
    "PR-5"
@@ -209,16 +209,81 @@
    "door": "cli",
    "session": "68fb9a6c-315c-4d35-bad0-0fe48d5c6f08",
    "event": "note"
+  },
+  {
+   "at": "2026-10-16T15:07:36-05:00",
+   "by": "claude",
+   "what": "claimed",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "event": "doing",
+   "was": "open",
+   "before": {
+    "status": "open"
+   },
+   "before_absent": [
+    "claimed"
+   ]
+  },
+  {
+   "at": "2026-10-16T15:10:47-05:00",
+   "by": "claude",
+   "what": "docs/API.md starts in S-15 with the read routes and the coordinate contract, so mcp-tether can build against them now; S-19 completes it",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "before": {
+    "files": [
+     "agent/Sources/Tether/API.swift",
+     "agent/Sources/Tether/Server.swift",
+     "agent/Sources/TetherCore/APIProtocol.swift",
+     "agent/Sources/SelfTest/main.swift"
+    ]
+   }
+  },
+  {
+   "at": "2026-10-17T10:58:16-05:00",
+   "by": "claude",
+   "what": "done: SelfTest 253/253 (API shapes, screenshot query checks, pixel→point→normalized for a display and a wi",
+   "door": "cli",
+   "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6",
+   "event": "done",
+   "was": "doing",
+   "commit": "870b490",
+   "used_h": 19.84,
+   "measured": true,
+   "before": {
+    "claimed": {
+     "by": "claude",
+     "at": "2026-10-16T15:07:36-05:00",
+     "session": "396ebfbc-630b-4384-9a4f-9864ebf26df6"
+    },
+    "status": "doing"
+   },
+   "before_absent": [
+    "elapsed_h",
+    "evidence",
+    "links",
+    "used_h"
+   ]
   }
  ],
  "files": [
   "agent/Sources/Tether/API.swift",
   "agent/Sources/Tether/Server.swift",
   "agent/Sources/TetherCore/APIProtocol.swift",
-  "agent/Sources/SelfTest/main.swift"
+  "agent/Sources/SelfTest/main.swift",
+  "docs/API.md"
  ],
  "estimate_h": 4.0,
  "done_when": "the routes answer JSON (info: name, version, displays with size in points and pixels and their scale, permissions) and PNG or JPEG screenshots of a display or one window at full or a requested size, through a new capture function next to Thumbnails.capture (which only does JPEG of a display); one documented coordinate contract: screenshot pixels → points → the normalized 0…1 that ClientMessage.move takes (via WindowGeometry); SelfTest covers the shapes and the mapping for a display and a window at scale 1 and 2",
  "command": "swift run --package-path agent SelfTest",
- "body": "Thumbnails.capture returns JPEG of a whole display, capped by its caller, so window and full-resolution capture are new code. If the mapping is wrong, every click misses, so it is tested on its own."
+ "body": "Thumbnails.capture returns JPEG of a whole display, capped by its caller, so window and full-resolution capture are new code. If the mapping is wrong, every click misses, so it is tested on its own.",
+ "evidence": "SelfTest 253/253 (API shapes, screenshot query checks, pixel→point→normalized for a display and a window at scale 1 and 2); dev copy on :7471 answered info, apps, a 640x416 JPEG screenshot with X-Tether-Target/Image-Size/Points headers, 400 for display+window, 404 for a missing window. Merged as PR #11 (ddcfc06).",
+ "elapsed_h": 19.84,
+ "used_h": 19.84,
+ "links": {
+  "commits": [
+   "870b490"
+  ]
+ }
 }
