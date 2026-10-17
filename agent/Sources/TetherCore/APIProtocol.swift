@@ -203,6 +203,236 @@ public enum APIGeometry {
     }
 }
 
+/// POST /api/v1/actions: one checked action. Coordinates are pixels of the screenshot (see APIGeometry).
+public enum APIAction: Equatable, Sendable {
+    public enum Button: String, Sendable {
+        case left, middle, right
+        /// ClientMessage.button's index.
+        public var index: Int { switch self { case .left: 0; case .middle: 1; case .right: 2 } }
+    }
+
+    case move(x: Double, y: Double)
+    case click(x: Double, y: Double, button: Button, count: Int)
+    case down(button: Button, at: CGPoint?)
+    case up(button: Button, at: CGPoint?)
+    case drag(from: CGPoint, to: CGPoint, button: Button)
+    case scroll(dx: Double, dy: Double, at: CGPoint?)
+    case key([String])
+    case text(String)
+    case openApp(String)
+    case openURL(String)
+
+    /// Whether it has coordinates (so the request needs `image`).
+    public var hasCoordinates: Bool {
+        switch self {
+        case .move, .click, .drag: return true
+        case .down(_, let at), .up(_, let at), .scroll(_, _, let at): return at != nil
+        case .key, .text, .openApp, .openURL: return false
+        }
+    }
+}
+
+/// One ClientMessage to run, the display its normalized move is relative to, and a pause after it.
+public struct APIStep: Equatable, Sendable {
+    public var message: ClientMessage
+    public var display: UInt32?
+    public var pauseMs: Int
+    public init(_ message: ClientMessage, display: UInt32? = nil, pauseMs: Int = 0) {
+        self.message = message; self.display = display; self.pauseMs = pauseMs
+    }
+}
+
+/// POST /api/v1/actions body, checked as a whole before any of it runs.
+public struct APIActionRequest: Equatable, Sendable {
+    public static let maxActions = 50
+    public static let maxBytes = 64 * 1024
+    public static let maxTextLength = 4096
+    public static let maxClickCount = 3
+    public static let maxScroll = 10_000.0
+    /// A drag moves in this many steps, this far apart, so apps see the pointer travel.
+    public static let dragSteps = 8
+    public static let dragStepMs = 16
+
+    public var target: APITarget
+    public var image: APISize?
+    public var actions: [APIAction]
+
+    public init(target: APITarget, image: APISize?, actions: [APIAction]) {
+        self.target = target; self.image = image; self.actions = actions
+    }
+
+    public static func parse(_ data: Data) -> Result<APIActionRequest, APIError> {
+        guard data.count <= maxBytes else { return .failure(APIError("The request is over \(maxBytes / 1024) KB.")) }
+        guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            return .failure(APIError("The body must be a JSON object."))
+        }
+        var target = APITarget.display(nil)
+        if let t = obj["target"] {
+            guard let t = t as? [String: Any] else { return .failure(APIError("target must be {\"display\": id} or {\"window\": id}.")) }
+            let d = (t["display"] as? NSNumber).map { "\($0.int64Value)" }, w = (t["window"] as? NSNumber).map { "\($0.int64Value)" }
+            switch APITarget.parse(display: d, window: w) {
+            case .success(let parsed): target = parsed
+            case .failure(let e): return .failure(e)
+            }
+        }
+        var image: APISize?
+        if let i = obj["image"] {
+            guard let i = i as? [String: Any], let w = (i["w"] as? NSNumber)?.intValue, let h = (i["h"] as? NSNumber)?.intValue,
+                  w > 0, h > 0, w <= APIScreenshotRequest.maxWidth, h <= APIScreenshotRequest.maxWidth else {
+                return .failure(APIError("image must be {\"w\": pixels, \"h\": pixels}, the size of the screenshot."))
+            }
+            image = APISize(w: w, h: h)
+        }
+        guard let list = obj["actions"] as? [Any], !list.isEmpty else { return .failure(APIError("actions must be a list of at least one action.")) }
+        guard list.count <= maxActions else { return .failure(APIError("At most \(maxActions) actions per call.")) }
+        var actions: [APIAction] = []
+        for (i, raw) in list.enumerated() {
+            guard let a = raw as? [String: Any] else { return .failure(APIError("Each action must be a JSON object.", index: i)) }
+            switch parseAction(a) {
+            case .success(let action):
+                if action.hasCoordinates, image == nil {
+                    return .failure(APIError("Actions with x and y need image, the size of the screenshot they came from.", index: i))
+                }
+                actions.append(action)
+            case .failure(let message):
+                return .failure(APIError(message.error, index: i))
+            }
+        }
+        return .success(APIActionRequest(target: target, image: image, actions: actions))
+    }
+
+    private static func parseAction(_ a: [String: Any]) -> Result<APIAction, APIError> {
+        func num(_ k: String) -> Double? { (a[k] as? NSNumber).map(\.doubleValue).flatMap { $0.isFinite ? $0 : nil } }
+        func point(_ xk: String, _ yk: String) -> CGPoint? { num(xk).flatMap { x in num(yk).map { CGPoint(x: x, y: $0) } } }
+        func button() -> APIAction.Button? { a["button"] == nil ? .left : (a["button"] as? String).flatMap(APIAction.Button.init(rawValue:)) }
+        let type = a["type"] as? String ?? ""
+        let badButton = APIError("button must be left, middle or right.")
+        switch type {
+        case "move":
+            guard let p = point("x", "y") else { return .failure(APIError("move needs x and y.")) }
+            return .success(.move(x: p.x, y: p.y))
+        case "click":
+            guard let p = point("x", "y") else { return .failure(APIError("click needs x and y.")) }
+            guard let b = button() else { return .failure(badButton) }
+            let count = (a["count"] as? NSNumber)?.intValue ?? 1
+            guard (1...maxClickCount).contains(count) else { return .failure(APIError("count must be 1 to \(maxClickCount).")) }
+            return .success(.click(x: p.x, y: p.y, button: b, count: count))
+        case "down", "up":
+            guard let b = button() else { return .failure(badButton) }
+            let at = point("x", "y")
+            if at == nil, a["x"] != nil || a["y"] != nil { return .failure(APIError("\(type) needs both x and y, or neither.")) }
+            return .success(type == "down" ? .down(button: b, at: at) : .up(button: b, at: at))
+        case "drag":
+            guard let from = point("x", "y"), let to = point("toX", "toY") else { return .failure(APIError("drag needs x, y, toX and toY.")) }
+            guard let b = button() else { return .failure(badButton) }
+            return .success(.drag(from: from, to: to, button: b))
+        case "scroll":
+            let dx = num("dx") ?? 0, dy = num("dy") ?? 0
+            guard dx != 0 || dy != 0 else { return .failure(APIError("scroll needs dx or dy.")) }
+            guard abs(dx) <= maxScroll, abs(dy) <= maxScroll else { return .failure(APIError("scroll is at most \(Int(maxScroll)) pixels.")) }
+            let at = point("x", "y")
+            if at == nil, a["x"] != nil || a["y"] != nil { return .failure(APIError("scroll needs both x and y, or neither.")) }
+            return .success(.scroll(dx: dx, dy: dy, at: at))
+        case "key":
+            guard let keys = a["keys"] as? [String], !keys.isEmpty, keys.count <= 6 else {
+                return .failure(APIError("key needs keys, a list of 1 to 6 key names."))
+            }
+            if let bad = keys.first(where: { KeyMap.keycode(for: $0) == nil }) {
+                return .failure(APIError("\(bad) isn't a key name. Use KeyboardEvent.code names such as KeyA, Enter, MetaLeft."))
+            }
+            return .success(.key(keys))
+        case "text":
+            guard let t = a["text"] as? String, !t.isEmpty else { return .failure(APIError("text needs text.")) }
+            guard t.count <= maxTextLength else { return .failure(APIError("text is at most \(maxTextLength) characters.")) }
+            return .success(.text(t))
+        case "openApp":
+            guard let path = a["path"] as? String, !path.isEmpty else { return .failure(APIError("openApp needs path, from /api/v1/apps.")) }
+            return .success(.openApp(path))
+        case "openURL":
+            guard let url = a["url"] as? String, SafeURL.validate(url) != nil else {
+                return .failure(APIError("openURL needs url, a web link (http or https)."))
+            }
+            return .success(.openURL(url))
+        default:
+            return .failure(APIError("Unknown action type \"\(type)\"."))
+        }
+    }
+
+    /// Every action's steps, or the first action whose coordinates fall outside the image.
+    /// `resolve` maps a screenshot pixel to (display, normalized x, y); nil = outside.
+    public func steps(resolve: (CGPoint) -> (display: UInt32, x: Double, y: Double)?) -> Result<[[APIStep]], APIError> {
+        var all: [[APIStep]] = []
+        for (i, action) in actions.enumerated() {
+            var out: [APIStep] = []
+            func move(_ p: CGPoint, pauseMs: Int = 0) -> Bool {
+                guard let r = resolve(p) else { return false }
+                out.append(APIStep(.move(x: r.x, y: r.y), display: r.display, pauseMs: pauseMs))
+                return true
+            }
+            let outside = APIError("x and y must be inside the screenshot (\(image?.w ?? 0) × \(image?.h ?? 0) pixels).", index: i)
+            switch action {
+            case let .move(x, y):
+                guard move(CGPoint(x: x, y: y)) else { return .failure(outside) }
+            case let .click(x, y, button, count):
+                guard move(CGPoint(x: x, y: y)) else { return .failure(outside) }
+                for _ in 0..<count {
+                    out.append(APIStep(.button(index: button.index, down: true)))
+                    out.append(APIStep(.button(index: button.index, down: false)))
+                }
+            case let .down(button, at), let .up(button, at):
+                if let at { guard move(at) else { return .failure(outside) } }
+                let isDown: Bool = { if case .down = action { return true }; return false }()
+                out.append(APIStep(.button(index: button.index, down: isDown)))
+            case let .drag(from, to, button):
+                guard move(from) else { return .failure(outside) }
+                out.append(APIStep(.button(index: button.index, down: true), pauseMs: Self.dragStepMs))
+                for s in 1...Self.dragSteps {
+                    let f = Double(s) / Double(Self.dragSteps)
+                    let p = CGPoint(x: from.x + (to.x - from.x) * f, y: from.y + (to.y - from.y) * f)
+                    guard move(p, pauseMs: Self.dragStepMs) else { return .failure(outside) }
+                }
+                out.append(APIStep(.button(index: button.index, down: false)))
+            case let .scroll(dx, dy, at):
+                if let at { guard move(at) else { return .failure(outside) } }
+                out.append(APIStep(.scroll(dx: dx, dy: dy)))
+            case let .key(keys):
+                for k in keys { out.append(APIStep(.key(code: k, down: true))) }
+                for k in keys.reversed() { out.append(APIStep(.key(code: k, down: false))) }
+            case let .text(t):
+                out.append(APIStep(.text(t)))
+            case let .openApp(path):
+                out.append(APIStep(.openApp(path)))
+            case let .openURL(url):
+                out.append(APIStep(.openURL(url)))
+            }
+            all.append(out)
+        }
+        return .success(all)
+    }
+}
+
+extension APIGeometry {
+    /// The resolver APIActionRequest.steps takes: screenshot pixel → (display, normalized x, y),
+    /// for a screenshot `image` pixels big showing `target` (points), over these displays.
+    public static func resolver(image: APISize, target: CGRect, displays: [(id: UInt32, bounds: CGRect)])
+        -> (CGPoint) -> (display: UInt32, x: Double, y: Double)? {
+        { pixel in
+            guard let point = toPoint(x: Double(pixel.x), y: Double(pixel.y), image: image, target: target),
+                  let id = display(containing: point, in: displays),
+                  let bounds = displays.first(where: { $0.id == id })?.bounds,
+                  let n = toNormalized(point, display: bounds) else { return nil }
+            return (id, Double(n.x), Double(n.y))
+        }
+    }
+}
+
+/// POST /api/v1/actions answer when every action ran.
+public struct APIActionResult: Codable, Equatable, Sendable {
+    public var ok: Bool
+    public var done: Int
+    public init(done: Int) { ok = true; self.done = done }
+}
+
 public enum APIJSON {
     /// Sorted keys, so answers are stable and easy to diff.
     public static func encode<T: Encodable>(_ value: T) -> Data {

@@ -15,6 +15,12 @@ enum API {
     static let targetHeader = HTTPField.Name("X-Tether-Target")!
     static let imageSizeHeader = HTTPField.Name("X-Tether-Image-Size")!
     static let pointsHeader = HTTPField.Name("X-Tether-Points")!
+    /// The calling device's name, shown on the Mac (one API client per login and device).
+    static let clientHeader = HTTPField.Name("X-Tether-Client")!
+    static let defaultClientName = "Claude"
+    static let maxClientNameLength = 40
+    /// After raising a window target, before acting on it.
+    static let raiseSettleMs = 150
 
     /// Until the Allow Claude switch exists (P-3 S-17), the API answers only in dev mode
     /// (scripts/dev.sh), so a real install never serves it without that switch.
@@ -23,6 +29,21 @@ enum API {
     static func register(on router: Router<BasicWebSocketRequestContext>, policy: AuthPolicy) {
         let api = router.group(RouterPath(String(APIVersion.prefix.dropFirst())))
         let limiter = RateLimiter(perSecond: screenshotsPerSecond)
+        // Until the Allow Claude switch (S-17): Control in dev mode, so actions can be tested there.
+        if enabled(policy: policy) { Hub.shared.setAPIAccess(.control) }
+
+        api.post("actions") { request, _ -> Response in
+            guard enabled(policy: policy) else { return off() }
+            var req = request
+            let body: ByteBuffer
+            do {
+                body = try await req.collectBody(upTo: APIActionRequest.maxBytes)
+            } catch {
+                return answer(APIError("The request is over \(APIActionRequest.maxBytes / 1024) KB."), status: .contentTooLarge)
+            }
+            let device = String((request.headers[clientHeader] ?? defaultClientName).prefix(maxClientNameLength))
+            return await Actions.run(Data(buffer: body), login: Server.login(request), device: device)
+        }
 
         api.get("info") { _, _ -> Response in
             guard enabled(policy: policy) else { return off() }
@@ -182,5 +203,71 @@ enum Screenshots {
             : rep.representation(using: .jpeg, properties: [.compressionFactor: req.quality])
         guard let data else { return .failure(Failure("Couldn't encode the screenshot.")) }
         return .success(Shot(data: data, size: APISize(w: image.width, h: image.height), points: points, display: displayID))
+    }
+}
+
+/// POST /api/v1/actions: check the whole list, then run it in order through the Hub.
+enum Actions {
+    static func run(_ body: Data, login: String, device: String) async -> Response {
+        let parsed: APIActionRequest
+        switch APIActionRequest.parse(body) {
+        case .success(let r): parsed = r
+        case .failure(let e): return API.answer(e, status: .badRequest)
+        }
+        for (i, action) in parsed.actions.enumerated() {
+            if case .openApp(let path) = action, !AppCatalog.contains(path) {
+                return API.answer(APIError("That app isn't in /api/v1/apps.", index: i), status: .badRequest)
+            }
+        }
+        let window: WindowList.Info?, target: CGRect
+        switch parsed.target {
+        case .display(let id):
+            let d = id ?? CGMainDisplayID()
+            guard API.activeDisplays().contains(d) else {
+                return API.answer(APIError("No display with that id. See /api/v1/info."), status: .notFound)
+            }
+            window = nil
+            target = CGDisplayBounds(d)
+        case .window(let id):
+            guard let info = await WindowList.list().first(where: { $0.id == id }) else {
+                return API.answer(APIError("No window with that id on screen. See /api/v1/windows."), status: .notFound)
+            }
+            window = info
+            target = WindowList.frame(of: id) ?? info.frame
+        }
+        let displays = API.activeDisplays().map { (id: $0, bounds: CGDisplayBounds($0)) }
+        let resolve = APIGeometry.resolver(image: parsed.image ?? APISize(w: 1, h: 1), target: target, displays: displays)
+        let steps: [[APIStep]]
+        switch parsed.steps(resolve: resolve) {
+        case .success(let s): steps = s
+        case .failure(let e): return API.answer(e, status: .badRequest)
+        }
+        if AppState.shared.paused { return paused(index: 0) }
+
+        let client = Hub.shared.apiClient(login: login, device: device)
+        if let window, parsed.actions.contains(where: \.hasCoordinates) {
+            await MainActor.run { WindowList.raise(window) }
+            try? await Task.sleep(for: .milliseconds(API.raiseSettleMs))
+        }
+        for (i, actionSteps) in steps.enumerated() {
+            if AppState.shared.paused { return paused(index: i) }
+            for step in actionSteps {
+                switch Hub.shared.applyAPI(step.message, from: client, display: step.display) {
+                case .ok: break
+                case .viewOnly:
+                    return API.answer(APIError("Allow Claude is set to View only on this Mac, so input is off.", index: i), status: .forbidden)
+                case .gone:
+                    return API.answer(APIError("Claude was disconnected on the Mac.", index: i), status: .forbidden)
+                case .notAllowed:
+                    return API.answer(APIError("That action isn't allowed through the API.", index: i), status: .forbidden)
+                }
+                if step.pauseMs > 0 { try? await Task.sleep(for: .milliseconds(step.pauseMs)) }
+            }
+        }
+        return API.answer(APIActionResult(done: steps.count))
+    }
+
+    private static func paused(index: Int) -> Response {
+        API.answer(APIError("Remote access is paused on the Mac.", index: index), status: .serviceUnavailable)
     }
 }
