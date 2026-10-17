@@ -546,5 +546,69 @@ do {
            && !APIAccess.isAPIMessage(.curtain(true)), "api messages: can't change the stream or the curtain")
 }
 
+// API actions (P-3 S-16): parsing, every action's messages, every rejection
+do {
+    func req(_ json: String) -> Result<APIActionRequest, APIError> { APIActionRequest.parse(Data(json.utf8)) }
+    func err(_ json: String) -> APIError? { if case .failure(let e) = req(json) { return e }; return nil }
+    let img = #""target":{"display":1},"image":{"w":1000,"h":500}"#
+    // A 2000 × 1000 point display at the origin, screenshot 1000 × 500: pixel (x, y) → normalized (x/1000, y/500)
+    let main = CGRect(x: 0, y: 0, width: 2000, height: 1000)
+    let resolve = APIGeometry.resolver(image: APISize(w: 1000, h: 500), target: main, displays: [(1, main)])
+    func steps(_ json: String) -> [[APIStep]]? { (try? req(json).get()).flatMap { try? $0.steps(resolve: resolve).get() } }
+
+    let ok = try? req(#"{\#(img),"actions":[{"type":"click","x":500,"y":250}]}"#).get()
+    expect(ok?.target == .display(1) && ok?.image == APISize(w: 1000, h: 500), "actions: target and image")
+    expect(steps(#"{\#(img),"actions":[{"type":"click","x":500,"y":250}]}"#)?.first
+           == [APIStep(.move(x: 0.5, y: 0.5), display: 1), APIStep(.button(index: 0, down: true)), APIStep(.button(index: 0, down: false))],
+           "actions: click → move, down, up")
+    expect(steps(#"{\#(img),"actions":[{"type":"click","x":0,"y":0,"button":"right","count":2}]}"#)?.first?.count == 5,
+           "actions: right double-click → move and two clicks")
+    expect(steps(#"{\#(img),"actions":[{"type":"move","x":250,"y":125}]}"#)?.first == [APIStep(.move(x: 0.25, y: 0.25), display: 1)], "actions: move")
+    expect(steps(#"{\#(img),"actions":[{"type":"down","button":"left","x":100,"y":100}]}"#)?.first?.last == APIStep(.button(index: 0, down: true)),
+           "actions: down at a point")
+    expect(steps(#"{"actions":[{"type":"up"}]}"#)?.first == [APIStep(.button(index: 0, down: false))], "actions: up without a point needs no image")
+    let drag = steps(#"{\#(img),"actions":[{"type":"drag","x":0,"y":0,"toX":1000,"toY":500}]}"#)?.first
+    expect(drag?.count == 2 + APIActionRequest.dragSteps + 1, "actions: drag → move, down, steps, up")
+    expect(drag?.dropLast().last == APIStep(.move(x: 1, y: 1), display: 1, pauseMs: APIActionRequest.dragStepMs), "actions: drag ends at the target")
+    expect(steps(#"{"actions":[{"type":"scroll","dy":120}]}"#)?.first == [APIStep(.scroll(dx: 0, dy: 120))], "actions: scroll")
+    expect(steps(#"{\#(img),"actions":[{"type":"scroll","dy":-40,"x":500,"y":0}]}"#)?.first?.count == 2, "actions: scroll at a point")
+    expect(steps(#"{"actions":[{"type":"key","keys":["MetaLeft","KeyC"]}]}"#)?.first
+           == [APIStep(.key(code: "MetaLeft", down: true)), APIStep(.key(code: "KeyC", down: true)),
+               APIStep(.key(code: "KeyC", down: false)), APIStep(.key(code: "MetaLeft", down: false))], "actions: key combination")
+    expect(steps(#"{"actions":[{"type":"text","text":"héllo"}]}"#)?.first == [APIStep(.text("héllo"))], "actions: text")
+    expect(steps(#"{"actions":[{"type":"openApp","path":"/Applications/Safari.app"}]}"#)?.first == [APIStep(.openApp("/Applications/Safari.app"))], "actions: openApp")
+    expect(steps(#"{"actions":[{"type":"openURL","url":"https://example.com"}]}"#)?.first == [APIStep(.openURL("https://example.com"))], "actions: openURL")
+    expect(steps(#"{"target":{"window":7},"image":{"w":10,"h":10},"actions":[{"type":"text","text":"a"},{"type":"key","keys":["Enter"]}]}"#)?.count == 2,
+           "actions: several, window target")
+    expect(APIJSON.encode(APIActionResult(done: 3)) == Data(#"{"done":3,"ok":true}"#.utf8), "actions: answer shape")
+
+    // Rejections, with the index of the action at fault
+    expect(err("[]")?.error.contains("JSON object") == true, "reject: not an object")
+    expect(err(#"{"actions":[]}"#) != nil, "reject: no actions")
+    let many = "[" + Array(repeating: #"{"type":"text","text":"a"}"#, count: APIActionRequest.maxActions + 1).joined(separator: ",") + "]"
+    expect(err(#"{"actions":\#(many)}"#)?.error.contains("At most 50") == true, "reject: over 50 actions")
+    expect(err(String(repeating: " ", count: APIActionRequest.maxBytes + 1)) != nil, "reject: over 64 KB")
+    let long = String(repeating: "a", count: APIActionRequest.maxTextLength + 1)
+    expect(err(#"{"actions":[{"type":"text","text":"ok"},{"type":"text","text":"\#(long)"}]}"#)?.index == 1, "reject: text over 4,096 characters")
+    expect(err(#"{"actions":[{"type":"key","keys":["Hyper"]}]}"#)?.index == 0, "reject: key not in the key table")
+    expect(err(#"{"actions":[{"type":"click","x":1,"y":1}]}"#)?.error.contains("image") == true, "reject: coordinates without image")
+    expect(err(#"{\#(img),"actions":[{"type":"click","x":1}]}"#) != nil, "reject: click without y")
+    expect(err(#"{\#(img),"actions":[{"type":"click","x":1,"y":1,"button":"thumb"}]}"#) != nil, "reject: unknown button")
+    expect(err(#"{\#(img),"actions":[{"type":"click","x":1,"y":1,"count":9}]}"#) != nil, "reject: count over 3")
+    expect(err(#"{"actions":[{"type":"scroll"}]}"#) != nil, "reject: scroll without dx or dy")
+    expect(err(#"{"actions":[{"type":"scroll","dy":99999}]}"#) != nil, "reject: huge scroll")
+    expect(err(#"{"actions":[{"type":"openURL","url":"file:///etc/passwd"}]}"#) != nil, "reject: non-web link")
+    expect(err(#"{"actions":[{"type":"openApp"}]}"#) != nil, "reject: openApp without path")
+    expect(err(#"{"actions":[{"type":"fly"}]}"#)?.error.contains("Unknown") == true, "reject: unknown type")
+    expect(err(#"{"target":{"display":1,"window":2},"actions":[{"type":"text","text":"a"}]}"#) != nil, "reject: display and window")
+    expect(err(#"{"image":{"w":0,"h":5},"actions":[{"type":"text","text":"a"}]}"#) != nil, "reject: empty image")
+    // Outside the image: checked for the whole list before anything runs
+    let outside = try? req(#"{\#(img),"actions":[{"type":"text","text":"a"},{"type":"click","x":1001,"y":10}]}"#).get()
+    if case .failure(let e)? = outside?.steps(resolve: resolve) { expect(e.index == 1, "reject: click outside the image, index 1") }
+    else { expect(false, "reject: click outside the image") }
+    let dragOut = try? req(#"{\#(img),"actions":[{"type":"drag","x":10,"y":10,"toX":10,"toY":-5}]}"#).get()
+    if case .failure? = dragOut?.steps(resolve: resolve) { expect(true, "reject: drag ending outside") } else { expect(false, "reject: drag ending outside") }
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)

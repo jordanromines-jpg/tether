@@ -124,12 +124,12 @@ Apps the open-app action may launch (the `.app` bundles in the Applications fold
 }
 ```
 
-### `POST /api/v1/actions` (planned)
+### `POST /api/v1/actions`
 
-Coming in the next step of this release; the shape below is the plan and may still change before it ships. A list of actions, checked as a whole before any of it runs, then run in order.
+A list of actions, checked as a whole before any of it runs (all or nothing), then run in order. Each becomes the same input message the web page sends.
 
-```json
-{
+```bash
+curl -s https://studio.example.ts.net/api/v1/actions -H 'X-Tether-Client: Claude' -d '{
   "target": { "display": 1 },
   "image": { "w": 1280, "h": 720 },
   "actions": [
@@ -137,10 +137,34 @@ Coming in the next step of this release; the shape below is the plan and may sti
     { "type": "text", "text": "hello" },
     { "type": "key", "keys": ["MetaLeft", "KeyS"] }
   ]
-}
+}'
 ```
 
-- `target` is `{"display": <id>}` or `{"window": <id>}`, and `image` the size of the screenshot the coordinates came from.
-- Actions: `click` (`x`, `y`, optional `button` left, right or middle, and `count` 1 or 2), `move`, `down` and `up` (a button held between calls, for a drag), `drag` (`x`, `y` to `toX`, `toY`), `scroll` (`dx`, `dy` in pixels, positive `dy` scrolls down; optional `x`, `y`), `key` (key names as in the web page's key table, `KeyboardEvent.code`, pressed together then released), `text`, `openApp` (`path` from `apps`) and `openURL` (`url`).
-- Limits: at most 50 actions and 64 KB per call, text at most 4,096 characters, coordinates inside the image.
-- Answers `{"ok": true, "done": <count>}`, or a refusal with `index` when one action fails. View only and Pause refuse input like any device.
+```json
+{ "done": 3, "ok": true }
+```
+
+- `target`: `{"display": <id>}` or `{"window": <id>}`; the main display when left out. With a window target, the window is brought to the front before the first action with coordinates.
+- `image`: `{"w", "h"}`, the size of the screenshot the coordinates came from. Needed when any action has `x` and `y`.
+- `X-Tether-Client` (header, optional): the name the Mac shows for this caller, at most 40 characters; `Claude` when left out. Each login and name gets one session on the Mac, which ends 2 minutes after its last call. Held buttons stay down between calls, so a drag can span them.
+
+| `type` | Fields | Does |
+|---|---|---|
+| `move` | `x`, `y` | moves the pointer |
+| `click` | `x`, `y`, `button` (left, middle, right; default left), `count` (1 to 3; default 1) | moves there and clicks |
+| `down`, `up` | `button`, optional `x`, `y` | presses or releases a button (for a drag across calls) |
+| `drag` | `x`, `y`, `toX`, `toY`, `button` | presses at the start, moves in 8 steps, releases at the end |
+| `scroll` | `dx`, `dy` (pixels; positive `dy` scrolls down), optional `x`, `y` | scrolls, at that point if given |
+| `key` | `keys`: 1 to 6 key names, `KeyboardEvent.code` style (`KeyA`, `Enter`, `MetaLeft`, `ArrowUp`, `F5`) | presses them together, then releases in reverse |
+| `text` | `text` (at most 4,096 characters) | types it |
+| `openApp` | `path`, from `/api/v1/apps` | opens the app |
+| `openURL` | `url`, an http or https link | opens it in the default browser |
+
+Limits: at most 50 actions and 64 KB per call; coordinates inside the image; scroll at most 10,000 pixels.
+
+Refusals:
+- `400`: a bad body or action; `index` says which action. Nothing ran.
+- `404`: the display or window isn't there. Nothing ran.
+- `413`: the body is over 64 KB.
+- `403`: Allow Claude is set to View only, or Claude was disconnected on the Mac; `index` is the action that was refused, and the ones before it ran.
+- `503`: remote access is paused; `index` as for `403`.

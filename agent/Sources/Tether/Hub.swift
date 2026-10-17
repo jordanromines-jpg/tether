@@ -277,15 +277,26 @@ final class Hub {
         }
     }
 
-    /// Applies one message from an API client, in order with everything else. False when it was
-    /// refused (view only) or the client is gone (removed by Disconnect, expiry or the switch).
-    func applyAPI(_ message: ClientMessage, from client: ClientConnection) -> Bool {
+    enum APIApplyResult { case ok, gone, notAllowed, viewOnly }
+
+    /// Applies one message from an API client, in order with everything else. A move's
+    /// normalized x, y are relative to `display` (the API's coordinate contract), whatever the
+    /// web page is streaming. Refused when the client is gone (Disconnect, expiry, the switch),
+    /// for messages an API client may not send, and for input in view only.
+    func applyAPI(_ message: ClientMessage, from client: ClientConnection, display: UInt32? = nil) -> APIApplyResult {
         queue.sync {
-            guard apiClients.values.contains(where: { $0 === client }) else { return false }
-            guard APIAccess.isAPIMessage(message) else { return false }
-            if client.observe && InputPolicy.isControl(message) { return false }
+            guard apiClients.values.contains(where: { $0 === client }) else { return .gone }
+            guard APIAccess.isAPIMessage(message) else { return .notAllowed }
+            if client.observe && InputPolicy.isControl(message) { return .viewOnly }
+            client.lastInput = Date()
+            guard let display else { apply(message, from: client); return .ok }
+            let (savedDisplay, savedRect) = (input.displayID, input.captureRect)
+            input.displayID = display
+            input.captureRect = nil
             apply(message, from: client)
-            return true
+            input.displayID = savedDisplay
+            input.captureRect = savedRect
+            return .ok
         }
     }
 
