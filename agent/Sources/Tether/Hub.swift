@@ -25,6 +25,7 @@ final class ClientConnection {
     var screen: ScreenInfo?         // the device's screen, for the resolution cap
     var observe = false             // view only: control messages are ignored
     var lastInput = Date()          // for "idle 12 min" in the menu-bar panel
+    let isAPI: Bool                 // Claude's API client: no video, no socket
     private let lock = NSLock()
     private var inFlightVideo = 0
     private var waitingForKeyframe = true
@@ -32,10 +33,11 @@ final class ClientConnection {
 
     static let maxInFlight = 3
 
-    init(login: String, device: String, continuation: AsyncStream<Outgoing>.Continuation) {
+    init(login: String, device: String, continuation: AsyncStream<Outgoing>.Continuation, isAPI: Bool = false) {
         self.login = login
         self.device = device
         self.continuation = continuation
+        self.isAPI = isAPI
     }
 
     func send(text: String) { continuation.yield(.text(text)) }
@@ -80,6 +82,15 @@ final class Hub {
 
     let queue = DispatchQueue(label: "tether.hub", qos: .userInteractive)
     private(set) var clients: [UUID: ClientConnection] = [:]
+    /// API clients (P-3), by APISessionTable.key. Kept apart from `clients`, so they start no
+    /// capture and get no video, cursor or clipboard messages.
+    private var apiClients: [String: ClientConnection] = [:]
+    private var apiTable = APISessionTable()
+    private var apiTimer: DispatchSourceTimer?
+    /// The Allow Claude setting; API clients are view only unless it's Control.
+    private var apiAccess: APIAccess = .off
+    /// How often idle API clients are looked for.
+    static let apiExpiryCheckSeconds = 10
     var onClientsChanged: (([ClientConnection]) -> Void)?
 
     private let streamer = ScreenStreamer()
@@ -199,11 +210,14 @@ final class Hub {
 
     /// Ends one viewer's session (the menu-bar panel's Disconnect button).
     func disconnect(id: UUID) {
-        queue.async { self.clients[id]?.continuation.finish() }
+        queue.async {
+            self.clients[id]?.continuation.finish()
+            if let key = self.apiClients.first(where: { $0.value.id == id })?.key { self.removeAPIClient(key: key) }
+        }
     }
 
     private func notifyClientsChanged() {
-        let list = Array(clients.values)
+        let list = Array(clients.values) + Array(apiClients.values)
         DispatchQueue.main.async { self.onClientsChanged?(list) }
     }
 
@@ -241,6 +255,76 @@ final class Hub {
                 self.restartCapture()
             }
         }
+    }
+
+    // MARK: API clients (P-3)
+
+    /// The API client for a calling device: added on its first call, reused after that.
+    func apiClient(login: String, device: String) -> ClientConnection {
+        queue.sync {
+            let key = APISessionTable.key(login: login, device: device)
+            apiTable.touch(key)
+            if let existing = apiClients[key] { return existing }
+            // A finished stream: anything sent to an API client is dropped.
+            let (_, continuation) = AsyncStream<Outgoing>.makeStream(bufferingPolicy: .bufferingNewest(1))
+            continuation.finish()
+            let client = ClientConnection(login: login, device: device, continuation: continuation, isAPI: true)
+            client.observe = apiAccess != .control
+            apiClients[key] = client
+            startAPITimer()
+            notifyClientsChanged()
+            return client
+        }
+    }
+
+    /// Applies one message from an API client, in order with everything else. False when it was
+    /// refused (view only) or the client is gone (removed by Disconnect, expiry or the switch).
+    func applyAPI(_ message: ClientMessage, from client: ClientConnection) -> Bool {
+        queue.sync {
+            guard apiClients.values.contains(where: { $0 === client }) else { return false }
+            guard APIAccess.isAPIMessage(message) else { return false }
+            if client.observe && InputPolicy.isControl(message) { return false }
+            apply(message, from: client)
+            return true
+        }
+    }
+
+    /// The Allow Claude setting changed: Off removes every API client at once; View only and
+    /// Control set their view only.
+    func setAPIAccess(_ access: APIAccess) {
+        queue.async {
+            self.apiAccess = access
+            if access == .off {
+                for key in Array(self.apiClients.keys) { self.removeAPIClient(key: key) }
+                return
+            }
+            for c in self.apiClients.values { c.observe = access != .control }
+            if access != .control { self.input.releaseAll() }
+            self.notifyClientsChanged()
+        }
+    }
+
+    var apiClientCount: Int { queue.sync { apiClients.count } }
+
+    /// On the queue.
+    private func removeAPIClient(key: String) {
+        apiTable.remove(key)
+        guard apiClients.removeValue(forKey: key) != nil else { return }
+        input.releaseAll()
+        if apiClients.isEmpty { apiTimer?.cancel(); apiTimer = nil }
+        notifyClientsChanged()
+    }
+
+    private func startAPITimer() {
+        guard apiTimer == nil else { return }
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now() + .seconds(Self.apiExpiryCheckSeconds), repeating: .seconds(Self.apiExpiryCheckSeconds))
+        t.setEventHandler { [weak self] in
+            guard let self else { return }
+            for key in self.apiTable.expire() { self.removeAPIClient(key: key) }
+        }
+        t.resume()
+        apiTimer = t
     }
 
     // MARK: Session lifecycle

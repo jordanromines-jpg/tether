@@ -518,5 +518,33 @@ do {
     expect(APIGeometry.toPoint(x: 11, y: 0, image: APISize(w: 10, h: 10), target: main) == nil, "api: pixel past the image refused")
 }
 
+// API session (P-3 S-20): one reused client per device, expiry, view only
+do {
+    var table = APISessionTable()
+    let t0 = Date(timeIntervalSince1970: 1_000_000)
+    let studio = APISessionTable.key(login: "Jordan@Example.com", device: "claude")
+    expect(studio == APISessionTable.key(login: "jordan@example.com", device: "claude"), "api session: login case doesn't matter")
+    expect(studio != APISessionTable.key(login: "jordan@example.com", device: "other"), "api session: one client per device")
+    expect(table.touch(studio, now: t0), "api session: first call adds a client")
+    expect(!table.touch(studio, now: t0.addingTimeInterval(60)), "api session: later calls reuse it")
+    expect(table.expire(now: t0.addingTimeInterval(60 + 119)).isEmpty, "api session: alive just under 120 s after the last call")
+    expect(table.expire(now: t0.addingTimeInterval(60 + 120)) == [studio], "api session: expires 120 s after the last call")
+    expect(table.keys.isEmpty && table.touch(studio, now: t0.addingTimeInterval(200)), "api session: a call after expiry adds a new client")
+    table.remove(studio)
+    expect(table.keys.isEmpty, "api session: Disconnect removes it")
+    expect(APISessionTable.idleSeconds == 120, "api session: API_IDLE_SECONDS is 120")
+
+    let click = ClientMessage.button(index: 0, down: true)
+    expect(APIAccess.control.allows(click) && APIAccess.control.allows(.text("hi")), "api access: Control allows input")
+    expect(!APIAccess.view.allows(click) && !APIAccess.view.allows(.key(code: "KeyA", down: true)) && !APIAccess.view.allows(.openURL("https://a.b")),
+           "api access: View only refuses input")
+    expect(APIAccess.view.allows(.windows), "api access: View only still allows lists")
+    expect(!APIAccess.off.allows(click), "api access: Off refuses input")
+    expect(APIAccess.isAPIMessage(.move(x: 0.5, y: 0.5)) && APIAccess.isAPIMessage(.openApp("/Applications/Safari.app")), "api messages: input allowed")
+    expect(!APIAccess.isAPIMessage(.observe(false)), "api messages: can't turn its own view only off")
+    expect(!APIAccess.isAPIMessage(.captureWindow(1, fit: false, aspect: 0)) && !APIAccess.isAPIMessage(.display(2))
+           && !APIAccess.isAPIMessage(.curtain(true)), "api messages: can't change the stream or the curtain")
+}
+
 print("\(checks - failures)/\(checks) checks passed")
 exit(failures == 0 ? 0 : 1)
